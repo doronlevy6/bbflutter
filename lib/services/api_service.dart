@@ -5,8 +5,15 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+import '../managers/environment_manager.dart';
+
 class ApiService {
-  final String apiUrl = dotenv.env['API_URL'] ?? 'http://yourapi.com';
+  // Reference to the EnvironmentManager
+  final EnvironmentManager _envManager = EnvironmentManager();
+
+  // Getter for the current API URL
+  String get apiUrl => _envManager.apiUrl;
+
 
   // Generic GET request
   Future<dynamic> get(String endpoint) async {
