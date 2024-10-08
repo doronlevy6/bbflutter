@@ -1,14 +1,9 @@
 // lib/login_page.dart
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'home_page.dart'; // Ensure this path is correct
-import 'model/player.dart';
-import 'services/api_service.dart'; // Import the service
-
+import 'services/api_service.dart';
+import 'dart:convert';
 
 class LoginPage extends StatefulWidget {
   @override
@@ -26,12 +21,9 @@ class _LoginPageState extends State<LoginPage> {
   String _errorMessage = "";
   bool _isLoading = false;
   final ApiService _apiService = ApiService();
-// Cache key for player rankings
+
+  // Cache key for player rankings
   final String _cacheKey = 'playersRankings';
-
-
-
-
 
   // Dispose controllers when not needed
   @override
@@ -42,8 +34,24 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
+  // Input validation
+  bool _validateInputs() {
+    if (_usernameController.text.isEmpty ||
+        _passwordController.text.isEmpty ||
+        (_isRegister && _emailController.text.isEmpty)) {
+      setState(() {
+        _errorMessage = "Please fill in all required fields.";
+      });
+      return false;
+    }
+    // Add more specific validation if needed
+    return true;
+  }
+
   // Handle Registration
   Future<void> _handleRegister() async {
+    if (!_validateInputs()) return;
+
     setState(() {
       _isLoading = true;
       _errorMessage = "";
@@ -54,7 +62,6 @@ class _LoginPageState extends State<LoginPage> {
         'password': _passwordController.text,
         'email': _emailController.text,
       });
-
 
       if (data['success']) {
         // Automatically login after registration
@@ -77,6 +84,8 @@ class _LoginPageState extends State<LoginPage> {
 
   // Handle Login
   Future<void> _handleLogin() async {
+    if (!_validateInputs()) return;
+
     setState(() {
       _isLoading = true;
       _errorMessage = "";
@@ -91,7 +100,11 @@ class _LoginPageState extends State<LoginPage> {
         SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', data['token']);
         await prefs.setString('user', data['user']['username']);
+
+        // Fetch and cache player rankings after successful login
         await fetchAndCachePlayerRankings();
+
+        // Navigate to home page
         Navigator.pushReplacementNamed(context, '/home');
       } else {
         setState(() {
@@ -108,19 +121,21 @@ class _LoginPageState extends State<LoginPage> {
       });
     }
   }
+
+  // Fetch and Cache Player Rankings
   Future<void> fetchAndCachePlayerRankings() async {
     try {
       // Fetch data from the API
       final data = await _apiService.get('players-rankings-doron');
 
       if (data['success'] == true) {
-       String jsonString = jsonEncode(data['playersRankings']);
-       SharedPreferences prefs = await SharedPreferences.getInstance();
-       bool isSet = await prefs.setString(_cacheKey, jsonString);
+        String jsonString = jsonEncode(data['playersRankings']);
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        bool isSet = await prefs.setString(_cacheKey, jsonString);
 
         if (isSet) {
-          print("Data successfully cached.");
-         } else {
+          print("Player rankings successfully cached.");
+        } else {
           // Handle the case where data was not cached successfully
           setState(() {
             _errorMessage = 'Failed to cache player rankings.';
@@ -139,179 +154,162 @@ class _LoginPageState extends State<LoginPage> {
       });
     }
   }
+
   // UI Building
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        // Background image
         decoration: BoxDecoration(
           image: DecorationImage(
             image: AssetImage('assets/images/bb3d.png'),
-            fit: BoxFit.cover,
-            colorFilter: ColorFilter.mode(
-              Colors.black.withOpacity(0.6),
-              BlendMode.dstATop,
-            ),
+            fit: BoxFit.cover, // Adjust this property as needed (cover, contain, etc.)
           ),
         ),
         width: double.infinity,
         height: double.infinity,
         child: Center(
           child: SingleChildScrollView(
-            padding: EdgeInsets.all(20.0),
+            padding: EdgeInsets.all(24.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Toggle Button
-                ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      _isRegister = !_isRegister;
-                      _errorMessage = "";
-                    });
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green, // Button color
-                    foregroundColor: Colors.white, // Text color
-                  ),
-                  child:
-                  Text(_isRegister ? 'Go to Login' : 'Go to Register'),
-                ),
+                // App Logo or Image (Optional)
+                // Uncomment and ensure the image exists if you want to display a logo
+                // Image.asset(
+                //   'assets/images/blogo.png', // Ensure this image exists
+                //   height: 100,
+                // ),
                 SizedBox(height: 20),
                 // Title
                 Text(
                   _isRegister ? 'Register' : 'Login',
                   style: TextStyle(
-                    fontSize: 24,
-                    color: Colors.green,
+                    fontSize: 28,
+                    color: Colors.white,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 SizedBox(height: 20),
-                // Form
-                Container(
-                  padding: EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.8),
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 4,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
+                // Form Card
+                Card(
+                  color: Colors.white.withOpacity(0.8),
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Column(
-                    children: [
-                      // Username
-                      TextField(
-                        controller: _usernameController,
-                        decoration: InputDecoration(
-                          hintText: 'Username',
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(4),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: EdgeInsets.symmetric(
-                            vertical: 10,
-                            horizontal: 10,
+                  margin: EdgeInsets.symmetric(horizontal: 8),
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Column(
+                      children: [
+                        // Username
+                        TextField(
+                          controller: _usernameController,
+                          decoration: InputDecoration(
+                            labelText: 'Username',
+                            prefixIcon: Icon(Icons.person),
                           ),
                         ),
-                      ),
-                      SizedBox(height: 10),
-                      // Password
-                      TextField(
-                        controller: _passwordController,
-                        obscureText: true,
-                        decoration: InputDecoration(
-                          hintText: 'Password',
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(4),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: EdgeInsets.symmetric(
-                            vertical: 10,
-                            horizontal: 10,
+                        SizedBox(height: 16),
+                        // Password
+                        TextField(
+                          controller: _passwordController,
+                          obscureText: true,
+                          decoration: InputDecoration(
+                            labelText: 'Password',
+                            prefixIcon: Icon(Icons.lock),
                           ),
                         ),
-                      ),
-                      SizedBox(height: 10),
-                      // Email (only for registration)
-                      if (_isRegister)
-                        Column(
-                          children: [
-                            TextField(
-                              controller: _emailController,
-                              decoration: InputDecoration(
-                                hintText: 'Email',
-                                filled: true,
-                                fillColor: Colors.white,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(4),
-                                  borderSide: BorderSide.none,
-                                ),
-                                contentPadding: EdgeInsets.symmetric(
-                                  vertical: 10,
-                                  horizontal: 10,
+                        SizedBox(height: 16),
+                        // Email (only for registration)
+                        if (_isRegister)
+                          Column(
+                            children: [
+                              TextField(
+                                controller: _emailController,
+                                decoration: InputDecoration(
+                                  labelText: 'Email',
+                                  prefixIcon: Icon(Icons.email),
                                 ),
                               ),
-                            ),
-                            SizedBox(height: 10),
-                          ],
-                        ),
-                      // Submit Button
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _isLoading
-                              ? null
-                              : _isRegister
-                              ? _handleRegister
-                              : _handleLogin,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                            padding: EdgeInsets.symmetric(vertical: 15),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                          child: _isLoading
-                              ? CircularProgressIndicator(
-                            valueColor:
-                            AlwaysStoppedAnimation<Color>(Colors.white),
-                          )
-                              : Text(
-                            _isRegister ? 'Register' : 'Login',
-                            style: TextStyle(fontSize: 16),
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: 10),
-                      // Error Message
-                      if (_errorMessage.isNotEmpty)
-                        Text(
-                          _errorMessage,
-                          style: TextStyle(
-                            color: Colors.red,
-                            fontWeight: FontWeight.bold,
-                            shadows: [
-                              Shadow(
-                                offset: Offset(2, 2),
-                                blurRadius: 2,
-                                color: Colors.white,
-                              ),
+                              SizedBox(height: 16),
                             ],
                           ),
-                          textAlign: TextAlign.center,
+                        // Error Message
+                        if (_errorMessage.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8.0),
+                            child: Text(
+                              _errorMessage,
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        // Submit Button
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: _isLoading
+                                ? null
+                                : _isRegister
+                                ? _handleRegister
+                                : _handleLogin,
+                            style: ElevatedButton.styleFrom(
+                              padding: EdgeInsets.symmetric(vertical: 16.0),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8.0),
+                              ),
+                              backgroundColor: Colors.green, // Button background color
+                              foregroundColor: Colors.white, // Button text color
+                            ),
+                            child: _isLoading
+                                ? SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                                strokeWidth: 2.0,
+                              ),
+                            )
+                                : Text(
+                              _isRegister ? 'Register' : 'Login',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
                         ),
-                    ],
+                        SizedBox(height: 8),
+                        // Toggle Button
+                        TextButton(
+                          onPressed: () {
+                            setState(() {
+                              _isRegister = !_isRegister;
+                              _errorMessage = "";
+                              _usernameController.clear();
+                              _passwordController.clear();
+                              _emailController.clear();
+                            });
+                          },
+                          child: Text(
+                            _isRegister
+                                ? 'Already have an account? Login'
+                                : 'Don\'t have an account? Register',
+                            style: TextStyle(
+                              color: Colors.green, // Adjust color as needed
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],

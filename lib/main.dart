@@ -1,8 +1,7 @@
-// lib/main.dart
-
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 // Import the pages
 import 'login_page.dart';
@@ -10,7 +9,7 @@ import 'manager_page.dart';
 import 'grade_page.dart';
 import 'get_score_page.dart';
 import 'teams_page.dart';
-import 'home_page.dart'; // Add this import
+import 'home_page.dart';
 import 'welcome_page.dart';
 
 Future<void> main() async {
@@ -24,15 +23,47 @@ Future<void> main() async {
 }
 
 class MyApp extends StatelessWidget {
-  // Root of the application
+  final kColorScheme = ColorScheme.fromSeed(
+    seedColor: Colors.green, // RGB values for light green
+  );
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'BB App',
       theme: ThemeData(
-        primarySwatch: Colors.lightGreen,
+        colorScheme: kColorScheme,
+        textTheme: GoogleFonts.poppinsTextTheme(
+          Theme.of(context).textTheme,
+        ),
+        scaffoldBackgroundColor: Colors.grey[50],
+        appBarTheme: AppBarTheme(
+          backgroundColor: kColorScheme.primary,
+          elevation: 0,
+          centerTitle: true,
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: kColorScheme.primary,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            textStyle: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.grey[200],
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide.none,
+          ),
+        ),
       ),
-      home: AuthCheck(), // Set AuthCheck as the initial screen
+      home: AuthCheck(),
       routes: {
         '/login': (context) => LoginPage(),
         '/manager': (context) => ManagementPage(),
@@ -40,7 +71,7 @@ class MyApp extends StatelessWidget {
         '/welcome': (context) => WelcomePage(),
         '/get_score': (context) => GetScorePage(),
         '/teams': (context) => TeamsPage(),
-        '/home': (context) => HomePage(), // Add HomePage route
+        '/home': (context) => HomePage(),
       },
       onUnknownRoute: (settings) => MaterialPageRoute(
         builder: (context) => LoginPage(),
