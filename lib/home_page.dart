@@ -156,7 +156,7 @@ class _HomePageState extends State<HomePage> {
                         color: Colors.teal[300],
                         tooltip: 'Teams Page',
                         page: TeamsPage(),
-                        title: 'Teams',
+                        title: 'Playground',
                       ),
                       _buildDrawerIcon(
                         context,
