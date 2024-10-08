@@ -10,7 +10,6 @@ import 'get_score_page.dart';
 import 'teams_page.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-
 class HomePage extends StatefulWidget {
   @override
   _HomePageState createState() => _HomePageState();
@@ -39,14 +38,23 @@ class _HomePageState extends State<HomePage> {
           });
         },
         child: Container(
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            icon,
-            color: Colors.white,
-            size: 30,
+          padding: EdgeInsets.symmetric(vertical: 16.0), // Add vertical padding
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                color: color,
+                size: 30,
+              ),
+              SizedBox(width: 16),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 18,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -75,12 +83,11 @@ class _HomePageState extends State<HomePage> {
             fontWeight: FontWeight.w400,
             color: Colors.white,
           ),
-
         ),
-
         backgroundColor: Colors.green[700], // Base green color
       ),
       drawer: Drawer(
+        width: MediaQuery.of(context).size.width * 0.32, // Set width to 60% of screen
         child: FutureBuilder<Map<String, String>>(
           future: _getUserInfo(),
           builder: (context, snapshot) {
@@ -107,63 +114,59 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
                 Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: GridView.count(
-                      crossAxisCount: 3,
-                      mainAxisSpacing: 10,
-                      crossAxisSpacing: 10,
-                      children: [
-                        _buildDrawerIcon(
-                          context,
-                          icon: Icons.home,
-                          color: Colors.green[300],
-                          tooltip: 'Home',
-                          page: WelcomePage(),
-                          title: 'Teams and Averages',
-                        ),
-                        _buildDrawerIcon(
-                          context,
-                          icon: Icons.login,
-                          color: Colors.blue[300],
-                          tooltip: 'Login/Register',
-                          page: LoginPage(),
-                          title: 'Login Page',
-                        ),
-                        _buildDrawerIcon(
-                          context,
-                          icon: Icons.admin_panel_settings,
-                          color: Colors.red[300],
-                          tooltip: 'Manager Page',
-                          page: ManagementPage(),
-                          title: 'Manager Page',
-                        ),
-                        _buildDrawerIcon(
-                          context,
-                          icon: Icons.grade,
-                          color: Colors.orange[300],
-                          tooltip: 'Grade Page',
-                          page: GradePage(),
-                          title: 'Grade Page',
-                        ),
-                        _buildDrawerIcon(
-                          context,
-                          icon: Icons.score,
-                          color: Colors.purple[300],
-                          tooltip: 'Get Score Page',
-                          page: GetScorePage(),
-                          title: 'Get Score Page',
-                        ),
-                        _buildDrawerIcon(
-                          context,
-                          icon: Icons.group,
-                          color: Colors.teal[300],
-                          tooltip: 'Teams Page',
-                          page: TeamsPage(),
-                          title: 'Teams Page',
-                        ),
-                      ],
-                    ),
+                  child: ListView(
+                    padding: EdgeInsets.all(8.0),
+                    children: [
+                      // Adding the Drawer links in the specified order
+                      _buildDrawerIcon(
+                        context,
+                        icon: Icons.login,
+                        color: Colors.blue[300],
+                        tooltip: 'Login/Register',
+                        page: LoginPage(),
+                        title: 'Login',
+                      ),
+                      _buildDrawerIcon(
+                        context,
+                        icon: Icons.home,
+                        color: Colors.green[300],
+                        tooltip: 'Home',
+                        page: WelcomePage(),
+                        title: 'Home',
+                      ),
+                      _buildDrawerIcon(
+                        context,
+                        icon: Icons.grade,
+                        color: Colors.orange[300],
+                        tooltip: 'Grade Page',
+                        page: GradePage(),
+                        title: 'Grade',
+                      ),
+                      _buildDrawerIcon(
+                        context,
+                        icon: Icons.score,
+                        color: Colors.purple[300],
+                        tooltip: 'Get Score Page',
+                        page: GetScorePage(),
+                        title: 'Get Score',
+                      ),
+                      _buildDrawerIcon(
+                        context,
+                        icon: Icons.group,
+                        color: Colors.teal[300],
+                        tooltip: 'Teams Page',
+                        page: TeamsPage(),
+                        title: 'Teams',
+                      ),
+                      _buildDrawerIcon(
+                        context,
+                        icon: Icons.admin_panel_settings,
+                        color: Colors.red[300],
+                        tooltip: 'Manager Page',
+                        page: ManagementPage(),
+                        title: 'Management',
+                      ),
+                    ],
                   ),
                 ),
                 Divider(),
