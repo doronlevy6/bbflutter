@@ -1,10 +1,9 @@
-// lib/welcome_page.dart
-
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '/model/player.dart'; // Adjust the path accordingly
 import 'services/api_service.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:responsive_builder/responsive_builder.dart'; // Import responsive_builder
 
 class WelcomePage extends StatefulWidget {
   final bool showOnlyTeams;
@@ -123,138 +122,160 @@ class _WelcomePageState extends State<WelcomePage> {
           children: [
             // Main Content: Enlisted Players and Teams
             Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Left Column: Enlisted Players (30%)
-                  Expanded(
-                    flex: 3, // 30% of the width
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (!widget.showOnlyTeams) ...[
-                          EnlistButton(onPressed: _enlistForGame),
-                          SizedBox(height: 10), // Reduced spacing
-                          // Removed 'Enlisted Players' Text
-                          // Moved 'Total Enlisted' to replace the 'Enlisted Players' label
-                          Text(
-                            'Total Enlisted: ${enlistedPlayers.length}',
-                            style: TextStyle(
-                                color: Colors.green[800],
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14), // Smaller font
-                          ),
-                          SizedBox(height: 8), // Reduced spacing
-                          Expanded(
-                            child: enlistedPlayers.isNotEmpty
-                                ? ListView.builder(
-                              itemCount: enlistedPlayers.length,
-                              itemBuilder: (context, index) {
-                                return Card(
-                                  elevation: 1, // Reduced elevation
-                                  margin: EdgeInsets.symmetric(
-                                      vertical: 1), // Reduced margin
-                                  child: ListTile(
-                                    leading: Icon(Icons.person,
-                                        color: Colors.green[700],
-                                        size: 20), // Smaller icon
-                                    title: Text(
-                                      enlistedPlayers[index],
-                                      style: TextStyle(
-                                          color: Colors.green[700],
-                                          fontSize: 14), // Smaller font
-                                      overflow:
-                                      TextOverflow.ellipsis, // Ensure single line
-                                    ),
-                                  ),
-                                );
-                              },
-                            )
-                                : Center(
-                              child: Text(
-                                'No players enlisted.',
+              child: ResponsiveBuilder(
+                builder: (context, sizingInformation) {
+                  // Determine flex ratios based on device type
+                  int playerFlex;
+                  int teamFlex;
+
+                  if (sizingInformation.deviceScreenType == DeviceScreenType.mobile) {
+                    playerFlex = 4;
+                    teamFlex = 6;
+                  } else if (sizingInformation.deviceScreenType == DeviceScreenType.tablet) {
+                    playerFlex = 3;
+                    teamFlex = 7;
+                  } else {
+                    // Desktop and others
+                    playerFlex = 3;
+                    teamFlex = 7;
+                  }
+
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Left Column: Enlisted Players
+                      Expanded(
+                        flex: playerFlex,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (!widget.showOnlyTeams) ...[
+                              EnlistButton(onPressed: _enlistForGame),
+                              SizedBox(height: 10), // Reduced spacing
+                              // Removed 'Enlisted Players' Text
+                              // Moved 'Total Enlisted' to replace the 'Enlisted Players' label
+                              Text(
+                                'Total Enlisted: ${enlistedPlayers.length}',
                                 style: TextStyle(
-                                    color: Colors.green[700],
+                                    color: Colors.green[800],
+                                    fontWeight: FontWeight.bold,
                                     fontSize: 14), // Smaller font
                               ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  SizedBox(width: 12), // Reduced space between columns
-                  // Right Column: Teams and Averages (70%)
-                  Expanded(
-                    flex: 7, // 70% of the width
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                       Expanded(
-                          child: teams.isNotEmpty
-                              ? ListView.builder(
-                            itemCount: teams.length,
-                            itemBuilder: (context, teamIndex) {
-                              List<Player> team = teams[teamIndex];
-
-                              // Calculate Averages
-                              Map<String, double> averages = {
-                                'skillLevel': 0.0,
-                                'scoringAbility': 0.0,
-                                'defensiveSkills': 0.0,
-                                'speedAndAgility': 0.0,
-                                'shootingRange': 0.0,
-                                'reboundSkills': 0.0,
-                              };
-
-                              for (var player in team) {
-                                averages['skillLevel'] =
-                                    averages['skillLevel']! +
-                                        player.skillLevel;
-                                averages['scoringAbility'] =
-                                    averages['scoringAbility']! +
-                                        player.scoringAbility;
-                                averages['defensiveSkills'] =
-                                    averages['defensiveSkills']! +
-                                        player.defensiveSkills;
-                                averages['speedAndAgility'] =
-                                    averages['speedAndAgility']! +
-                                        player.speedAndAgility;
-                                averages['shootingRange'] =
-                                    averages['shootingRange']! +
-                                        player.shootingRange;
-                                averages['reboundSkills'] =
-                                    averages['reboundSkills']! +
-                                        player.reboundSkills;
-                              }
-
-                              averages.updateAll(
-                                      (key, value) => value / team.length);
-
-                              double totalAverages =
-                              averages.values.reduce((a, b) => a + b);
-
-                              return TeamCard(
-                                teamName: 'Team ${team.isNotEmpty ? team.first.username : 'Team ${teamIndex + 1}'}',
-                                players:team.map((p) => p.username).toList(),
-                                averages: averages,
-                                totalAverages: totalAverages,
-                              );
-                            },
-                          )
-                              : Center(
-                            child: Text(
-                              'No teams created.',
-                              style: TextStyle(
-                                  color: Colors.green[700],
-                                  fontSize: 14), // Smaller font
-                            ),
-                          ),
+                              SizedBox(height: 8), // Reduced spacing
+                              Expanded(
+                                child: enlistedPlayers.isNotEmpty
+                                    ? ListView.builder(
+                                  itemCount: enlistedPlayers.length,
+                                  itemBuilder: (context, index) {
+                                    return Card(
+                                      elevation: 1, // Reduced elevation
+                                      margin: EdgeInsets.symmetric(
+                                          vertical: 1), // Reduced margin
+                                      child: ListTile(
+                                        leading: Icon(Icons.person,
+                                            color: Colors.green[700],
+                                            size: 16), // Smaller icon
+                                        title: Text(
+                                          enlistedPlayers[index],
+                                          style: TextStyle(
+                                              color: Colors.green[700],
+                                              fontSize: 14), // Smaller font
+                                          overflow:
+                                          TextOverflow.ellipsis, // Ensure single line
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                )
+                                    : Center(
+                                  child: Text(
+                                    'No players enlisted.',
+                                    style: TextStyle(
+                                        color: Colors.green[700],
+                                        fontSize: 14), // Smaller font
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                ],
+                      ),
+                      SizedBox(width: 12), // Reduced space between columns
+                      // Right Column: Teams and Averages
+                      Expanded(
+                        flex: teamFlex,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: teams.isNotEmpty
+                                  ? ListView.builder(
+                                itemCount: teams.length,
+                                itemBuilder: (context, teamIndex) {
+                                  List<Player> team = teams[teamIndex];
+
+                                  // Calculate Averages
+                                  Map<String, double> averages = {
+                                    'skillLevel': 0.0,
+                                    'scoringAbility': 0.0,
+                                    'defensiveSkills': 0.0,
+                                    'speedAndAgility': 0.0,
+                                    'shootingRange': 0.0,
+                                    'reboundSkills': 0.0,
+                                  };
+
+                                  for (var player in team) {
+                                    averages['skillLevel'] =
+                                        averages['skillLevel']! +
+                                            player.skillLevel;
+                                    averages['scoringAbility'] =
+                                        averages['scoringAbility']! +
+                                            player.scoringAbility;
+                                    averages['defensiveSkills'] =
+                                        averages['defensiveSkills']! +
+                                            player.defensiveSkills;
+                                    averages['speedAndAgility'] =
+                                        averages['speedAndAgility']! +
+                                            player.speedAndAgility;
+                                    averages['shootingRange'] =
+                                        averages['shootingRange']! +
+                                            player.shootingRange;
+                                    averages['reboundSkills'] =
+                                        averages['reboundSkills']! +
+                                            player.reboundSkills;
+                                  }
+
+                                  averages.updateAll(
+                                          (key, value) => value / team.length);
+
+                                  double totalAverages =
+                                  averages.values.reduce((a, b) => a + b);
+
+                                  return TeamCard(
+                                    teamName:
+                                    'Team ${team.isNotEmpty ? team.first.username :  (teamIndex + 1) }',
+                                    players:
+                                    team.map((p) => p.username).toList(),
+                                    averages: averages,
+                                    totalAverages: totalAverages,
+                                  );
+                                },
+                              )
+                                  : Center(
+                                child: Text(
+                                  'No teams created.',
+                                  style: TextStyle(
+                                      color: Colors.green[700],
+                                      fontSize: 14), // Smaller font
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
             SizedBox(height: 12), // Reduced spacing
@@ -353,7 +374,7 @@ class TeamCard extends StatelessWidget {
       },
       {
         'icon': Icons.calculate,
-        'label': 'Total Averages Sum',
+        'label': 'Team Average',
         'value': (totalAverages / 6).toStringAsFixed(2)
       },
     ];
@@ -372,27 +393,25 @@ class TeamCard extends StatelessWidget {
           children: [
             // Left Column: Team Name and Players
             Expanded(
-              flex: 5,
+              flex: 7, // Increased flex to make left column wider
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Team Header
                   Row(
                     children: [
-                      Icon(Icons.group, color: Colors.green[700], size: 20), // Smaller icon
-                      SizedBox(width: 8), // Reduced spacing
                       Flexible(
                         child: Text(
                           teamName,
                           style: TextStyle(
-                              fontSize: 16, // Smaller font
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green[800]),
+                            fontSize: 16, // Smaller font
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green[800],
+                          ),
                           overflow: TextOverflow.ellipsis, // Adds ellipsis (...) if text overflows
                           maxLines: 1, // Restricts text to a single line
                         ),
                       ),
-
                     ],
                   ),
                   SizedBox(height: 8), // Reduced spacing
@@ -410,8 +429,9 @@ class TeamCard extends StatelessWidget {
                               return Text(
                                 player,
                                 style: TextStyle(
-                                    color: Colors.green[700],
-                                    fontSize: 12), // Smaller font
+                                  color: Colors.green[700],
+                                  fontSize: 12, // Smaller font
+                                ),
                                 overflow:
                                 TextOverflow.ellipsis, // Single line
                               );
@@ -427,16 +447,16 @@ class TeamCard extends StatelessWidget {
             SizedBox(width: 12), // Reduced space between columns
             // Right Column: Averages
             Expanded(
-              flex: 5,
+              flex: 3, // Decreased flex to make right column narrower
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Start Averages Display from top
-                  // Iterate through parameters and handle 'Total Averages Sum' differently
+                  // Iterate through parameters and handle 'Team Average' differently
                   ...parameters.asMap().entries.map((entry) {
                     int idx = entry.key;
                     var param = entry.value;
-                    if (param['label'] == 'Total Averages Sum') {
+                    if (param['label'] == 'Team Average') {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -444,11 +464,13 @@ class TeamCard extends StatelessWidget {
                           // Shorter Divider
                           Row(
                             children: [
-                              Divider(
-                                color: Colors.green[700],
-                                thickness: 1,
-                                indent: 0,
-                                endIndent: 8,
+                              Expanded(
+                                child: Divider(
+                                  color: Colors.green[700],
+                                  thickness: 1,
+                                  indent: 0,
+                                  endIndent: 4, // Adjust endIndent to shorten divider
+                                ),
                               ),
                               // No text here, just the divider
                             ],
@@ -476,6 +498,7 @@ class TeamCard extends StatelessWidget {
         ),
       ),
     );
+
   }
 }
 
