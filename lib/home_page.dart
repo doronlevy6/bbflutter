@@ -192,7 +192,7 @@ class _HomePageState extends State<HomePage> {
                             color: Colors.orange[300],
                             tooltip: 'Grade Page',
                             page: GradePage(),
-                            title: 'Grade',
+                            title: '${username}`s Grades',
                           ),
                           _buildDrawerIcon(
                             context,

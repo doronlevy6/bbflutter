@@ -20,6 +20,16 @@ class _GradePageState extends State<GradePage> {
   // OverlayEntry for floating buttons
   OverlayEntry? _floatingButtonsOverlay;
 
+  // Variables to track the focused grade
+  String? _focusedUsername;
+  String? _focusedField;
+
+  // Controller for the TextField
+  TextEditingController _gradeController = TextEditingController();
+
+  // FocusNode for the TextField
+  FocusNode _gradeFocusNode = FocusNode();
+
   @override
   void initState() {
     super.initState();
@@ -29,6 +39,8 @@ class _GradePageState extends State<GradePage> {
   @override
   void dispose() {
     _removeFloatingButtons();
+    _gradeController.dispose();
+    _gradeFocusNode.dispose();
     super.dispose();
   }
 
@@ -133,6 +145,13 @@ class _GradePageState extends State<GradePage> {
             player['reboundSkills'] <= 10;
       }).toList();
 
+      if (validGrading.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No valid grades to submit. Please assign grades between 1 and 10.')),
+        );
+        return;
+      }
+
       final response = await _apiService.post('rankings', {
         'rater_username': user,
         'rankings': validGrading,
@@ -140,16 +159,26 @@ class _GradePageState extends State<GradePage> {
 
       if (response['success']) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Successfully submitted grading!')),
+          SnackBar(
+            content: Text('Grading submitted successfully!'),
+            backgroundColor: Colors.green,
+          ),
         );
+        // Optionally, you can refresh the data or navigate away
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to submit grading.')),
+          SnackBar(
+            content: Text('Failed to submit grading. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } catch (error) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to submit grading: $error')),
+        SnackBar(
+          content: Text('An error occurred while submitting: $error'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -163,7 +192,8 @@ class _GradePageState extends State<GradePage> {
     _floatingButtonsOverlay = OverlayEntry(
       builder: (context) => GestureDetector(
         onTap: () {
-          _removeFloatingButtons(); // Remove floating buttons when tapping outside
+          _removeFloatingButtons();
+          _unfocusGrade();
         },
         behavior: HitTestBehavior.translucent,
         child: Stack(
@@ -183,15 +213,12 @@ class _GradePageState extends State<GradePage> {
                       backgroundColor: Colors.green,
                       onPressed: () {
                         setState(() {
-                          // Find the player in the grading list
                           int index = grading.indexWhere((p) => p['username'] == username);
                           if (index != -1 && grading[index][field] < 10) {
                             grading[index][field]++;
+                            _gradeController.text = grading[index][field].toString();
                           }
                         });
-                        _removeFloatingButtons();
-
-                        // If the frozen row is for this player, the UI will update automatically
                       },
                       child: Icon(Icons.add),
                       tooltip: 'Increase Grade',
@@ -207,15 +234,12 @@ class _GradePageState extends State<GradePage> {
                       backgroundColor: Colors.red,
                       onPressed: () {
                         setState(() {
-                          // Find the player in the grading list
                           int index = grading.indexWhere((p) => p['username'] == username);
                           if (index != -1 && grading[index][field] > 1) {
                             grading[index][field]--;
+                            _gradeController.text = grading[index][field].toString();
                           }
                         });
-                        _removeFloatingButtons();
-
-                        // If the frozen row is for this player, the UI will update automatically
                       },
                       child: Icon(Icons.remove),
                       tooltip: 'Decrease Grade',
@@ -250,8 +274,28 @@ class _GradePageState extends State<GradePage> {
     });
   }
 
+  /// Focuses on the grade button for manual input
+  void _focusGrade(String username, String field) {
+    setState(() {
+      _focusedUsername = username;
+      _focusedField = field;
+    });
+
+    // Delay to ensure the overlay has been rendered before requesting focus
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _gradeFocusNode.requestFocus();
+    });
+  }
+
+  /// Unfocuses the currently focused grade button
+  void _unfocusGrade() {
+    setState(() {
+      _focusedUsername = null;
+      _focusedField = null;
+    });
+  }
+
   Widget buildGradeButton(String username, String field) {
-    // Fetch the updated player data from the grading list
     Map<String, dynamic> player = grading.firstWhere(
           (p) => p['username'] == username,
       orElse: () => {
@@ -265,39 +309,86 @@ class _GradePageState extends State<GradePage> {
       },
     );
 
-    // Optionally, handle the 'Unknown' player differently if needed
     if (player['username'] == 'Unknown') {
       return SizedBox(); // Or any other widget you'd like to show
     }
 
-    return GradeButton(
-      grade: player[field],
-      onIncrement: () {
-        setState(() {
-          int index = grading.indexWhere((p) => p['username'] == username);
-          if (index != -1 && grading[index][field] < 10) {
-            grading[index][field]++;
-          }
-        });
-        _removeFloatingButtons();
+    // Check if this grade button is currently focused
+    bool isFocused = (_focusedUsername == username) && (_focusedField == field);
 
-        // If the frozen row is for this player, the UI will update automatically
-      },
-      onDecrement: () {
-        setState(() {
-          int index = grading.indexWhere((p) => p['username'] == username);
-          if (index != -1 && grading[index][field] > 1) {
-            grading[index][field]--;
-          }
-        });
-        _removeFloatingButtons();
-
-        // If the frozen row is for this player, the UI will update automatically
-      },
-      onTap: (position) {
-        _showFloatingButtons(position, username, field);
-      },
-    );
+    if (isFocused) {
+      // Show TextField for manual input
+      _gradeController.text = player[field].toString();
+      return SizedBox(
+        width: 30, // Set a fixed width
+        child: TextField(
+          controller: _gradeController,
+          focusNode: _gradeFocusNode,
+          keyboardType: TextInputType.number,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 14, // Reduced font size
+          ),
+          decoration: InputDecoration(
+            isDense: true, // Reduces the height
+            contentPadding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 6.0),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(4.0),
+            ),
+          ),
+          onSubmitted: (value) {
+            int? newGrade = int.tryParse(value);
+            if (newGrade != null && newGrade >= 1 && newGrade <= 10) {
+              setState(() {
+                int index = grading.indexWhere((p) => p['username'] == username);
+                if (index != -1) {
+                  grading[index][field] = newGrade;
+                }
+              });
+              _removeFloatingButtons();
+              _unfocusGrade();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Grade updated successfully!')),
+              );
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Please enter a valid grade between 1 and 10.')),
+              );
+            }
+          },
+          onEditingComplete: () {
+            _removeFloatingButtons();
+            _unfocusGrade();
+          },
+        ),
+      );
+    } else {
+      // Show the standard GradeButton
+      return GradeButton(
+        grade: player[field],
+        onIncrement: () {
+          setState(() {
+            int index = grading.indexWhere((p) => p['username'] == username);
+            if (index != -1 && grading[index][field] < 10) {
+              grading[index][field]++;
+            }
+          });
+        },
+        onDecrement: () {
+          setState(() {
+            int index = grading.indexWhere((p) => p['username'] == username);
+            if (index != -1 && grading[index][field] > 1) {
+              grading[index][field]--;
+            }
+          });
+        },
+        onTap: (position) {
+          _selectPlayer(player['username']);
+          _showFloatingButtons(position, username, field);
+          _focusGrade(username, field);
+        },
+      );
+    }
   }
 
   Widget buildPlayerRow(Map<String, dynamic> player) {
@@ -323,6 +414,7 @@ class _GradePageState extends State<GradePage> {
                   color: Colors.green,
                   fontWeight: FontWeight.bold,
                 ),
+                textAlign: TextAlign.center, // Center align the text
               ),
             ),
             Expanded(
@@ -349,12 +441,104 @@ class _GradePageState extends State<GradePage> {
     );
   }
 
+  /// Function to show explanations in English
+  void _showEnglishExplanation() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Playmaker (PM): A player who excels at creating scoring opportunities for themselves or their teammates, often through passing or dribbling.',
+                style: TextStyle(fontSize: 16),
+              ),
+              SizedBox(height: 10),
+              Text(
+                'Scoring Ability (SA): The ability to score baskets effectively from various positions on the court, utilizing a variety of offensive moves.',
+                style: TextStyle(fontSize: 16),
+              ),
+              SizedBox(height: 10),
+              Text(
+                'Defensive Skills (DS): The ability to prevent opponents from scoring through techniques such as shot blocking, ball stealing, and maintaining good defensive positioning.',
+                style: TextStyle(fontSize: 16),
+              ),
+              SizedBox(height: 10),
+              Text(
+                'Speed and Agility (AG): The ability to move quickly and change direction easily, which aids both offensive and defensive plays.',
+                style: TextStyle(fontSize: 16),
+              ),
+              SizedBox(height: 10),
+              Text(
+                '3-Point Shooting (3PT): The ability to successfully make shots from beyond the three-point arc.',
+                style: TextStyle(fontSize: 16),
+              ),
+              SizedBox(height: 10),
+              Text(
+                'Rebound Skills (RB): The ability to secure rebounds on both offense and defense.',
+                style: TextStyle(fontSize: 16),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Function to show explanations in Hebrew
+  void _showHebrewExplanation() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Directionality(
+        textDirection: TextDirection.rtl, // Ensure Hebrew text is right-to-left
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'רכז (playmaker): שחקן שטוב ביצירת הזדמנויות קליעה לעצמו או לחבריו לקבוצה, לרוב באמצעות מסירה או כדרור.',
+                  style: TextStyle(fontSize: 16),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  'יכולת קליעה (scoring ability): היכולת לקלוע סל באופן כללי מכל עמדות על המגרש, באמצעות מגוון של תנועות התקפיות.',
+                  style: TextStyle(fontSize: 16),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  'מיומנויות הגנה (defensive skills): היכולת למנוע מהיריב לקלוע, באמצעות טכניקות כגון חסימת זריקות, חטיפה של הכדור, ועמידה טובה במקום.',
+                  style: TextStyle(fontSize: 16),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  'מהירות וזריזות (speed and agility): היכולת לנוע מהר ולשנות כיוון בקלות, דבר המסייע גם במצבים ההתקפיים וגם במצבים ההגנתיים.',
+                  style: TextStyle(fontSize: 16),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  'קליעה לשלוש (3 pt shooting): היכולת לקלוע מעבר לקשת השלוש.',
+                  style: TextStyle(fontSize: 16),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  'ריבאונד (rebound skills): היכולת לקחת ריבאונד בהתקפה ובהגנה.',
+                  style: TextStyle(fontSize: 16),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('$user 🏀 Your Grades 🏀'),
-      ),
       body: Stack(
         children: [
           Column(
@@ -363,14 +547,14 @@ class _GradePageState extends State<GradePage> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Text(
-                  'Tap on a grade to adjust it using the + and - buttons. Only players with a valid grade will be submitted.',
+                  'Tap on a grade to adjust it. Only players with a valid grade will be submitted.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Colors.black,
                   ),
                 ),
               ),
-              SizedBox(height: 10),
+              SizedBox(height: 20),
               // Legend row
               Container(
                 color: Colors.grey[200],
@@ -382,42 +566,49 @@ class _GradePageState extends State<GradePage> {
                       child: Text(
                         'Username',
                         style: TextStyle(fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center, // Center align the text
                       ),
                     ),
                     Expanded(
                       child: Text(
                         'PM',
                         style: TextStyle(fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center, // Center align the text
                       ),
                     ),
                     Expanded(
                       child: Text(
                         'SA',
                         style: TextStyle(fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center, // Center align the text
                       ),
                     ),
                     Expanded(
                       child: Text(
                         'DS',
                         style: TextStyle(fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center, // Center align the text
                       ),
                     ),
                     Expanded(
                       child: Text(
                         'AG',
                         style: TextStyle(fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center, // Center align the text
                       ),
                     ),
                     Expanded(
                       child: Text(
                         '3PT',
                         style: TextStyle(fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center, // Center align the text
                       ),
                     ),
                     Expanded(
                       child: Text(
                         'RB',
                         style: TextStyle(fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center, // Center align the text
                       ),
                     ),
                   ],
@@ -470,6 +661,7 @@ class _GradePageState extends State<GradePage> {
                             color: Colors.green,
                             fontWeight: FontWeight.bold,
                           ),
+                          textAlign: TextAlign.center, // Center align the text
                         ),
                       ),
                       Expanded(
@@ -495,6 +687,43 @@ class _GradePageState extends State<GradePage> {
                 ),
               ),
             ),
+          // Information Buttons at the bottom
+          Positioned(
+            bottom: 10,
+            left: 20,
+            right: 20,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // English Explanation Button
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    shape: CircleBorder(),
+                    padding: EdgeInsets.all(12),
+                    backgroundColor: Colors.blue, // Button color
+                  ),
+                  onPressed: _showEnglishExplanation,
+                  child: Text(
+                    'EN',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                // Hebrew Explanation Button
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    shape: CircleBorder(),
+                    padding: EdgeInsets.all(12),
+                    backgroundColor: Colors.green, // Button color
+                  ),
+                  onPressed: _showHebrewExplanation,
+                  child: Text(
+                    'HE',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
