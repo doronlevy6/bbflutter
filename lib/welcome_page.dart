@@ -299,26 +299,25 @@ class EnlistButton extends StatelessWidget {
     return ElevatedButton.icon(
       onPressed: onPressed,
       icon: CircleAvatar(
-        radius: 15, // Half of the original height and width (30)
+        radius: 20, // Half of the original height and width (30)
         backgroundImage: AssetImage('assets/images/basketball.jpeg'),
         backgroundColor: Colors.transparent, // Optional: Makes the background transparent
       ),
-      label: Text(
-        'Enlist for Next Game',
+      label: Text(textAlign: TextAlign.center,
+        'Play Next Game',
         style: TextStyle(
-          fontSize: 12, // Smaller font
+          fontSize: 16, // Smaller font
           fontWeight: FontWeight.bold,
         ),
       ),
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.green[700], // Button background color
         foregroundColor: Colors.white, // Button text color
-        padding:
-        EdgeInsets.symmetric(horizontal: 5, vertical: 3), // Reduced padding
+        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10), // Adjust padding for a rounder look
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(30), // More rounded shape
         ),
-        elevation: 3, // Reduced elevation
+        elevation: 5, // Default elevation
       ),
     );
   }

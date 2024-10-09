@@ -306,6 +306,7 @@ class _LoginPageState extends State<LoginPage> {
                               color: Colors.green, // Adjust color as needed
                               fontSize: 16,
                             ),
+                            textAlign: TextAlign.center,
                           ),
                         ),
                       ],
