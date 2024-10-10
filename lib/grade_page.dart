@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
+import 'legened_page.dart';
 
 class GradePage extends StatefulWidget {
   @override
@@ -20,15 +21,13 @@ class _GradePageState extends State<GradePage> {
   // OverlayEntry for floating buttons
   OverlayEntry? _floatingButtonsOverlay;
 
-  // Variables to track the focused grade
-  String? _focusedUsername;
-  String? _focusedField;
+  // Removed focus-related variables
+  // String? _focusedUsername;
+  // String? _focusedField;
 
-  // Controller for the TextField
-  TextEditingController _gradeController = TextEditingController();
-
-  // FocusNode for the TextField
-  FocusNode _gradeFocusNode = FocusNode();
+  // Removed controller and focus node
+  // TextEditingController _gradeController = TextEditingController();
+  // FocusNode _gradeFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -39,8 +38,8 @@ class _GradePageState extends State<GradePage> {
   @override
   void dispose() {
     _removeFloatingButtons();
-    _gradeController.dispose();
-    _gradeFocusNode.dispose();
+    // _gradeController.dispose();
+    // _gradeFocusNode.dispose();
     super.dispose();
   }
 
@@ -193,7 +192,7 @@ class _GradePageState extends State<GradePage> {
       builder: (context) => GestureDetector(
         onTap: () {
           _removeFloatingButtons();
-          _unfocusGrade();
+          // Removed unfocusGrade since it's no longer needed
         },
         behavior: HitTestBehavior.translucent,
         child: Stack(
@@ -201,47 +200,59 @@ class _GradePageState extends State<GradePage> {
             // Positioned floating buttons aligned with the grade button
             Positioned(
               left: position.dx - 20, // Adjust to center the buttons horizontally
-              top: position.dy - 65, // Position + button above the grade button
+              top: position.dy - 90, // Position + button above the grade button
               child: Column(
                 children: [
                   // + Button
                   AnimatedOpacity(
-                    opacity: 1.0,
+                    opacity: 0.8,
                     duration: Duration(milliseconds: 300),
                     child: FloatingActionButton(
-                      mini: true,
-                      backgroundColor: Colors.green,
+                      mini: false, // Enlarge the button
+                      backgroundColor: Colors.green[200], // Background color set to green 200
                       onPressed: () {
                         setState(() {
                           int index = grading.indexWhere((p) => p['username'] == username);
                           if (index != -1 && grading[index][field] < 10) {
                             grading[index][field]++;
-                            _gradeController.text = grading[index][field].toString();
                           }
                         });
                       },
-                      child: Icon(Icons.add),
+                      child: Text(
+                        '+',
+                        style: TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green, // Bold green + sign
+                        ),
+                      ),
                       tooltip: 'Increase Grade',
                     ),
                   ),
-                  SizedBox(height: 50),
+                  SizedBox(height: 70),
                   // - Button
                   AnimatedOpacity(
-                    opacity: 1.0,
+                    opacity: 0.8,
                     duration: Duration(milliseconds: 300),
                     child: FloatingActionButton(
-                      mini: true,
-                      backgroundColor: Colors.red,
+                      mini: false, // Enlarge the button
+                      backgroundColor: Colors.red[200], // Background color set to red 200
                       onPressed: () {
                         setState(() {
                           int index = grading.indexWhere((p) => p['username'] == username);
                           if (index != -1 && grading[index][field] > 1) {
                             grading[index][field]--;
-                            _gradeController.text = grading[index][field].toString();
                           }
                         });
                       },
-                      child: Icon(Icons.remove),
+                      child: Text(
+                        '-',
+                        style: TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red, // Bold red - sign
+                        ),
+                      ),
                       tooltip: 'Decrease Grade',
                     ),
                   ),
@@ -249,7 +260,8 @@ class _GradePageState extends State<GradePage> {
               ),
             ),
           ],
-        ),
+        )
+        ,
       ),
     );
 
@@ -274,27 +286,6 @@ class _GradePageState extends State<GradePage> {
     });
   }
 
-  /// Focuses on the grade button for manual input
-  void _focusGrade(String username, String field) {
-    setState(() {
-      _focusedUsername = username;
-      _focusedField = field;
-    });
-
-    // Delay to ensure the overlay has been rendered before requesting focus
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _gradeFocusNode.requestFocus();
-    });
-  }
-
-  /// Unfocuses the currently focused grade button
-  void _unfocusGrade() {
-    setState(() {
-      _focusedUsername = null;
-      _focusedField = null;
-    });
-  }
-
   Widget buildGradeButton(String username, String field) {
     Map<String, dynamic> player = grading.firstWhere(
           (p) => p['username'] == username,
@@ -313,82 +304,31 @@ class _GradePageState extends State<GradePage> {
       return SizedBox(); // Or any other widget you'd like to show
     }
 
-    // Check if this grade button is currently focused
-    bool isFocused = (_focusedUsername == username) && (_focusedField == field);
-
-    if (isFocused) {
-      // Show TextField for manual input
-      _gradeController.text = player[field].toString();
-      return SizedBox(
-        width: 30, // Set a fixed width
-        child: TextField(
-          controller: _gradeController,
-          focusNode: _gradeFocusNode,
-          keyboardType: TextInputType.number,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 14, // Reduced font size
-          ),
-          decoration: InputDecoration(
-            isDense: true, // Reduces the height
-            contentPadding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 6.0),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(4.0),
-            ),
-          ),
-          onSubmitted: (value) {
-            int? newGrade = int.tryParse(value);
-            if (newGrade != null && newGrade >= 1 && newGrade <= 10) {
-              setState(() {
-                int index = grading.indexWhere((p) => p['username'] == username);
-                if (index != -1) {
-                  grading[index][field] = newGrade;
-                }
-              });
-              _removeFloatingButtons();
-              _unfocusGrade();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Grade updated successfully!')),
-              );
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Please enter a valid grade between 1 and 10.')),
-              );
-            }
-          },
-          onEditingComplete: () {
-            _removeFloatingButtons();
-            _unfocusGrade();
-          },
-        ),
-      );
-    } else {
-      // Show the standard GradeButton
-      return GradeButton(
-        grade: player[field],
-        onIncrement: () {
-          setState(() {
-            int index = grading.indexWhere((p) => p['username'] == username);
-            if (index != -1 && grading[index][field] < 10) {
-              grading[index][field]++;
-            }
-          });
-        },
-        onDecrement: () {
-          setState(() {
-            int index = grading.indexWhere((p) => p['username'] == username);
-            if (index != -1 && grading[index][field] > 1) {
-              grading[index][field]--;
-            }
-          });
-        },
-        onTap: (position) {
-          _selectPlayer(player['username']);
-          _showFloatingButtons(position, username, field);
-          _focusGrade(username, field);
-        },
-      );
-    }
+    // Always show the standard GradeButton
+    return GradeButton(
+      grade: player[field],
+      onIncrement: () {
+        setState(() {
+          int index = grading.indexWhere((p) => p['username'] == username);
+          if (index != -1 && grading[index][field] < 10) {
+            grading[index][field]++;
+          }
+        });
+      },
+      onDecrement: () {
+        setState(() {
+          int index = grading.indexWhere((p) => p['username'] == username);
+          if (index != -1 && grading[index][field] > 1) {
+            grading[index][field]--;
+          }
+        });
+      },
+      onTap: (position) {
+        // Show floating buttons and handle grade adjustments
+        _selectPlayer(player['username']);
+        _showFloatingButtons(position, username, field);
+      },
+    );
   }
 
   Widget buildPlayerRow(Map<String, dynamic> player) {
@@ -402,21 +342,43 @@ class _GradePageState extends State<GradePage> {
           color: _frozenPlayerUsername == player['username']
               ? Colors.grey[300]
               : Colors.white,
-          border: Border(bottom: BorderSide(color: Colors.grey)),
+          border: _frozenPlayerUsername == player['username']
+              ? Border.all(color: Colors.green, width: 2.0) // Bold green border for frozen row
+              : null, // Default bottom border for unselected rows
         ),
         child: Row(
           children: [
+            // Updated Username Section with Card and ListTile
             Expanded(
               flex: 2,
-              child: Text(
-                player['username'],
-                style: TextStyle(
-                  color: Colors.green,
-                  fontWeight: FontWeight.bold,
+              child:Card(
+                elevation: 1, // Reduced elevation
+                margin: EdgeInsets.symmetric(vertical: 1), // Reduced margin
+                child: ListTile(
+                  contentPadding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0), // Further reduced padding
+                  horizontalTitleGap: 4.0, // Reduced gap between icon and text
+                  minLeadingWidth: 0, // Removes minimum leading width
+                  visualDensity: VisualDensity.compact, // Reduced density
+                  dense: true, // Makes the ListTile denser
+                  leading: Icon(
+                    Icons.person,
+                    color: Colors.green[700],
+                    size: 16, // Smaller icon
+                  ),
+                  title: Text(
+                    player['username'],
+                    style: TextStyle(
+                      color: Colors.green[700],
+                      fontSize: 14, // Smaller font
+                    ),
+                    overflow: TextOverflow.ellipsis, // Ensures single line
+                  ),
                 ),
-                textAlign: TextAlign.center, // Center align the text
               ),
+
+
             ),
+            // Existing Grade Buttons
             Expanded(
               child: buildGradeButton(player['username'], 'skillLevel'),
             ),
@@ -451,37 +413,86 @@ class _GradePageState extends State<GradePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Playmaker (PM): A player who excels at creating scoring opportunities for themselves or their teammates, often through passing or dribbling.',
-                style: TextStyle(fontSize: 16),
+              Row(
+                children: [
+                  Icon(Icons.handshake, size: 24),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Playmaker (PM): A player who excels at creating scoring opportunities for themselves or their teammates, often through passing or dribbling.',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ],
               ),
               SizedBox(height: 10),
-              Text(
-                'Scoring Ability (SA): The ability to score baskets effectively from various positions on the court, utilizing a variety of offensive moves.',
-                style: TextStyle(fontSize: 16),
+              Row(
+                children: [
+                  Icon(Icons.score, size: 24),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Scoring Ability (SA): The ability to score baskets effectively from various positions on the court, utilizing a variety of offensive moves.',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ],
               ),
               SizedBox(height: 10),
-              Text(
-                'Defensive Skills (DS): The ability to prevent opponents from scoring through techniques such as shot blocking, ball stealing, and maintaining good defensive positioning.',
-                style: TextStyle(fontSize: 16),
+              Row(
+                children: [
+                  Icon(Icons.shield, size: 24),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Defensive Skills (DS): The ability to prevent opponents from scoring through techniques such as shot blocking, ball stealing, and maintaining good defensive positioning.',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ],
               ),
               SizedBox(height: 10),
-              Text(
-                'Speed and Agility (AG): The ability to move quickly and change direction easily, which aids both offensive and defensive plays.',
-                style: TextStyle(fontSize: 16),
+              Row(
+                children: [
+                  Icon(Icons.speed, size: 24),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Speed and Agility (AG): The ability to move quickly and change direction easily, which aids both offensive and defensive plays.',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ],
               ),
               SizedBox(height: 10),
-              Text(
-                '3-Point Shooting (3PT): The ability to successfully make shots from beyond the three-point arc.',
-                style: TextStyle(fontSize: 16),
+              Row(
+                children: [
+                  Icon(Icons.sports_basketball, size: 24),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '3-Point Shooting (3PT): The ability to successfully make shots from beyond the three-point arc.',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ],
               ),
               SizedBox(height: 10),
-              Text(
-                'Rebound Skills (RB): The ability to secure rebounds on both offense and defense.',
-                style: TextStyle(fontSize: 16),
+              Row(
+                children: [
+                  Icon(Icons.grain, size: 24),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Rebound Skills (RB): The ability to secure rebounds on both offense and defense.',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ],
               ),
             ],
-          ),
+          )
+          ,
         ),
       ),
     );
@@ -499,37 +510,87 @@ class _GradePageState extends State<GradePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'רכז (playmaker): שחקן שטוב ביצירת הזדמנויות קליעה לעצמו או לחבריו לקבוצה, לרוב באמצעות מסירה או כדרור.',
-                  style: TextStyle(fontSize: 16),
+                Row(
+                  children: [
+                    Icon(Icons.handshake, size: 24),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'רכז (playmaker): שחקן שטוב ביצירת הזדמנויות קליעה לעצמו או לחבריו לקבוצה, לרוב באמצעות מסירה או כדרור.',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ],
                 ),
                 SizedBox(height: 10),
-                Text(
-                  'יכולת קליעה (scoring ability): היכולת לקלוע סל באופן כללי מכל עמדות על המגרש, באמצעות מגוון של תנועות התקפיות.',
-                  style: TextStyle(fontSize: 16),
+                Row(
+                  children: [
+                    Icon(Icons.score, size: 24),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'יכולת קליעה (scoring ability): היכולת לקלוע סל באופן כללי מכל עמדות על המגרש, באמצעות מגוון של תנועות התקפיות.',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ],
                 ),
                 SizedBox(height: 10),
-                Text(
-                  'מיומנויות הגנה (defensive skills): היכולת למנוע מהיריב לקלוע, באמצעות טכניקות כגון חסימת זריקות, חטיפה של הכדור, ועמידה טובה במקום.',
-                  style: TextStyle(fontSize: 16),
+                Row(
+                  children: [
+                    Icon(Icons.shield, size: 24),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'מיומנויות הגנה (defensive skills): היכולת למנוע מהיריב לקלוע, באמצעות טכניקות כגון חסימת זריקות, חטיפה של הכדור, ועמידה טובה במקום.',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ],
                 ),
                 SizedBox(height: 10),
-                Text(
-                  'מהירות וזריזות (speed and agility): היכולת לנוע מהר ולשנות כיוון בקלות, דבר המסייע גם במצבים ההתקפיים וגם במצבים ההגנתיים.',
-                  style: TextStyle(fontSize: 16),
+                Row(
+                  children: [
+                    Icon(Icons.speed, size: 24),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'מהירות וזריזות (speed and agility): היכולת לנוע מהר ולשנות כיוון בקלות, דבר המסייע גם במצבים ההתקפיים וגם במצבים ההגנתיים.',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ],
                 ),
                 SizedBox(height: 10),
-                Text(
-                  'קליעה לשלוש (3 pt shooting): היכולת לקלוע מעבר לקשת השלוש.',
-                  style: TextStyle(fontSize: 16),
+                Row(
+                  children: [
+                    Icon(Icons.sports_basketball, size: 24),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'קליעה לשלוש (3 pt shooting): היכולת לקלוע מעבר לקשת השלוש.',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ],
                 ),
                 SizedBox(height: 10),
-                Text(
-                  'ריבאונד (rebound skills): היכולת לקחת ריבאונד בהתקפה ובהגנה.',
-                  style: TextStyle(fontSize: 16),
+                Row(
+                  children: [
+                    Icon(Icons.grain, size: 24),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'ריבאונד (rebound skills): היכולת לקחת ריבאונד בהתקפה ובהגנה.',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ],
                 ),
+                SizedBox(height: 10),
               ],
-            ),
+            )
+            ,
           ),
         ),
       ),
@@ -544,17 +605,31 @@ class _GradePageState extends State<GradePage> {
           Column(
             children: [
               SizedBox(height: 10),
+
+              // Added Legend widget here
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Text(
-                  'Tap on a grade to adjust it. Only players with a valid grade will be submitted.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.black,
+                child: Legend(),
+              ),
+              SizedBox(height: 10),
+              Container(
+                height:60,
+                child: Padding(
+
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0,vertical: 10),
+                  child: Center(
+                    child: Text(
+                      'Tap on a grade to adjust it',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontSize: 20,
+                      ),
+                    ),
                   ),
                 ),
               ),
-              SizedBox(height: 20),
+
               // Legend row
               Container(
                 color: Colors.grey[200],
@@ -563,52 +638,71 @@ class _GradePageState extends State<GradePage> {
                   children: [
                     Expanded(
                       flex: 2,
-                      child: Text(
-                        'Username',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center, // Center align the text
+                      child: Icon(
+                        Icons.person,
+                        color: Colors.green[700],
+                        size: 24,
+                        semanticLabel: 'Username',
                       ),
                     ),
                     Expanded(
-                      child: Text(
-                        'PM',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center, // Center align the text
+                      child: Tooltip(
+                        message: 'Playmaker',
+                        child: Icon(
+                          Icons.handshake,
+                          color: Colors.green[700],
+                          size: 24,
+                        ),
                       ),
                     ),
                     Expanded(
-                      child: Text(
-                        'SA',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center, // Center align the text
+                      child: Tooltip(
+                        message: 'Scoring Ability',
+                        child: Icon(
+                          Icons.score,
+                          color: Colors.green[700],
+                          size: 24,
+                        ),
                       ),
                     ),
                     Expanded(
-                      child: Text(
-                        'DS',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center, // Center align the text
+                      child: Tooltip(
+                        message: 'Defensive Skills',
+                        child: Icon(
+                          Icons.shield,
+                          color: Colors.green[700],
+                          size: 24,
+                        ),
                       ),
                     ),
                     Expanded(
-                      child: Text(
-                        'AG',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center, // Center align the text
+                      child: Tooltip(
+                        message: 'Speed and Agility',
+                        child: Icon(
+                          Icons.speed,
+                          color: Colors.green[700],
+                          size: 24,
+                        ),
                       ),
                     ),
                     Expanded(
-                      child: Text(
-                        '3PT',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center, // Center align the text
+                      child: Tooltip(
+                        message: '3-Point Shooting',
+                        child: Icon(
+                          Icons.sports_basketball,
+                          color: Colors.green[700],
+                          size: 24,
+                        ),
                       ),
                     ),
                     Expanded(
-                      child: Text(
-                        'RB',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center, // Center align the text
+                      child: Tooltip(
+                        message: 'Rebound Skills',
+                        child: Icon(
+                          Icons.grain,
+                          color: Colors.green[700],
+                          size: 24,
+                        ),
                       ),
                     ),
                   ],
@@ -628,8 +722,23 @@ class _GradePageState extends State<GradePage> {
                 padding: const EdgeInsets.all(8.0),
                 child: ElevatedButton(
                   onPressed: submitGrading,
-                  child: Text('Submit'),
-                ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green[200], // Green background color
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30), // More circular button
+                    ),
+                    padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16), // Adjust padding if needed
+                  ),
+                  child: Text(
+                    'Submit',
+                    style: TextStyle(
+                      color: Colors.green[700], // Green text color
+                      fontWeight: FontWeight.bold, // Bold text
+                      fontSize: 16, // Adjust the font size if necessary
+                    ),
+                  ),
+                )
+                ,
               ),
               SizedBox(height: 10),
             ],
@@ -637,7 +746,7 @@ class _GradePageState extends State<GradePage> {
           // Frozen Row Overlay
           if (_frozenPlayerUsername != null)
             Positioned(
-              top: 0, // Adjust based on where you want to position the frozen row
+              top: 80, // Adjust based on where you want to position the frozen row
               left: 0,
               right: 0,
               child: Material(
@@ -646,22 +755,37 @@ class _GradePageState extends State<GradePage> {
                   padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
                   decoration: BoxDecoration(
                     color: Colors.grey[300],
-                    border: Border(
-                      bottom: BorderSide(color: Colors.grey),
-                      top: BorderSide(color: Colors.grey),
-                    ),
+                    border: Border.all(color: Colors.green, width: 2.0),
                   ),
                   child: Row(
+
                     children: [
                       Expanded(
                         flex: 2,
-                        child: Text(
-                          _frozenPlayerUsername!,
-                          style: TextStyle(
-                            color: Colors.green,
-                            fontWeight: FontWeight.bold,
+                        child: Card(
+                          elevation: 1, // Reduced elevation
+                          margin: EdgeInsets.symmetric(vertical: 1),
+                          child: ListTile(
+                            contentPadding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0), // Further reduced padding
+                            horizontalTitleGap: 4.0, // Reduced gap between icon and text
+                            minLeadingWidth: 0, // Removes minimum leading width
+                            visualDensity: VisualDensity.compact, // Reduced density
+                            dense: true,
+                            leading: Icon(
+                              Icons.person,
+                              color: Colors.green[700],
+                              size: 16, // Smaller icon
+                            ),
+                            title: Text(
+                              _frozenPlayerUsername!,
+                              style: TextStyle(
+                                color: Colors.green[700],
+                                fontSize: 14, // Smaller font
+                              ),
+                              overflow: TextOverflow.ellipsis, // Ensure single line
+                            ),
+                            // contentPadding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0), // Adjust padding if needed
                           ),
-                          textAlign: TextAlign.center, // Center align the text
                         ),
                       ),
                       Expanded(
@@ -696,31 +820,32 @@ class _GradePageState extends State<GradePage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 // English Explanation Button
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    shape: CircleBorder(),
-                    padding: EdgeInsets.all(12),
-                    backgroundColor: Colors.blue, // Button color
-                  ),
+
+                TextButton(
                   onPressed: _showEnglishExplanation,
                   child: Text(
-                    'EN',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    'help', // Hebrew text for 'Help'
+                    style: TextStyle(
+                      color: Colors.green, // Green text color
+                      // fontWeight: FontWeight.bold, // Bold text
+                      fontSize: 16, // Adjust the font size if needed
+                    ),
                   ),
-                ),
+                )
+,
                 // Hebrew Explanation Button
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    shape: CircleBorder(),
-                    padding: EdgeInsets.all(12),
-                    backgroundColor: Colors.green, // Button color
-                  ),
+                TextButton(
                   onPressed: _showHebrewExplanation,
                   child: Text(
-                    'HE',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    'עזרה', // Hebrew text for 'Help'
+                    style: TextStyle(
+                      color: Colors.green, // Green text color
+                      // fontWeight: FontWeight.bold, // Bold text
+                      fontSize: 16, // Adjust the font size if needed
+                    ),
                   ),
-                ),
+                )
+
               ],
             ),
           ),
@@ -762,24 +887,23 @@ class GradeButton extends StatelessWidget {
         height: 40,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: (grade != null && grade! > 0) ? Colors.blueAccent : Colors.orangeAccent,
+          color: (grade != null && grade! > 0) ? Colors.green[50] : Colors.green[50],
         ),
         alignment: Alignment.center,
         child: grade != null && grade! > 0
             ? Text(
           '$grade',
           style: TextStyle(
-            color: Colors.white,
+            color: Colors.green,
             fontWeight: FontWeight.bold,
             fontSize: 16,
           ),
         )
-            : Text(
-          '🏀',
-          style: TextStyle(
-            fontSize: 20,
-          ),
-        ),
+            : CircleAvatar(
+          radius: 10, // Half of the original height and width (30)
+          backgroundImage: AssetImage('assets/images/basketball.jpeg'),
+          backgroundColor: Colors.transparent, // Optional: Makes the background transparent
+        )
       ),
     );
   }
