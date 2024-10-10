@@ -21,14 +21,6 @@ class _GradePageState extends State<GradePage> {
   // OverlayEntry for floating buttons
   OverlayEntry? _floatingButtonsOverlay;
 
-  // Removed focus-related variables
-  // String? _focusedUsername;
-  // String? _focusedField;
-
-  // Removed controller and focus node
-  // TextEditingController _gradeController = TextEditingController();
-  // FocusNode _gradeFocusNode = FocusNode();
-
   @override
   void initState() {
     super.initState();
@@ -38,8 +30,6 @@ class _GradePageState extends State<GradePage> {
   @override
   void dispose() {
     _removeFloatingButtons();
-    // _gradeController.dispose();
-    // _gradeFocusNode.dispose();
     super.dispose();
   }
 
@@ -192,7 +182,6 @@ class _GradePageState extends State<GradePage> {
       builder: (context) => GestureDetector(
         onTap: () {
           _removeFloatingButtons();
-          // Removed unfocusGrade since it's no longer needed
         },
         behavior: HitTestBehavior.translucent,
         child: Stack(
@@ -260,8 +249,7 @@ class _GradePageState extends State<GradePage> {
               ),
             ),
           ],
-        )
-        ,
+        ),
       ),
     );
 
@@ -344,22 +332,22 @@ class _GradePageState extends State<GradePage> {
               : Colors.white,
           border: _frozenPlayerUsername == player['username']
               ? Border.all(color: Colors.green, width: 2.0) // Bold green border for frozen row
-              : null, // Default bottom border for unselected rows
+              : null,
         ),
         child: Row(
           children: [
-            // Updated Username Section with Card and ListTile
+            // Username Section with Card and ListTile
             Expanded(
               flex: 2,
-              child:Card(
+              child: Card(
                 elevation: 1, // Reduced elevation
                 margin: EdgeInsets.symmetric(vertical: 1), // Reduced margin
                 child: ListTile(
-                  contentPadding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0), // Further reduced padding
-                  horizontalTitleGap: 4.0, // Reduced gap between icon and text
-                  minLeadingWidth: 0, // Removes minimum leading width
-                  visualDensity: VisualDensity.compact, // Reduced density
-                  dense: true, // Makes the ListTile denser
+                  contentPadding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
+                  horizontalTitleGap: 4.0,
+                  minLeadingWidth: 0,
+                  visualDensity: VisualDensity.compact,
+                  dense: true,
                   leading: Icon(
                     Icons.person,
                     color: Colors.green[700],
@@ -371,14 +359,12 @@ class _GradePageState extends State<GradePage> {
                       color: Colors.green[700],
                       fontSize: 14, // Smaller font
                     ),
-                    overflow: TextOverflow.ellipsis, // Ensures single line
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
-
-
             ),
-            // Existing Grade Buttons
+            // Grade Buttons
             Expanded(
               child: buildGradeButton(player['username'], 'skillLevel'),
             ),
@@ -503,7 +489,7 @@ class _GradePageState extends State<GradePage> {
     showModalBottomSheet(
       context: context,
       builder: (context) => Directionality(
-        textDirection: TextDirection.rtl, // Ensure Hebrew text is right-to-left
+        textDirection: TextDirection.rtl,
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: SingleChildScrollView(
@@ -597,6 +583,103 @@ class _GradePageState extends State<GradePage> {
     );
   }
 
+  /// Method to build frozen row or instruction
+  Widget _buildFrozenRowOrInstruction() {
+    if (_frozenPlayerUsername != null) {
+      return buildFrozenPlayerRow();
+    } else {
+      return Container(
+        height: 60,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
+          child: Center(
+            child: Text(
+              'Tap on a grade to adjust it',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.green,
+                fontSize: 20,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
+  /// Method to build the frozen player row
+  Widget buildFrozenPlayerRow() {
+    Map<String, dynamic> player = grading.firstWhere(
+          (p) => p['username'] == _frozenPlayerUsername,
+      orElse: () => {},
+    );
+    if (player.isEmpty) {
+      return SizedBox();
+    }
+    return GestureDetector(
+      onTap: () {
+        // Unfreeze the row when it's tapped again
+        _selectPlayer(player['username']);
+      },
+      child: Container(
+        // padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
+        decoration: BoxDecoration(
+          color: Colors.grey[300],
+          border: Border.all(color: Colors.green, width: 2.0),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: Card(
+                elevation: 1,
+                margin: EdgeInsets.symmetric(vertical: 1),
+                child: ListTile(
+                  contentPadding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
+                  horizontalTitleGap: 4.0,
+                  minLeadingWidth: 0,
+                  visualDensity: VisualDensity.compact,
+                  dense: true,
+                  leading: Icon(
+                    Icons.person,
+                    color: Colors.green[700],
+                    size: 16,
+                  ),
+                  title: Text(
+                    _frozenPlayerUsername!,
+                    style: TextStyle(
+                      color: Colors.green[700],
+                      fontSize: 14,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: buildGradeButton(_frozenPlayerUsername!, 'skillLevel'),
+            ),
+            Expanded(
+              child: buildGradeButton(_frozenPlayerUsername!, 'scoringAbility'),
+            ),
+            Expanded(
+              child: buildGradeButton(_frozenPlayerUsername!, 'defensiveSkills'),
+            ),
+            Expanded(
+              child: buildGradeButton(_frozenPlayerUsername!, 'speedAndAgility'),
+            ),
+            Expanded(
+              child: buildGradeButton(_frozenPlayerUsername!, 'shootingRange'),
+            ),
+            Expanded(
+              child: buildGradeButton(_frozenPlayerUsername!, 'reboundSkills'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -605,32 +688,16 @@ class _GradePageState extends State<GradePage> {
           Column(
             children: [
               SizedBox(height: 10),
-
-              // Added Legend widget here
+              // Legend widget
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Legend(),
               ),
               SizedBox(height: 10),
-              Container(
-                height:60,
-                child: Padding(
-
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0,vertical: 10),
-                  child: Center(
-                    child: Text(
-                      'Tap on a grade to adjust it',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.green,
-                        fontSize: 20,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              // Legend row
+              // Instruction or frozen row
+              _buildFrozenRowOrInstruction(),
+              SizedBox(height: 10),
+              // Legend row with icons
               Container(
                 color: Colors.grey[200],
                 padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
@@ -708,7 +775,7 @@ class _GradePageState extends State<GradePage> {
                   ],
                 ),
               ),
-              // The list of players
+              // List of players
               Expanded(
                 child: ListView.builder(
                   itemCount: grading.length,
@@ -718,100 +785,32 @@ class _GradePageState extends State<GradePage> {
                   },
                 ),
               ),
+              // Submit button
               Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: ElevatedButton(
                   onPressed: submitGrading,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green[200], // Green background color
+                    backgroundColor: Colors.green[200],
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30), // More circular button
+                      borderRadius: BorderRadius.circular(30),
                     ),
-                    padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16), // Adjust padding if needed
+                    padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                   ),
                   child: Text(
                     'Submit',
                     style: TextStyle(
-                      color: Colors.green[700], // Green text color
-                      fontWeight: FontWeight.bold, // Bold text
-                      fontSize: 16, // Adjust the font size if necessary
+                      color: Colors.green[700],
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
                     ),
                   ),
-                )
-                ,
+                ),
               ),
               SizedBox(height: 10),
             ],
           ),
-          // Frozen Row Overlay
-          if (_frozenPlayerUsername != null)
-            Positioned(
-              top: 80, // Adjust based on where you want to position the frozen row
-              left: 0,
-              right: 0,
-              child: Material(
-                color: Colors.transparent,
-                child: Container(
-                  padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    border: Border.all(color: Colors.green, width: 2.0),
-                  ),
-                  child: Row(
-
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: Card(
-                          elevation: 1, // Reduced elevation
-                          margin: EdgeInsets.symmetric(vertical: 1),
-                          child: ListTile(
-                            contentPadding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0), // Further reduced padding
-                            horizontalTitleGap: 4.0, // Reduced gap between icon and text
-                            minLeadingWidth: 0, // Removes minimum leading width
-                            visualDensity: VisualDensity.compact, // Reduced density
-                            dense: true,
-                            leading: Icon(
-                              Icons.person,
-                              color: Colors.green[700],
-                              size: 16, // Smaller icon
-                            ),
-                            title: Text(
-                              _frozenPlayerUsername!,
-                              style: TextStyle(
-                                color: Colors.green[700],
-                                fontSize: 14, // Smaller font
-                              ),
-                              overflow: TextOverflow.ellipsis, // Ensure single line
-                            ),
-                            // contentPadding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0), // Adjust padding if needed
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: buildGradeButton(_frozenPlayerUsername!, 'skillLevel'),
-                      ),
-                      Expanded(
-                        child: buildGradeButton(_frozenPlayerUsername!, 'scoringAbility'),
-                      ),
-                      Expanded(
-                        child: buildGradeButton(_frozenPlayerUsername!, 'defensiveSkills'),
-                      ),
-                      Expanded(
-                        child: buildGradeButton(_frozenPlayerUsername!, 'speedAndAgility'),
-                      ),
-                      Expanded(
-                        child: buildGradeButton(_frozenPlayerUsername!, 'shootingRange'),
-                      ),
-                      Expanded(
-                        child: buildGradeButton(_frozenPlayerUsername!, 'reboundSkills'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          // Information Buttons at the bottom
+          // Information buttons at the bottom
           Positioned(
             bottom: 10,
             left: 20,
@@ -820,32 +819,27 @@ class _GradePageState extends State<GradePage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 // English Explanation Button
-
                 TextButton(
                   onPressed: _showEnglishExplanation,
                   child: Text(
-                    'help', // Hebrew text for 'Help'
+                    'help',
                     style: TextStyle(
-                      color: Colors.green, // Green text color
-                      // fontWeight: FontWeight.bold, // Bold text
-                      fontSize: 16, // Adjust the font size if needed
+                      color: Colors.green,
+                      fontSize: 16,
                     ),
                   ),
-                )
-,
+                ),
                 // Hebrew Explanation Button
                 TextButton(
                   onPressed: _showHebrewExplanation,
                   child: Text(
-                    'עזרה', // Hebrew text for 'Help'
+                    'עזרה',
                     style: TextStyle(
-                      color: Colors.green, // Green text color
-                      // fontWeight: FontWeight.bold, // Bold text
-                      fontSize: 16, // Adjust the font size if needed
+                      color: Colors.green,
+                      fontSize: 16,
                     ),
                   ),
-                )
-
+                ),
               ],
             ),
           ),
@@ -900,10 +894,10 @@ class GradeButton extends StatelessWidget {
           ),
         )
             : CircleAvatar(
-          radius: 10, // Half of the original height and width (30)
+          radius: 10,
           backgroundImage: AssetImage('assets/images/basketball.jpeg'),
-          backgroundColor: Colors.transparent, // Optional: Makes the background transparent
-        )
+          backgroundColor: Colors.transparent,
+        ),
       ),
     );
   }
