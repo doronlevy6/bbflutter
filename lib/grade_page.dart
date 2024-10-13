@@ -275,7 +275,7 @@ class _GradePageState extends State<GradePage> {
     });
   }
 
-  Widget buildGradeButton(String username, String field) {
+  Widget buildGradeButton(String username, String field, bool isRowSelected) { // MODIFIED
     Map<String, dynamic> player = grading.firstWhere(
           (p) => p['username'] == username,
       orElse: () => {
@@ -296,9 +296,13 @@ class _GradePageState extends State<GradePage> {
     // Check if this grade button is selected
     bool isSelected = _selectedGradeButtonUsername == username && _selectedGradeButtonField == field;
 
+    // Determine if the entire row is selected
+    // bool isRowSelected = _frozenPlayerUsername == player['username']; // Moved to buildPlayerRow
+
     return GradeButton(
       grade: player[field],
-      isSelected: isSelected, // Pass the isSelected flag
+      isSelected: isSelected, // existing
+      isRowSelected: isRowSelected, // ADD: Pass isRowSelected
       onIncrement: () {
         setState(() {
           int index = grading.indexWhere((p) => p['username'] == username);
@@ -327,6 +331,9 @@ class _GradePageState extends State<GradePage> {
   }
 
   Widget buildPlayerRow(Map<String, dynamic> player) {
+    // ADD: Determine if the current row is selected
+    bool isRowSelected = _frozenPlayerUsername == player['username'];
+
     return GestureDetector(
       onTap: () {
         _selectPlayer(player['username']);
@@ -334,10 +341,10 @@ class _GradePageState extends State<GradePage> {
       child: Container(
         padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
         decoration: BoxDecoration(
-          color: _frozenPlayerUsername == player['username']
+          color: isRowSelected
               ? Colors.grey[300]
               : Colors.white,
-          border: _frozenPlayerUsername == player['username']
+          border: isRowSelected
               ? Border.all(color: Colors.green, width: 2.0) // Bold green border for frozen row
               : null,
         ),
@@ -373,22 +380,22 @@ class _GradePageState extends State<GradePage> {
             ),
             // Grade Buttons
             Expanded(
-              child: buildGradeButton(player['username'], 'skillLevel'),
+              child: buildGradeButton(player['username'], 'skillLevel', isRowSelected), // MODIFIED
             ),
             Expanded(
-              child: buildGradeButton(player['username'], 'scoringAbility'),
+              child: buildGradeButton(player['username'], 'scoringAbility', isRowSelected), // MODIFIED
             ),
             Expanded(
-              child: buildGradeButton(player['username'], 'defensiveSkills'),
+              child: buildGradeButton(player['username'], 'defensiveSkills', isRowSelected), // MODIFIED
             ),
             Expanded(
-              child: buildGradeButton(player['username'], 'speedAndAgility'),
+              child: buildGradeButton(player['username'], 'speedAndAgility', isRowSelected), // MODIFIED
             ),
             Expanded(
-              child: buildGradeButton(player['username'], 'shootingRange'),
+              child: buildGradeButton(player['username'], 'shootingRange', isRowSelected), // MODIFIED
             ),
             Expanded(
-              child: buildGradeButton(player['username'], 'reboundSkills'),
+              child: buildGradeButton(player['username'], 'reboundSkills', isRowSelected), // MODIFIED
             ),
           ],
         ),
@@ -664,22 +671,22 @@ class _GradePageState extends State<GradePage> {
               ),
             ),
             Expanded(
-              child: buildGradeButton(_frozenPlayerUsername!, 'skillLevel'),
+              child: buildGradeButton(_frozenPlayerUsername!, 'skillLevel', true), // MODIFIED
             ),
             Expanded(
-              child: buildGradeButton(_frozenPlayerUsername!, 'scoringAbility'),
+              child: buildGradeButton(_frozenPlayerUsername!, 'scoringAbility', true), // MODIFIED
             ),
             Expanded(
-              child: buildGradeButton(_frozenPlayerUsername!, 'defensiveSkills'),
+              child: buildGradeButton(_frozenPlayerUsername!, 'defensiveSkills', true), // MODIFIED
             ),
             Expanded(
-              child: buildGradeButton(_frozenPlayerUsername!, 'speedAndAgility'),
+              child: buildGradeButton(_frozenPlayerUsername!, 'speedAndAgility', true), // MODIFIED
             ),
             Expanded(
-              child: buildGradeButton(_frozenPlayerUsername!, 'shootingRange'),
+              child: buildGradeButton(_frozenPlayerUsername!, 'shootingRange', true), // MODIFIED
             ),
             Expanded(
-              child: buildGradeButton(_frozenPlayerUsername!, 'reboundSkills'),
+              child: buildGradeButton(_frozenPlayerUsername!, 'reboundSkills', true), // MODIFIED
             ),
           ],
         ),
@@ -859,14 +866,16 @@ class _GradePageState extends State<GradePage> {
 /// Custom GradeButton Widget using Overlay
 class GradeButton extends StatelessWidget {
   final int? grade;
-  final bool isSelected; // Add this line
+  final bool isSelected; // existing
+  final bool isRowSelected; // ADD
   final VoidCallback onIncrement;
   final VoidCallback onDecrement;
   final Function(Offset position) onTap;
 
   GradeButton({
     required this.grade,
-    required this.isSelected, // Add this line
+    required this.isSelected, // existing
+    required this.isRowSelected, // ADD
     required this.onIncrement,
     required this.onDecrement,
     required this.onTap,
@@ -887,18 +896,20 @@ class GradeButton extends StatelessWidget {
         height: 40,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: isSelected
-              ? Colors.red[700] // Darker background when selected
+          color: isRowSelected
+              ? Colors.grey[300] // Darker background for selected row
+              : (isSelected
+              ? Colors.red[700] // Darker background when individual button is selected
               : (grade != null && grade! > 0)
               ? Colors.green[50]
-              : Colors.green[50],
+              : Colors.green[50]),
         ),
         alignment: Alignment.center,
         child: grade != null && grade! > 0
             ? Text(
           '$grade',
           style: TextStyle(
-            color: Colors.green,
+            color: isRowSelected ? Colors.black : Colors.green, // Change text color if row is selected
             fontWeight: FontWeight.bold,
             fontSize: 16,
           ),
