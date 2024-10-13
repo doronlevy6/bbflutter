@@ -151,45 +151,80 @@ class _GradePageState extends State<GradePage> {
 
   Future<void> submitGrading() async {
     try {
-      // Filter out players with invalid grades (ensure all grades are between 1 and 10)
-      List<Map<String, dynamic>> validGrading = grading.where((player) {
-        return player['skillLevel'] != null &&
-            player['scoringAbility'] != null &&
-            player['defensiveSkills'] != null &&
-            player['speedAndAgility'] != null &&
-            player['shootingRange'] != null &&
-            player['reboundSkills'] != null &&
-            player['skillLevel'] >= 1 &&
-            player['skillLevel'] <= 10 &&
-            player['scoringAbility'] >= 1 &&
-            player['scoringAbility'] <= 10 &&
-            player['defensiveSkills'] >= 1 &&
-            player['defensiveSkills'] <= 10 &&
-            player['speedAndAgility'] >= 1 &&
-            player['speedAndAgility'] <= 10 &&
-            player['shootingRange'] >= 1 &&
-            player['shootingRange'] <= 10 &&
-            player['reboundSkills'] >= 1 &&
-            player['reboundSkills'] <= 10;
-      }).toList();
+      // Lists to hold valid and invalid player grades
+      List<Map<String, dynamic>> validGrading = [];
+      List<String> invalidPlayers = [];
 
+      // Define the grading fields
+      List<String> fields = [
+        'skillLevel',
+        'scoringAbility',
+        'defensiveSkills',
+        'speedAndAgility',
+        'shootingRange',
+        'reboundSkills'
+      ];
+
+      // Iterate through each player to categorize them
+      for (var player in grading) {
+        // Check if all grading fields are nullish (null or 0) and skip them
+        bool allGradesNullish = fields.every((field) => player[field] == null || player[field] == 0);
+        if (allGradesNullish) {
+          continue; // Skip this player
+        }
+
+        bool allGradesSet = true;
+
+        // Check if all grading fields are set (not null and not 0)
+        for (var field in fields) {
+          if (player[field] == null || player[field] == 0) {
+            allGradesSet = false;
+            break;
+          }
+        }
+
+        if (allGradesSet) {
+          // Additionally, ensure all grades are within the valid range (1-10)
+          bool allGradesValid = fields.every((field) => player[field] >= 1 && player[field] <= 10);
+          if (allGradesValid) {
+            validGrading.add(player);
+          } else {
+            invalidPlayers.add(player['username']);
+          }
+        } else {
+          invalidPlayers.add(player['username']);
+        }
+      }
+
+      // Handle submission based on validity
       if (validGrading.isEmpty) {
+        // No valid grades to submit
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No valid grades to submit. Please assign grades between 1 and 10.')),
+          SnackBar(
+            content: Text('No valid grades to submit.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
         );
         return;
       }
 
+      // Submit the valid gradings
       final response = await _apiService.post('rankings', {
         'rater_username': user,
         'rankings': validGrading,
       });
 
       if (response['success']) {
+        String successMessage = 'Grading submitted successfully!';
+        if (invalidPlayers.isNotEmpty) {
+          successMessage += '\nPlayers not submitted due to incomplete grades: ${invalidPlayers.join(', ')}.';
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Grading submitted successfully!'),
+            content: Text(successMessage),
             backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
           ),
         );
         // Optionally, you can refresh the data or navigate away
@@ -198,6 +233,7 @@ class _GradePageState extends State<GradePage> {
           SnackBar(
             content: Text('Failed to submit grading. Please try again.'),
             backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
           ),
         );
       }
@@ -206,6 +242,7 @@ class _GradePageState extends State<GradePage> {
         SnackBar(
           content: Text('An error occurred while submitting: $error'),
           backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
         ),
       );
     }
@@ -527,7 +564,7 @@ class _GradePageState extends State<GradePage> {
 
                   SizedBox(width: 10),
                   Expanded(
-                    child: Text('Player grades will also appear above the table for easy scrolling and comparison with others: ' ,style: TextStyle(fontSize: 16),
+                    child: Text('The selected player\'s grades will also appear above the table for easy comparison with others: ' ,style: TextStyle(fontSize: 16),
                     ),
                   ),
                 ],
@@ -634,7 +671,7 @@ class _GradePageState extends State<GradePage> {
 
                     SizedBox(width: 10),
                     Expanded(
-                      child: Text(' ציוני השחקן יופיעו גם מעל הטבלה להשוואה נוחה עם אחרים: ' ,style: TextStyle(fontSize: 16),
+                      child: Text(' ציוני השחקן הנבחר יופיעו גם מעל הטבלה להשוואה נוחה עם אחרים: ' ,style: TextStyle(fontSize: 16),
                       ),
                     ),
                   ],
