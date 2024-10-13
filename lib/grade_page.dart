@@ -275,7 +275,7 @@ class _GradePageState extends State<GradePage> {
     });
   }
 
-  Widget buildGradeButton(String username, String field, bool isRowSelected) { // MODIFIED
+  Widget buildGradeButton(String username, String field, bool isRowSelected) {
     Map<String, dynamic> player = grading.firstWhere(
           (p) => p['username'] == username,
       orElse: () => {
@@ -341,12 +341,8 @@ class _GradePageState extends State<GradePage> {
       child: Container(
         padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
         decoration: BoxDecoration(
-          color: isRowSelected
-              ? Colors.grey[300]
-              : Colors.white,
-          border: isRowSelected
-              ? Border.all(color: Colors.green, width: 2.0) // Bold green border for frozen row
-              : null,
+
+
         ),
         child: Row(
           children: [
@@ -897,7 +893,7 @@ class GradeButton extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: isRowSelected
-              ? Colors.grey[300] // Darker background for selected row
+              ? Colors.green[100] // Darker background for selected row
               : (isSelected
               ? Colors.red[700] // Darker background when individual button is selected
               : (grade != null && grade! > 0)
@@ -909,7 +905,7 @@ class GradeButton extends StatelessWidget {
             ? Text(
           '$grade',
           style: TextStyle(
-            color: isRowSelected ? Colors.black : Colors.green, // Change text color if row is selected
+            color: isRowSelected ? Colors.green : Colors.green, // Change text color if row is selected
             fontWeight: FontWeight.bold,
             fontSize: 16,
           ),
