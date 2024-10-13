@@ -4,6 +4,10 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+// Define keys for SharedPreferences
+const String kUserKey = 'user';
+const String kEnlistedPlayersKey = 'enlistedPlayers';
+
 class UsernameSelection {
   String username;
   bool isEnlisted;
@@ -34,7 +38,7 @@ class _ManagementPageState extends State<ManagementPage> {
 
   void fetchUserAndData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    user = prefs.getString('user');
+    user = prefs.getString(kUserKey);
 
     if (user != 'doron') {
       setState(() {
@@ -44,6 +48,24 @@ class _ManagementPageState extends State<ManagementPage> {
     }
 
     await fetchData();
+    await _loadEnlistedPlayers(); // Load enlisted players from SharedPreferences
+  }
+
+  Future<void> _saveEnlistedPlayers(List<String> players) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(kEnlistedPlayersKey, players);
+  }
+
+  Future<void> _loadEnlistedPlayers() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String> savedPlayers = prefs.getStringList(kEnlistedPlayersKey) ?? [];
+    setState(() {
+      selectedUsernames = savedPlayers;
+      // Update usernameSelections based on loaded enlisted players
+      for (var selection in usernameSelections) {
+        selection.isEnlisted = selectedUsernames.contains(selection.username);
+      }
+    });
   }
 
   Future<void> fetchData() async {
@@ -79,6 +101,9 @@ class _ManagementPageState extends State<ManagementPage> {
               .map((selection) => selection.username)
               .toList();
         });
+
+        // Save enlisted players to SharedPreferences
+        await _saveEnlistedPlayers(selectedUsernames);
       } else {
         // Handle error
         print('Failed to fetch usernames');
@@ -107,7 +132,7 @@ class _ManagementPageState extends State<ManagementPage> {
     return selectedUsernames.length;
   }
 
-  void handleEnlistUsers() async {
+  Future<void> handleEnlistUsers() async {
     try {
       ApiService apiService = ApiService();
 
@@ -157,7 +182,15 @@ class _ManagementPageState extends State<ManagementPage> {
           for (var selection in usernameSelections)
             selection.username: selection.isEnlisted
         };
+        // Update selectedUsernames based on the new selections
+        selectedUsernames = usernameSelections
+            .where((selection) => selection.isEnlisted)
+            .map((selection) => selection.username)
+            .toList();
       });
+
+      // Save the updated enlisted players to SharedPreferences
+      await _saveEnlistedPlayers(selectedUsernames);
     } catch (e) {
       print('Error updating users: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -244,8 +277,8 @@ class _ManagementPageState extends State<ManagementPage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.lightGreen, // Button color
                     foregroundColor: Colors.white, // Text color
-                    padding: EdgeInsets.symmetric(
-                        horizontal: 20.0, vertical: 15.0),
+                    padding:
+                    EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
                     textStyle: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -275,7 +308,8 @@ class _ManagementPageState extends State<ManagementPage> {
                       children:
                       splitList(usernameSelections, 8).map((chunk) {
                         return Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 10),
+                          padding:
+                          EdgeInsets.symmetric(horizontal: 10),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: chunk.map((selection) {
@@ -314,7 +348,8 @@ class _ManagementPageState extends State<ManagementPage> {
                                                   .contains(
                                                   selection.username)) {
                                                 selectedUsernames
-                                                    .add(selection.username);
+                                                    .add(
+                                                    selection.username);
                                               }
                                             } else {
                                               // Remove from selectedUsernames

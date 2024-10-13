@@ -6,6 +6,10 @@ import 'services/api_service.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:responsive_builder/responsive_builder.dart'; // Import responsive_builder
 
+// Define keys for SharedPreferences
+const String kUserKey = 'user';
+const String kEnlistedPlayersKey = 'enlistedPlayers';
+
 class WelcomePage extends StatefulWidget {
   final bool showOnlyTeams;
 
@@ -39,17 +43,25 @@ class _WelcomePageState extends State<WelcomePage> {
   Future<void> _initializeUser() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      user = prefs.getString('user') ?? '';
+      user = prefs.getString(kUserKey) ?? '';
+      enlistedPlayers = prefs.getStringList(kEnlistedPlayersKey) ?? [];
     });
+  }
+
+  Future<void> _saveEnlistedPlayers(List<String> players) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(kEnlistedPlayersKey, players);
   }
 
   Future<void> _fetchData() async {
     try {
       final enlistResponse = await _apiService.get('enlist');
       if (enlistResponse['success']) {
+        List<String> fetchedPlayers = List<String>.from(enlistResponse['usernames']);
         setState(() {
-          enlistedPlayers = List<String>.from(enlistResponse['usernames']);
+          enlistedPlayers = fetchedPlayers;
         });
+        await _saveEnlistedPlayers(fetchedPlayers); // Save to SharedPreferences
       }
 
       final teamsResponse = await _apiService.get('get-teams');
@@ -80,7 +92,7 @@ class _WelcomePageState extends State<WelcomePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('You have been enlisted for the next game!')),
         );
-        _fetchData();
+        await _fetchData(); // Fetch and save the updated enlistedPlayers
       } else {
         throw Exception('Failed to enlist');
       }
@@ -106,6 +118,17 @@ class _WelcomePageState extends State<WelcomePage> {
 
     socket.on('teamsUpdated', (_) {
       _fetchData();
+    });
+
+    // Example of handling enlistedPlayers update via socket
+    socket.on('enlistedPlayersUpdated', (data) {
+      if (data['success']) {
+        List<String> updatedPlayers = List<String>.from(data['usernames']);
+        setState(() {
+          enlistedPlayers = updatedPlayers;
+        });
+        _saveEnlistedPlayers(updatedPlayers);
+      }
     });
 
     socket.on('disconnect', (_) {
@@ -174,8 +197,6 @@ class _WelcomePageState extends State<WelcomePage> {
                                           vertical: 1), // Reduced margin
                                       child: ListTile(
                                         contentPadding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0), // Further reduced padding
-                                        //horizontalTitleGap: 4.0, // Reduced gap between icon and text
-                                        //minLeadingWidth: 0, // Removes minimum leading width
                                         visualDensity: VisualDensity.compact,
                                         leading: Icon(Icons.person,
                                             color: Colors.green[700],
@@ -258,7 +279,7 @@ class _WelcomePageState extends State<WelcomePage> {
 
                                   return TeamCard(
                                     teamName:
-                                    'Team ${team.isNotEmpty ? team.first.username :  (teamIndex + 1) }',
+                                    'Team ${team.isNotEmpty ? team.first.username : (teamIndex + 1)}',
                                     players:
                                     team.map((p) => p.username).toList(),
                                     averages: averages,
@@ -308,8 +329,9 @@ class EnlistButton extends StatelessWidget {
         backgroundImage: AssetImage('assets/images/basketball.jpeg'),
         backgroundColor: Colors.transparent, // Optional: Makes the background transparent
       ),
-      label: Text(textAlign: TextAlign.center,
+      label: Text(
         'Play Next Game',
+        textAlign: TextAlign.center,
         style: TextStyle(
           fontSize: 16, // Smaller font
           fontWeight: FontWeight.bold,
@@ -502,7 +524,6 @@ class TeamCard extends StatelessWidget {
         ),
       ),
     );
-
   }
 }
 
@@ -550,3 +571,16 @@ class ParameterRow extends StatelessWidget {
 }
 
 // Legend Widget
+class Legend extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    // Your existing Legend implementation
+    return Container(
+      // Placeholder for the Legend widget
+      child: Text(
+        'Legend goes here',
+        style: TextStyle(color: Colors.green[700]),
+      ),
+    );
+  }
+}
