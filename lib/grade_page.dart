@@ -32,7 +32,7 @@ class _GradePageState extends State<GradePage> {
 
   @override
   void dispose() {
-    _removeFloatingButtons();
+    _removeFloatingButtons(); // This will reset the selection
     super.dispose();
   }
 
@@ -175,9 +175,21 @@ class _GradePageState extends State<GradePage> {
     }
   }
 
+  /// Removes the floating buttons overlay with optional selection reset
+  void _removeFloatingButtons({bool resetSelection = true}) {
+    _floatingButtonsOverlay?.remove();
+    _floatingButtonsOverlay = null;
+    if (resetSelection) {
+      setState(() {
+        _selectedGradeButtonUsername = null;
+        _selectedGradeButtonField = null;
+      });
+    }
+  }
+
   /// Shows the floating + and - buttons at the specified position
   void _showFloatingButtons(Offset position, String username, String field) {
-    _removeFloatingButtons(); // Remove existing floating buttons if any
+    _removeFloatingButtons(resetSelection: false); // Prevent resetting the selection
 
     final overlay = Overlay.of(context)!;
 
@@ -186,7 +198,7 @@ class _GradePageState extends State<GradePage> {
         children: [
           // Positioned floating buttons aligned with the grade button
           Positioned(
-            left: position.dx - 20, // Adjust to center the buttons horizontally
+            left: position.dx - 30, // Adjust to center the buttons horizontally
             top: position.dy - 90, // Position + button above the grade button
             child: Column(
               children: [
@@ -196,7 +208,8 @@ class _GradePageState extends State<GradePage> {
                   duration: Duration(milliseconds: 300),
                   child: FloatingActionButton(
                     mini: false, // Enlarge the button
-                    backgroundColor: Colors.green[200], // Background color set to green 200
+                      backgroundColor: Colors.green[200],
+                       // Background color set to green 200
                     onPressed: () {
                       setState(() {
                         int index = grading.indexWhere((p) => p['username'] == username);
@@ -209,7 +222,7 @@ class _GradePageState extends State<GradePage> {
                       '+',
                       style: TextStyle(
                         fontSize: 30,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w800,
                         color: Colors.green, // Bold green + sign
                       ),
                     ),
@@ -252,16 +265,6 @@ class _GradePageState extends State<GradePage> {
 
     // Insert the overlay
     overlay.insert(_floatingButtonsOverlay!);
-  }
-
-  /// Removes the floating buttons overlay
-  void _removeFloatingButtons() {
-    _floatingButtonsOverlay?.remove();
-    _floatingButtonsOverlay = null;
-    setState(() {
-      _selectedGradeButtonUsername = null;
-      _selectedGradeButtonField = null;
-    });
   }
 
   /// Handles selecting a player and freezing their row
@@ -341,8 +344,7 @@ class _GradePageState extends State<GradePage> {
       child: Container(
         padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
         decoration: BoxDecoration(
-
-
+          // You can add decoration here if needed
         ),
         child: Row(
           children: [
@@ -409,6 +411,16 @@ class _GradePageState extends State<GradePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Row(
+                children: [
+
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text('Player grades will also appear above the table for easy scrolling and comparison with others: ' ,style: TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ],
+              ),
               Row(
                 children: [
                   Icon(Icons.handshake, size: 24),
@@ -506,6 +518,16 @@ class _GradePageState extends State<GradePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Row(
+                  children: [
+
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(' ציוני השחקן יופיעו גם מעל הטבלה להשוואה נוחה עם אחרים: ' ,style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ],
+                ),
                 Row(
                   children: [
                     Icon(Icons.handshake, size: 24),
@@ -634,8 +656,8 @@ class _GradePageState extends State<GradePage> {
       child: Container(
         // padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
         decoration: BoxDecoration(
-          color: Colors.grey[300],
-          border: Border.all(color: Colors.green, width: 2.0),
+          // color: Colors.grey[300],
+          // border: Border.all(color: Colors.green, width: 2.0),
         ),
         child: Row(
           children: [
@@ -892,10 +914,10 @@ class GradeButton extends StatelessWidget {
         height: 40,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: isRowSelected
-              ? Colors.green[100] // Darker background for selected row
-              : (isSelected
-              ? Colors.red[700] // Darker background when individual button is selected
+          color: isSelected
+              ? Colors.green[200] // Selected button gets Colors.green[700]
+              : (isRowSelected
+              ? Colors.green[100] // Other buttons in the selected row get Colors.green[300]
               : (grade != null && grade! > 0)
               ? Colors.green[50]
               : Colors.green[50]),
@@ -915,6 +937,21 @@ class GradeButton extends StatelessWidget {
           backgroundImage: AssetImage('assets/images/basketball.jpeg'),
           backgroundColor: Colors.transparent,
         ),
+      ),
+    );
+  }
+}
+
+/// Placeholder Legend Widget
+class Legend extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    // Replace this with your actual Legend implementation
+    return Container(
+      padding: EdgeInsets.all(8.0),
+      child: Text(
+        'Legend goes here',
+        style: TextStyle(fontSize: 16, color: Colors.green[700]),
       ),
     );
   }
