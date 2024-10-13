@@ -24,6 +24,9 @@ class _GradePageState extends State<GradePage> {
   String? _selectedGradeButtonUsername;
   String? _selectedGradeButtonField;
 
+  // Variable to track sorting order
+  bool _isAscending = false; // Initial sorting is descending
+
   @override
   void initState() {
     super.initState();
@@ -97,6 +100,39 @@ class _GradePageState extends State<GradePage> {
                 'reboundSkills': 0,
               });
             }
+          }
+
+          // Compute average for each player
+          for (var player in initialGrading) {
+            double sum = 0;
+            int count = 0;
+            List<String> fields = [
+              'skillLevel',
+              'scoringAbility',
+              'defensiveSkills',
+              'speedAndAgility',
+              'shootingRange',
+              'reboundSkills'
+            ];
+            for (var field in fields) {
+              int grade = player[field];
+              if (grade != null && grade > 0) {
+                sum += grade;
+                count += 1;
+              }
+            }
+            double average = 0.0;
+            if (count > 0) {
+              average = sum / count;
+            }
+            player['average'] = average;
+          }
+
+          // Sort the initialGrading list according to average (descending)
+          if (!_isAscending) {
+            initialGrading.sort((a, b) => b['average'].compareTo(a['average']));
+          } else {
+            initialGrading.sort((a, b) => a['average'].compareTo(b['average']));
           }
 
           setState(() {
@@ -208,13 +244,18 @@ class _GradePageState extends State<GradePage> {
                   duration: Duration(milliseconds: 300),
                   child: FloatingActionButton(
                     mini: false, // Enlarge the button
-                      backgroundColor: Colors.green[200],
-                       // Background color set to green 200
+                    backgroundColor: Colors.green[200],
+                    // Background color set to green 200
                     onPressed: () {
                       setState(() {
                         int index = grading.indexWhere((p) => p['username'] == username);
-                        if (index != -1 && grading[index][field] < 10) {
-                          grading[index][field]++;
+                        if (index != -1) {
+                          if (grading[index][field] == null || grading[index][field] == 0) {
+                            grading[index][field] = 5;
+                          } else if (grading[index][field] < 10) {
+                            grading[index][field]++;
+                          }
+                          _updatePlayerAverage(grading[index]);
                         }
                       });
                     },
@@ -240,8 +281,13 @@ class _GradePageState extends State<GradePage> {
                     onPressed: () {
                       setState(() {
                         int index = grading.indexWhere((p) => p['username'] == username);
-                        if (index != -1 && grading[index][field] > 1) {
-                          grading[index][field]--;
+                        if (index != -1) {
+                          if (grading[index][field] == null || grading[index][field] == 0) {
+                            grading[index][field] = 5;
+                          } else if (grading[index][field] > 1) {
+                            grading[index][field]--;
+                          }
+                          _updatePlayerAverage(grading[index]);
                         }
                       });
                     },
@@ -267,6 +313,32 @@ class _GradePageState extends State<GradePage> {
     overlay.insert(_floatingButtonsOverlay!);
   }
 
+  /// Updates the average grade for a player
+  void _updatePlayerAverage(Map<String, dynamic> player) {
+    double sum = 0;
+    int count = 0;
+    List<String> fields = [
+      'skillLevel',
+      'scoringAbility',
+      'defensiveSkills',
+      'speedAndAgility',
+      'shootingRange',
+      'reboundSkills'
+    ];
+    for (var field in fields) {
+      int grade = player[field];
+      if (grade != null && grade > 0) {
+        sum += grade;
+        count += 1;
+      }
+    }
+    double average = 0.0;
+    if (count > 0) {
+      average = sum / count;
+    }
+    player['average'] = average;
+  }
+
   /// Handles selecting a player and freezing their row
   void _selectPlayer(String username) {
     setState(() {
@@ -274,6 +346,17 @@ class _GradePageState extends State<GradePage> {
         _frozenPlayerUsername = null;
       } else {
         _frozenPlayerUsername = username;
+      }
+    });
+  }
+
+  /// Sorts the grading list according to the current sorting order
+  void _sortGradingList() {
+    setState(() {
+      if (_isAscending) {
+        grading.sort((a, b) => a['average'].compareTo(b['average']));
+      } else {
+        grading.sort((a, b) => b['average'].compareTo(a['average']));
       }
     });
   }
@@ -299,26 +382,33 @@ class _GradePageState extends State<GradePage> {
     // Check if this grade button is selected
     bool isSelected = _selectedGradeButtonUsername == username && _selectedGradeButtonField == field;
 
-    // Determine if the entire row is selected
-    // bool isRowSelected = _frozenPlayerUsername == player['username']; // Moved to buildPlayerRow
-
     return GradeButton(
       grade: player[field],
-      isSelected: isSelected, // existing
-      isRowSelected: isRowSelected, // ADD: Pass isRowSelected
+      isSelected: isSelected,
+      isRowSelected: isRowSelected,
       onIncrement: () {
         setState(() {
           int index = grading.indexWhere((p) => p['username'] == username);
-          if (index != -1 && grading[index][field] < 10) {
-            grading[index][field]++;
+          if (index != -1) {
+            if (grading[index][field] == null || grading[index][field] == 0) {
+              grading[index][field] = 5;
+            } else if (grading[index][field] < 10) {
+              grading[index][field]++;
+            }
+            _updatePlayerAverage(grading[index]);
           }
         });
       },
       onDecrement: () {
         setState(() {
           int index = grading.indexWhere((p) => p['username'] == username);
-          if (index != -1 && grading[index][field] > 1) {
-            grading[index][field]--;
+          if (index != -1) {
+            if (grading[index][field] == null || grading[index][field] == 0) {
+              grading[index][field] = 5;
+            } else if (grading[index][field] > 1) {
+              grading[index][field]--;
+            }
+            _updatePlayerAverage(grading[index]);
           }
         });
       },
@@ -334,7 +424,6 @@ class _GradePageState extends State<GradePage> {
   }
 
   Widget buildPlayerRow(Map<String, dynamic> player) {
-    // ADD: Determine if the current row is selected
     bool isRowSelected = _frozenPlayerUsername == player['username'];
 
     return GestureDetector(
@@ -343,17 +432,14 @@ class _GradePageState extends State<GradePage> {
       },
       child: Container(
         padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
-        decoration: BoxDecoration(
-          // You can add decoration here if needed
-        ),
         child: Row(
           children: [
-            // Username Section with Card and ListTile
+            // Username Section with average
             Expanded(
               flex: 2,
               child: Card(
-                elevation: 1, // Reduced elevation
-                margin: EdgeInsets.symmetric(vertical: 1), // Reduced margin
+                elevation: 1,
+                margin: EdgeInsets.symmetric(vertical: 1),
                 child: ListTile(
                   contentPadding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
                   horizontalTitleGap: 4.0,
@@ -363,37 +449,51 @@ class _GradePageState extends State<GradePage> {
                   leading: Icon(
                     Icons.person,
                     color: Colors.green[700],
-                    size: 16, // Smaller icon
+                    size: 16,
                   ),
-                  title: Text(
-                    player['username'],
-                    style: TextStyle(
-                      color: Colors.green[700],
-                      fontSize: 14, // Smaller font
-                    ),
-                    overflow: TextOverflow.ellipsis,
+                  title: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          player['username'],
+                          style: TextStyle(
+                            color: Colors.green[700],
+                            fontSize: 14,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      SizedBox(width: 4),
+                      Text(
+                        player['average'] != null ? player['average'].toStringAsFixed(1) : '0.0',
+                        style: TextStyle(
+                          color: Colors.green[700],
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
             // Grade Buttons
             Expanded(
-              child: buildGradeButton(player['username'], 'skillLevel', isRowSelected), // MODIFIED
+              child: buildGradeButton(player['username'], 'skillLevel', isRowSelected),
             ),
             Expanded(
-              child: buildGradeButton(player['username'], 'scoringAbility', isRowSelected), // MODIFIED
+              child: buildGradeButton(player['username'], 'scoringAbility', isRowSelected),
             ),
             Expanded(
-              child: buildGradeButton(player['username'], 'defensiveSkills', isRowSelected), // MODIFIED
+              child: buildGradeButton(player['username'], 'defensiveSkills', isRowSelected),
             ),
             Expanded(
-              child: buildGradeButton(player['username'], 'speedAndAgility', isRowSelected), // MODIFIED
+              child: buildGradeButton(player['username'], 'speedAndAgility', isRowSelected),
             ),
             Expanded(
-              child: buildGradeButton(player['username'], 'shootingRange', isRowSelected), // MODIFIED
+              child: buildGradeButton(player['username'], 'shootingRange', isRowSelected),
             ),
             Expanded(
-              child: buildGradeButton(player['username'], 'reboundSkills', isRowSelected), // MODIFIED
+              child: buildGradeButton(player['username'], 'reboundSkills', isRowSelected),
             ),
           ],
         ),
@@ -654,11 +754,6 @@ class _GradePageState extends State<GradePage> {
         _selectPlayer(player['username']);
       },
       child: Container(
-        // padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
-        decoration: BoxDecoration(
-          // color: Colors.grey[300],
-          // border: Border.all(color: Colors.green, width: 2.0),
-        ),
         child: Row(
           children: [
             Expanded(
@@ -677,34 +772,48 @@ class _GradePageState extends State<GradePage> {
                     color: Colors.green[700],
                     size: 16,
                   ),
-                  title: Text(
-                    _frozenPlayerUsername!,
-                    style: TextStyle(
-                      color: Colors.green[700],
-                      fontSize: 14,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+                  title: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _frozenPlayerUsername!,
+                          style: TextStyle(
+                            color: Colors.green[700],
+                            fontSize: 14,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      SizedBox(width: 4),
+                      Text(
+                        player['average'] != null ? player['average'].toStringAsFixed(1) : '0.0',
+                        style: TextStyle(
+                          color: Colors.green[700],
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
             Expanded(
-              child: buildGradeButton(_frozenPlayerUsername!, 'skillLevel', true), // MODIFIED
+              child: buildGradeButton(_frozenPlayerUsername!, 'skillLevel', true),
             ),
             Expanded(
-              child: buildGradeButton(_frozenPlayerUsername!, 'scoringAbility', true), // MODIFIED
+              child: buildGradeButton(_frozenPlayerUsername!, 'scoringAbility', true),
             ),
             Expanded(
-              child: buildGradeButton(_frozenPlayerUsername!, 'defensiveSkills', true), // MODIFIED
+              child: buildGradeButton(_frozenPlayerUsername!, 'defensiveSkills', true),
             ),
             Expanded(
-              child: buildGradeButton(_frozenPlayerUsername!, 'speedAndAgility', true), // MODIFIED
+              child: buildGradeButton(_frozenPlayerUsername!, 'speedAndAgility', true),
             ),
             Expanded(
-              child: buildGradeButton(_frozenPlayerUsername!, 'shootingRange', true), // MODIFIED
+              child: buildGradeButton(_frozenPlayerUsername!, 'shootingRange', true),
             ),
             Expanded(
-              child: buildGradeButton(_frozenPlayerUsername!, 'reboundSkills', true), // MODIFIED
+              child: buildGradeButton(_frozenPlayerUsername!, 'reboundSkills', true),
             ),
           ],
         ),
@@ -729,7 +838,7 @@ class _GradePageState extends State<GradePage> {
               // Instruction or frozen row
               _buildFrozenRowOrInstruction(),
               SizedBox(height: 10),
-              // Legend row with icons
+              // Legend row with icons and sorting
               Container(
                 color: Colors.grey[200],
                 padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
@@ -737,11 +846,26 @@ class _GradePageState extends State<GradePage> {
                   children: [
                     Expanded(
                       flex: 2,
-                      child: Icon(
-                        Icons.person,
-                        color: Colors.green[700],
-                        size: 24,
-                        semanticLabel: 'Username',
+                      child: Row(
+                        children: [
+                          IconButton(
+                            icon: Icon(
+                              _isAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                              color: Colors.green[700],
+                              size: 24,
+                            ),
+                            onPressed: () {
+                              _isAscending = !_isAscending;
+                              _sortGradingList();
+                            },
+                          ),
+                          Icon(
+                            Icons.person,
+                            color: Colors.green[700],
+                            size: 24,
+                            semanticLabel: 'Username',
+                          ),
+                        ],
                       ),
                     ),
                     Expanded(
@@ -884,16 +1008,16 @@ class _GradePageState extends State<GradePage> {
 /// Custom GradeButton Widget using Overlay
 class GradeButton extends StatelessWidget {
   final int? grade;
-  final bool isSelected; // existing
-  final bool isRowSelected; // ADD
+  final bool isSelected;
+  final bool isRowSelected;
   final VoidCallback onIncrement;
   final VoidCallback onDecrement;
   final Function(Offset position) onTap;
 
   GradeButton({
     required this.grade,
-    required this.isSelected, // existing
-    required this.isRowSelected, // ADD
+    required this.isSelected,
+    required this.isRowSelected,
     required this.onIncrement,
     required this.onDecrement,
     required this.onTap,
@@ -915,9 +1039,9 @@ class GradeButton extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: isSelected
-              ? Colors.green[200] // Selected button gets Colors.green[700]
+              ? Colors.green[200]
               : (isRowSelected
-              ? Colors.green[100] // Other buttons in the selected row get Colors.green[300]
+              ? Colors.green[100]
               : (grade != null && grade! > 0)
               ? Colors.green[50]
               : Colors.green[50]),
@@ -927,7 +1051,7 @@ class GradeButton extends StatelessWidget {
             ? Text(
           '$grade',
           style: TextStyle(
-            color: isRowSelected ? Colors.green : Colors.green, // Change text color if row is selected
+            color: isRowSelected ? Colors.green : Colors.green,
             fontWeight: FontWeight.bold,
             fontSize: 16,
           ),
