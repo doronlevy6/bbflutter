@@ -847,26 +847,52 @@ class _GradePageState extends State<GradePage> {
                     Expanded(
                       flex: 2,
                       child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween, // Aligns content to the left, center, and right
                         children: [
-                          IconButton(
-                            icon: Icon(
-                              _isAscending ? Icons.arrow_upward : Icons.arrow_downward,
-                              color: Colors.green[700],
-                              size: 24,
+                          // Username centered
+                          Expanded(
+                            child: Center(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.person,
+                                    color: Colors.green[700],
+                                    size: 24,
+                                    semanticLabel: 'Username',
+                                  ),
+                                  SizedBox(width: 8), // Spacing between the icon and username
+
+                                ],
+                              ),
                             ),
-                            onPressed: () {
-                              _isAscending = !_isAscending;
-                              _sortGradingList();
-                            },
                           ),
-                          Icon(
-                            Icons.person,
-                            color: Colors.green[700],
-                            size: 24,
-                            semanticLabel: 'Username',
+                          // Sort icon with label on the right
+                          Row(
+                            children: [
+                              Text(
+                                'Sort',
+                                style: TextStyle(
+                                  fontSize: 10, // Tiny text for the "Sort" label
+                                  color: Colors.green[700],
+                                ),
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                   Icons.swap_vert, // New sorting icons
+                                  color: Colors.green[700],
+                                  size: 24,
+                                ),
+                                onPressed: () {
+                                  _isAscending = !_isAscending;
+                                  _sortGradingList();
+                                },
+                              ),
+                            ],
                           ),
                         ],
                       ),
+
                     ),
                     Expanded(
                       child: Tooltip(
