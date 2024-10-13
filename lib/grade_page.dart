@@ -441,16 +441,25 @@ class _GradePageState extends State<GradePage> {
                 elevation: 1,
                 margin: EdgeInsets.symmetric(vertical: 1),
                 child: ListTile(
-                  contentPadding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
+                  contentPadding: EdgeInsets.only(left: 4.0),
                   horizontalTitleGap: 4.0,
                   minLeadingWidth: 0,
                   visualDensity: VisualDensity.compact,
                   dense: true,
-                  leading: Icon(
-                    Icons.person,
-                    color: Colors.green[700],
-                    size: 16,
-                  ),
+                  onTap: () {
+                    // Show full username in a SnackBar on tap
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: DefaultTextStyle(
+                            style: TextStyle(color: Colors.green), // Set text color to green
+                            child: Text('Full username: ${player['username']}'),
+                          ),
+                          duration: Duration(seconds: 3),
+                          backgroundColor: Colors.white, // Set background color to white
+                        )
+
+                    );
+                  },
                   title: Row(
                     children: [
                       Expanded(
@@ -468,13 +477,15 @@ class _GradePageState extends State<GradePage> {
                         player['average'] != null ? player['average'].toStringAsFixed(1) : '0.0',
                         style: TextStyle(
                           color: Colors.green[700],
-                          fontSize: 14,
+                          fontSize: 10,
                         ),
                       ),
+                      SizedBox(width: 6),
                     ],
                   ),
                 ),
-              ),
+              )
+              ,
             ),
             // Grade Buttons
             Expanded(
@@ -762,21 +773,30 @@ class _GradePageState extends State<GradePage> {
                 elevation: 1,
                 margin: EdgeInsets.symmetric(vertical: 1),
                 child: ListTile(
-                  contentPadding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
+                  contentPadding: EdgeInsets.only(left: 4.0),
                   horizontalTitleGap: 4.0,
                   minLeadingWidth: 0,
                   visualDensity: VisualDensity.compact,
                   dense: true,
-                  leading: Icon(
-                    Icons.person,
-                    color: Colors.green[700],
-                    size: 16,
-                  ),
+                  onTap: () {
+                    // Show full username in a SnackBar on tap
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: DefaultTextStyle(
+                            style: TextStyle(color: Colors.green), // Set text color to green
+                            child: Text('Full username: ${player['username']}'),
+                          ),
+                          duration: Duration(seconds: 3),
+                          backgroundColor: Colors.white, // Set background color to white
+                        )
+
+                    );
+                  },
                   title: Row(
                     children: [
                       Expanded(
                         child: Text(
-                          _frozenPlayerUsername!,
+                          player['username'],
                           style: TextStyle(
                             color: Colors.green[700],
                             fontSize: 14,
@@ -789,13 +809,15 @@ class _GradePageState extends State<GradePage> {
                         player['average'] != null ? player['average'].toStringAsFixed(1) : '0.0',
                         style: TextStyle(
                           color: Colors.green[700],
-                          fontSize: 14,
+                          fontSize: 10,
                         ),
                       ),
+                      SizedBox(width: 6),
                     ],
                   ),
                 ),
-              ),
+              )
+              ,
             ),
             Expanded(
               child: buildGradeButton(_frozenPlayerUsername!, 'skillLevel', true),
@@ -823,6 +845,7 @@ class _GradePageState extends State<GradePage> {
 
   @override
   Widget build(BuildContext context) {
+    double textSize = Theme.of(context).textTheme.bodyLarge?.fontSize ?? 14;
     return Scaffold(
       body: Stack(
         children: [
@@ -844,56 +867,67 @@ class _GradePageState extends State<GradePage> {
                 padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
                 child: Row(
                   children: [
-                    Expanded(
-                      flex: 2,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween, // Aligns content to the left, center, and right
-                        children: [
-                          // Username centered
-                          Expanded(
-                            child: Center(
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.person,
-                                    color: Colors.green[700],
-                                    size: 24,
-                                    semanticLabel: 'Username',
-                                  ),
-                                  SizedBox(width: 8), // Spacing between the icon and username
+                  Expanded(
+                  flex: 2,
+                  child: Row(
 
-                                ],
-                              ),
-                            ),
-                          ),
-                          // Sort icon with label on the right
-                          Row(
-                            children: [
-                              Text(
-                                'Sort',
-                                style: TextStyle(
-                                  fontSize: 10, // Tiny text for the "Sort" label
-                                  color: Colors.green[700],
+                    children: [
+                      // User icon
+                      Icon(
+                        Icons.person,
+                        color: Colors.green[700],
+                        size: 22,
+                        semanticLabel: 'Username',
+                      ),
+                      SizedBox(width:6), // Spacing between the icon and text
+
+
+                      // Sort text with flexible space
+
+
+                      // Sort icon button with no padding
+                      Row(
+
+                        children: [
+                          // Sort icon button with no padding
+                          GestureDetector(
+                            onTap: () {
+                              _isAscending = !_isAscending;
+                              _sortGradingList();
+                            },
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Sort',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.green[700],
+                                  ),
                                 ),
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                   Icons.swap_vert, // New sorting icons
+                                Icon(
+                                  Icons.swap_vert,
                                   color: Colors.green[700],
                                   size: 24,
                                 ),
-                                onPressed: () {
-                                  _isAscending = !_isAscending;
-                                  _sortGradingList();
-                                },
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                                 // Space between icon and text
 
-                    ),
+                              ],
+                            ),
+                          )
+
+                          // Flexible text with ellipsis if overflow
+
+                        ],
+                      )
+,
+
+                    ],
+                  )
+                    ,
+                ),
+
+
                     Expanded(
                       child: Tooltip(
                         message: 'Playmaker',
@@ -957,6 +991,7 @@ class _GradePageState extends State<GradePage> {
                   ],
                 ),
               ),
+              SizedBox(height: 10),
               // List of players
               Expanded(
                 child: ListView.builder(
