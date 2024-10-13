@@ -275,7 +275,7 @@ class _GradePageState extends State<GradePage> {
     });
   }
 
-  Widget buildGradeButton(String username, String field, bool isRowSelected) {
+  Widget buildGradeButton(String username, String field) {
     Map<String, dynamic> player = grading.firstWhere(
           (p) => p['username'] == username,
       orElse: () => {
@@ -298,8 +298,7 @@ class _GradePageState extends State<GradePage> {
 
     return GradeButton(
       grade: player[field],
-      isSelected: isSelected,
-      isRowSelected: isRowSelected,
+      isSelected: isSelected, // Pass the isSelected flag
       onIncrement: () {
         setState(() {
           int index = grading.indexWhere((p) => p['username'] == username);
@@ -328,8 +327,6 @@ class _GradePageState extends State<GradePage> {
   }
 
   Widget buildPlayerRow(Map<String, dynamic> player) {
-    bool isRowSelected = _frozenPlayerUsername == player['username'];
-
     return GestureDetector(
       onTap: () {
         _selectPlayer(player['username']);
@@ -337,7 +334,12 @@ class _GradePageState extends State<GradePage> {
       child: Container(
         padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
         decoration: BoxDecoration(
-          color: Colors.white, // No change in row color
+          color: _frozenPlayerUsername == player['username']
+              ? Colors.grey[300]
+              : Colors.white,
+          border: _frozenPlayerUsername == player['username']
+              ? Border.all(color: Colors.green, width: 2.0) // Bold green border for frozen row
+              : null,
         ),
         child: Row(
           children: [
@@ -371,22 +373,22 @@ class _GradePageState extends State<GradePage> {
             ),
             // Grade Buttons
             Expanded(
-              child: buildGradeButton(player['username'], 'skillLevel', isRowSelected),
+              child: buildGradeButton(player['username'], 'skillLevel'),
             ),
             Expanded(
-              child: buildGradeButton(player['username'], 'scoringAbility', isRowSelected),
+              child: buildGradeButton(player['username'], 'scoringAbility'),
             ),
             Expanded(
-              child: buildGradeButton(player['username'], 'defensiveSkills', isRowSelected),
+              child: buildGradeButton(player['username'], 'defensiveSkills'),
             ),
             Expanded(
-              child: buildGradeButton(player['username'], 'speedAndAgility', isRowSelected),
+              child: buildGradeButton(player['username'], 'speedAndAgility'),
             ),
             Expanded(
-              child: buildGradeButton(player['username'], 'shootingRange', isRowSelected),
+              child: buildGradeButton(player['username'], 'shootingRange'),
             ),
             Expanded(
-              child: buildGradeButton(player['username'], 'reboundSkills', isRowSelected),
+              child: buildGradeButton(player['username'], 'reboundSkills'),
             ),
           ],
         ),
@@ -396,12 +398,196 @@ class _GradePageState extends State<GradePage> {
 
   /// Function to show explanations in English
   void _showEnglishExplanation() {
-    // Your existing explanation code
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.handshake, size: 24),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Playmaker (PM): A player who excels at creating scoring opportunities for themselves or their teammates, often through passing or dribbling.',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 10),
+              Row(
+                children: [
+                  Icon(Icons.score, size: 24),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Scoring Ability (SA): The ability to score baskets effectively from various positions on the court, utilizing a variety of offensive moves.',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 10),
+              Row(
+                children: [
+                  Icon(Icons.shield, size: 24),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Defensive Skills (DS): The ability to prevent opponents from scoring through techniques such as shot blocking, ball stealing, and maintaining good defensive positioning.',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 10),
+              Row(
+                children: [
+                  Icon(Icons.speed, size: 24),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Speed and Agility (AG): The ability to move quickly and change direction easily, which aids both offensive and defensive plays.',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 10),
+              Row(
+                children: [
+                  Icon(Icons.sports_basketball, size: 24),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '3-Point Shooting (3PT): The ability to successfully make shots from beyond the three-point arc.',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 10),
+              Row(
+                children: [
+                  Icon(Icons.grain, size: 24),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Rebound Skills (RB): The ability to secure rebounds on both offense and defense.',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          )
+          ,
+        ),
+      ),
+    );
   }
 
   /// Function to show explanations in Hebrew
   void _showHebrewExplanation() {
-    // Your existing explanation code
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.handshake, size: 24),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'רכז (playmaker): שחקן שטוב ביצירת הזדמנויות קליעה לעצמו או לחבריו לקבוצה, לרוב באמצעות מסירה או כדרור.',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 10),
+                Row(
+                  children: [
+                    Icon(Icons.score, size: 24),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'יכולת קליעה (scoring ability): היכולת לקלוע סל באופן כללי מכל עמדות על המגרש, באמצעות מגוון של תנועות התקפיות.',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 10),
+                Row(
+                  children: [
+                    Icon(Icons.shield, size: 24),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'מיומנויות הגנה (defensive skills): היכולת למנוע מהיריב לקלוע, באמצעות טכניקות כגון חסימת זריקות, חטיפה של הכדור, ועמידה טובה במקום.',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 10),
+                Row(
+                  children: [
+                    Icon(Icons.speed, size: 24),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'מהירות וזריזות (speed and agility): היכולת לנוע מהר ולשנות כיוון בקלות, דבר המסייע גם במצבים ההתקפיים וגם במצבים ההגנתיים.',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 10),
+                Row(
+                  children: [
+                    Icon(Icons.sports_basketball, size: 24),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'קליעה לשלוש (3 pt shooting): היכולת לקלוע מעבר לקשת השלוש.',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 10),
+                Row(
+                  children: [
+                    Icon(Icons.grain, size: 24),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'ריבאונד (rebound skills): היכולת לקחת ריבאונד בהתקפה ובהגנה.',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 10),
+              ],
+            )
+            ,
+          ),
+        ),
+      ),
+    );
   }
 
   /// Method to build frozen row or instruction
@@ -437,16 +623,16 @@ class _GradePageState extends State<GradePage> {
     if (player.isEmpty) {
       return SizedBox();
     }
-    bool isRowSelected = true;
-
     return GestureDetector(
       onTap: () {
         // Unfreeze the row when it's tapped again
         _selectPlayer(player['username']);
       },
       child: Container(
+        // padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
         decoration: BoxDecoration(
-          color: Colors.white, // No change in row color
+          color: Colors.grey[300],
+          border: Border.all(color: Colors.green, width: 2.0),
         ),
         child: Row(
           children: [
@@ -478,22 +664,22 @@ class _GradePageState extends State<GradePage> {
               ),
             ),
             Expanded(
-              child: buildGradeButton(_frozenPlayerUsername!, 'skillLevel', isRowSelected),
+              child: buildGradeButton(_frozenPlayerUsername!, 'skillLevel'),
             ),
             Expanded(
-              child: buildGradeButton(_frozenPlayerUsername!, 'scoringAbility', isRowSelected),
+              child: buildGradeButton(_frozenPlayerUsername!, 'scoringAbility'),
             ),
             Expanded(
-              child: buildGradeButton(_frozenPlayerUsername!, 'defensiveSkills', isRowSelected),
+              child: buildGradeButton(_frozenPlayerUsername!, 'defensiveSkills'),
             ),
             Expanded(
-              child: buildGradeButton(_frozenPlayerUsername!, 'speedAndAgility', isRowSelected),
+              child: buildGradeButton(_frozenPlayerUsername!, 'speedAndAgility'),
             ),
             Expanded(
-              child: buildGradeButton(_frozenPlayerUsername!, 'shootingRange', isRowSelected),
+              child: buildGradeButton(_frozenPlayerUsername!, 'shootingRange'),
             ),
             Expanded(
-              child: buildGradeButton(_frozenPlayerUsername!, 'reboundSkills', isRowSelected),
+              child: buildGradeButton(_frozenPlayerUsername!, 'reboundSkills'),
             ),
           ],
         ),
@@ -524,7 +710,75 @@ class _GradePageState extends State<GradePage> {
                 padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
                 child: Row(
                   children: [
-                    // Your existing icons
+                    Expanded(
+                      flex: 2,
+                      child: Icon(
+                        Icons.person,
+                        color: Colors.green[700],
+                        size: 24,
+                        semanticLabel: 'Username',
+                      ),
+                    ),
+                    Expanded(
+                      child: Tooltip(
+                        message: 'Playmaker',
+                        child: Icon(
+                          Icons.handshake,
+                          color: Colors.green[700],
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Tooltip(
+                        message: 'Scoring Ability',
+                        child: Icon(
+                          Icons.score,
+                          color: Colors.green[700],
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Tooltip(
+                        message: 'Defensive Skills',
+                        child: Icon(
+                          Icons.shield,
+                          color: Colors.green[700],
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Tooltip(
+                        message: 'Speed and Agility',
+                        child: Icon(
+                          Icons.speed,
+                          color: Colors.green[700],
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Tooltip(
+                        message: '3-Point Shooting',
+                        child: Icon(
+                          Icons.sports_basketball,
+                          color: Colors.green[700],
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Tooltip(
+                        message: 'Rebound Skills',
+                        child: Icon(
+                          Icons.grain,
+                          color: Colors.green[700],
+                          size: 24,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -605,16 +859,14 @@ class _GradePageState extends State<GradePage> {
 /// Custom GradeButton Widget using Overlay
 class GradeButton extends StatelessWidget {
   final int? grade;
-  final bool isSelected;
-  final bool isRowSelected;
+  final bool isSelected; // Add this line
   final VoidCallback onIncrement;
   final VoidCallback onDecrement;
   final Function(Offset position) onTap;
 
   GradeButton({
     required this.grade,
-    required this.isSelected,
-    required this.isRowSelected,
+    required this.isSelected, // Add this line
     required this.onIncrement,
     required this.onDecrement,
     required this.onTap,
@@ -622,15 +874,6 @@ class GradeButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Color backgroundColor;
-    if (isSelected) {
-      backgroundColor = Colors.green[700]!; // Even darker
-    } else if (isRowSelected) {
-      backgroundColor = Colors.green[300]!; // Slightly darker
-    } else {
-      backgroundColor = Colors.green[50]!; // Default
-    }
-
     return GestureDetector(
       onTap: () {
         RenderBox renderBox = context.findRenderObject() as RenderBox;
@@ -639,20 +882,23 @@ class GradeButton extends StatelessWidget {
         Offset center = position + Offset(size.width / 2, size.height / 2);
         onTap(center);
       },
-      behavior: HitTestBehavior.opaque,
       child: Container(
         width: 40,
         height: 40,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: backgroundColor,
+          color: isSelected
+              ? Colors.red[700] // Darker background when selected
+              : (grade != null && grade! > 0)
+              ? Colors.green[50]
+              : Colors.green[50],
         ),
         alignment: Alignment.center,
         child: grade != null && grade! > 0
             ? Text(
           '$grade',
           style: TextStyle(
-            color: isSelected || isRowSelected ? Colors.white : Colors.green,
+            color: Colors.green,
             fontWeight: FontWeight.bold,
             fontSize: 16,
           ),
