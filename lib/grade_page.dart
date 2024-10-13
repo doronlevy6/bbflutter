@@ -454,7 +454,7 @@ class _GradePageState extends State<GradePage> {
                             style: TextStyle(color: Colors.green), // Set text color to green
                             child: Text('Full username: ${player['username']}'),
                           ),
-                          duration: Duration(seconds: 3),
+                          duration: Duration(seconds: 2),
                           backgroundColor: Colors.white, // Set background color to white
                         )
 
@@ -882,39 +882,38 @@ class _GradePageState extends State<GradePage> {
                       SizedBox(width:6), // Spacing between the icon and text
 
 
-                      // Sort text with flexible space
 
-
-                      // Sort icon button with no padding
                       Row(
 
                         children: [
                           // Sort icon button with no padding
-                          GestureDetector(
-                            onTap: () {
-                              _isAscending = !_isAscending;
-                              _sortGradingList();
+// Replace the GestureDetector with TextButton.icon
+                          TextButton.icon(
+                            onPressed: () {
+                              setState(() {
+                                _isAscending = !_isAscending;
+                                _sortGradingList();
+                              });
                             },
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  'Sort',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.green[700],
-                                  ),
-                                ),
-                                Icon(
-                                  Icons.swap_vert,
-                                  color: Colors.green[700],
-                                  size: 24,
-                                ),
-                                 // Space between icon and text
-
-                              ],
+                            icon: Icon(
+                              Icons.swap_vert,
+                              color: Colors.green[700],
+                              size: 24,
                             ),
-                          )
+                            label: Text(
+                              'Sort',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.green[700],
+                              ),
+                            ),
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.zero, // Remove default padding
+                              minimumSize: Size(0, 0), // Remove minimum size constraints
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap, // Shrink tap target
+                              alignment: Alignment.centerLeft, // Align content to the left
+                            ),
+                          ),
 
                           // Flexible text with ellipsis if overflow
 
