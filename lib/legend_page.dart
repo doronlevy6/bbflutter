@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 class Legend extends StatelessWidget {
   // Define the legend items
   final List<Map<String, dynamic>> legendItems = [
-    {'icon': Icons.handshake, 'label': 'play maker'},
+    {'icon': Icons.handshake, 'label': 'Play Maker'},
     {'icon': Icons.score, 'label': 'Scoring Ability'},
     {'icon': Icons.shield, 'label': 'Defensive Skills'},
     {'icon': Icons.speed, 'label': 'Speed & Agility'},
@@ -13,8 +13,21 @@ class Legend extends StatelessWidget {
     {'icon': Icons.calculate, 'label': 'Team Average'},
   ];
 
+  // New parameter to control the visibility of "Team Average"
+  final bool showTeamAverage;
+
+  // Constructor with the new parameter, defaulting to true
+   Legend({Key? key, this.showTeamAverage = true}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
+    // Filter the legend items based on the showTeamAverage parameter
+    final List<Map<String, dynamic>> displayedItems = showTeamAverage
+        ? legendItems
+        : legendItems
+        .where((item) => item['label'] != 'Team Average')
+        .toList();
+
     return Card(
       color: Colors.green[50],
       elevation: 2,
@@ -26,7 +39,7 @@ class Legend extends StatelessWidget {
         child: Wrap(
           spacing: 12, // Reduced spacing
           runSpacing: 8, // Reduced run spacing
-          children: legendItems.map((item) {
+          children: displayedItems.map((item) {
             return Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -35,7 +48,7 @@ class Legend extends StatelessWidget {
                   color: Colors.green[700],
                   size: 16, // Smaller icon
                 ),
-                SizedBox(width: 4), // Reduced spacing
+                const SizedBox(width: 4), // Reduced spacing
                 Text(
                   item['label'],
                   style: TextStyle(

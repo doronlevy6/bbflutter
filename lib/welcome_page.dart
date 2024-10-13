@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '/model/player.dart'; // Adjust the path accordingly
-import 'legened_page.dart';
+import 'legend_page.dart';
 import 'services/api_service.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:responsive_builder/responsive_builder.dart'; // Import responsive_builder

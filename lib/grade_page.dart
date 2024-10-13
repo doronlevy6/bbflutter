@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
-import 'legened_page.dart';
+import 'legend_page.dart';
 
 class GradePage extends StatefulWidget {
   @override
@@ -832,7 +832,7 @@ class _GradePageState extends State<GradePage> {
               // Legend widget
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Legend(),
+                child: Legend(showTeamAverage: false),
               ),
               SizedBox(height: 10),
               // Instruction or frozen row
@@ -1066,17 +1066,3 @@ class GradeButton extends StatelessWidget {
   }
 }
 
-/// Placeholder Legend Widget
-class Legend extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    // Replace this with your actual Legend implementation
-    return Container(
-      padding: EdgeInsets.all(8.0),
-      child: Text(
-        'Legend goes here',
-        style: TextStyle(fontSize: 16, color: Colors.green[700]),
-      ),
-    );
-  }
-}
