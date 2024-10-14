@@ -396,15 +396,15 @@ class _PlayGroundState extends State<PlayGround> {
                             PlayGroundActionButton(
                               label: 'Clear Selection',
                               onPressed: _clearSelection,
-                              icon: Icons.clear,
+                              icon: Icons.refresh,
                             ),
                             SizedBox(height: 8), // Spacing
 
                             // Select All Enlisted Players Button
                             PlayGroundActionButton(
-                              label: 'Select All Enlisted Players',
+                              label: 'Select  Enlisted' ,
                               onPressed: _selectAllEnlistedPlayers,
-                              icon: Icons.select_all,
+                              icon: Icons.confirmation_number_outlined,
                             ),
                             SizedBox(height: 12), // Spacing
 
@@ -563,9 +563,10 @@ class PlayGroundActionButton extends StatelessWidget {
         ),
       ),
       style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.green[700], // Button background color
-        foregroundColor: Colors.white, // Button text color
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8), // Adjust padding
+        backgroundColor: Colors.green[200], // Button background color
+        foregroundColor: Colors.green[700], // Button text color
+
+        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4), // Adjust padding
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8), // Rounded corners
         ),
@@ -590,14 +591,18 @@ class PlayGroundPlayerListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: isSelected ? Colors.green[100] : Colors.white,
+      color: isSelected ? Colors.green[50] : Colors.white,
       elevation: 2,
       margin: EdgeInsets.symmetric(vertical: 4),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
       ),
       child: ListTile(
-        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        contentPadding: EdgeInsets.only(left: 4.0),
+        horizontalTitleGap: 8.0,
+         minLeadingWidth: 0,
+        visualDensity: VisualDensity.compact,
+        dense: true,
         leading: Icon(
           isSelected ? Icons.check_circle : Icons.person,
           color: isSelected ? Colors.green[700] : Colors.grey[400],
