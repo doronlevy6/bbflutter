@@ -5,6 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'model/player.dart'; // Adjust the path according to your project structure.
 
+const String kEnlistedPlayersKey = 'enlistedPlayers';
+const String kSelectedPlayersKey = 'selectedPlayers';
+
 class TeamsPage extends StatefulWidget {
   const TeamsPage({Key? key}) : super(key: key);
 
@@ -25,6 +28,7 @@ class _TeamsPageState extends State<TeamsPage> {
     _loadPlayersFromLocalStorage();
   }
 
+  // Load all players from local storage and then load selected players
   Future<void> _loadPlayersFromLocalStorage() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? jsonString = prefs.getString(_cacheKey);
@@ -33,12 +37,53 @@ class _TeamsPageState extends State<TeamsPage> {
       setState(() {
         _players = jsonData.map((data) => Player.fromJson(data)).toList();
       });
+      await _loadSelectedPlayers();
     } else {
       // Handle the case when no data is found
       print('No players data found in local storage.');
     }
   }
 
+  // Load selected players from SharedPreferences
+  Future<void> _loadSelectedPlayers() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String>? selectedPlayerUsernames = prefs.getStringList(kSelectedPlayersKey);
+    if (selectedPlayerUsernames != null && selectedPlayerUsernames.isNotEmpty) {
+      setState(() {
+        _selectedPlayers = _players
+            .where((player) => selectedPlayerUsernames.contains(player.username))
+            .toList();
+      });
+    } else {
+      // If no saved selection, load enlisted players
+      await _loadEnlistedPlayers();
+    }
+  }
+
+  // Load enlisted players from SharedPreferences and select them
+  Future<void> _loadEnlistedPlayers() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String>? enlistedPlayerUsernames = prefs.getStringList(kEnlistedPlayersKey);
+    if (enlistedPlayerUsernames != null && enlistedPlayerUsernames.isNotEmpty) {
+      setState(() {
+        _selectedPlayers = _players
+            .where((player) => enlistedPlayerUsernames.contains(player.username))
+            .toList();
+      });
+      // Save the enlisted players as the current selection
+      await _saveSelectedPlayers();
+    }
+  }
+
+  // Save the current selection of players to SharedPreferences
+  Future<void> _saveSelectedPlayers() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String> selectedPlayerUsernames =
+    _selectedPlayers.map((player) => player.username).toList();
+    await prefs.setStringList(kSelectedPlayersKey, selectedPlayerUsernames);
+  }
+
+  // Toggle player selection
   void _togglePlayerSelection(Player player) {
     setState(() {
       if (_selectedPlayers.contains(player)) {
@@ -53,16 +98,27 @@ class _TeamsPageState extends State<TeamsPage> {
         _selectedPlayers.add(player);
       }
     });
+    // Save the updated selection
+    _saveSelectedPlayers();
   }
 
+  // Clear all selections
   void _clearSelection() {
     setState(() {
       _selectedPlayers.clear();
       _teams.clear();
       _selectedMethod = '';
     });
+    // Save the updated selection
+    _saveSelectedPlayers();
   }
 
+  // Select all enlisted players
+  Future<void> _selectAllEnlistedPlayers() async {
+    await _loadEnlistedPlayers();
+  }
+
+  // Create balanced teams based on selected method
   Future<void> _createBalancedTeams({required bool isAttributeBased}) async {
     if (_selectedPlayers.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -296,11 +352,20 @@ class _TeamsPageState extends State<TeamsPage> {
                     ),
                   ),
                 ),
+                // Existing Clear Selection Button
                 ElevatedButton(
                   onPressed: _clearSelection,
                   child: Text('Clear Selection'),
                   style: ElevatedButton.styleFrom(
-                    minimumSize: Size(100, 36),
+                    minimumSize: Size(150, 36),
+                  ),
+                ),
+                // New Select All Enlisted Players Button
+                ElevatedButton(
+                  onPressed: _selectAllEnlistedPlayers,
+                  child: Text('Select All Enlisted Players'),
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: Size(200, 36),
                   ),
                 ),
                 Expanded(
@@ -330,20 +395,27 @@ class _TeamsPageState extends State<TeamsPage> {
                 Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: Wrap(
-                    spacing: 8.0,
-                    runSpacing: 4.0,
+                    spacing: 16.0,
+                    runSpacing: 8.0,
                     children: [
-
-                      // Replace the ElevatedButtons inside the Wrap with these GestureDetector widgets
                       GestureDetector(
                         onTap: () => _createBalancedTeams(isAttributeBased: true),
                         child: Column(
                           children: [
                             Image.asset(
-                              'assets/images/basketball.jpeg',  // Ensure this path matches your assets folder
+                              'assets/images/basketball.jpeg', // Ensure this path matches your assets folder
                               width: 100,
                               height: 100,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  width: 100,
+                                  height: 100,
+                                  color: Colors.grey,
+                                  child: Icon(Icons.image_not_supported),
+                                );
+                              },
                             ),
+                            SizedBox(height: 8),
                             Text('Parameter'),
                           ],
                         ),
@@ -353,15 +425,23 @@ class _TeamsPageState extends State<TeamsPage> {
                         child: Column(
                           children: [
                             Image.asset(
-                              'assets/images/basketball.jpeg',  // Ensure this path matches your assets folder
+                              'assets/images/basketball.jpeg', // Ensure this path matches your assets folder
                               width: 100,
                               height: 100,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  width: 100,
+                                  height: 100,
+                                  color: Colors.grey,
+                                  child: Icon(Icons.image_not_supported),
+                                );
+                              },
                             ),
+                            SizedBox(height: 8),
                             Text('Total'),
                           ],
                         ),
                       ),
-
                     ],
                   ),
                 ),
@@ -448,31 +528,38 @@ class _TeamsPageState extends State<TeamsPage> {
                                     ),
                                     Text(
                                       'Playmaker: ${averages['skillLevel']!.toStringAsFixed(2)}',
-                                      style: TextStyle(color: Colors.green),
+                                      style:
+                                      TextStyle(color: Colors.green),
                                     ),
                                     Text(
                                       'Scoring Ability: ${averages['scoringAbility']!.toStringAsFixed(2)}',
-                                      style: TextStyle(color: Colors.green),
+                                      style:
+                                      TextStyle(color: Colors.green),
                                     ),
                                     Text(
                                       'Defensive Skills: ${averages['defensiveSkills']!.toStringAsFixed(2)}',
-                                      style: TextStyle(color: Colors.green),
+                                      style:
+                                      TextStyle(color: Colors.green),
                                     ),
                                     Text(
                                       'Speed and Agility: ${averages['speedAndAgility']!.toStringAsFixed(2)}',
-                                      style: TextStyle(color: Colors.green),
+                                      style:
+                                      TextStyle(color: Colors.green),
                                     ),
                                     Text(
                                       '3 pt Shooting: ${averages['shootingRange']!.toStringAsFixed(2)}',
-                                      style: TextStyle(color: Colors.green),
+                                      style:
+                                      TextStyle(color: Colors.green),
                                     ),
                                     Text(
                                       'Rebound Skills: ${averages['reboundSkills']!.toStringAsFixed(2)}',
-                                      style: TextStyle(color: Colors.green),
+                                      style:
+                                      TextStyle(color: Colors.green),
                                     ),
                                     Text(
                                       'Total Averages Sum: ${totalAverages.toStringAsFixed(2)}',
-                                      style: TextStyle(color: Colors.green),
+                                      style:
+                                      TextStyle(color: Colors.green),
                                     ),
                                   ],
                                 ),
@@ -488,6 +575,7 @@ class _TeamsPageState extends State<TeamsPage> {
                       _selectedMethod.isNotEmpty
                           ? 'No teams created.'
                           : 'Select players and create balanced teams.',
+                      style: TextStyle(fontSize: 16),
                     ),
                   ),
                 ),
