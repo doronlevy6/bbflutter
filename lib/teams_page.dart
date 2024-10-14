@@ -1,4 +1,4 @@
-// lib/pages/teams_page.dart
+// lib/pages/playground.dart
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,14 +11,14 @@ import 'package:responsive_builder/responsive_builder.dart'; // Import responsiv
 const String kEnlistedPlayersKey = 'enlistedPlayers';
 const String kSelectedPlayersKey = 'selectedPlayers';
 
-class TeamsPage extends StatefulWidget {
-  const TeamsPage({Key? key}) : super(key: key);
+class PlayGround extends StatefulWidget {
+  const PlayGround({Key? key}) : super(key: key);
 
   @override
-  _TeamsPageState createState() => _TeamsPageState();
+  _PlayGroundState createState() => _PlayGroundState();
 }
 
-class _TeamsPageState extends State<TeamsPage> {
+class _PlayGroundState extends State<PlayGround> {
   final String _cacheKey = 'playersRankings';
   List<Player> _players = [];
   List<Player> _selectedPlayers = [];
@@ -332,6 +332,20 @@ class _TeamsPageState extends State<TeamsPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Sort players: selected players first, then not selected, both sorted alphabetically
+    List<Player> sortedPlayers = List.from(_players);
+    sortedPlayers.sort((a, b) {
+      bool aSelected = _selectedPlayers.contains(a);
+      bool bSelected = _selectedPlayers.contains(b);
+      if (aSelected && !bSelected) {
+        return -1;
+      } else if (!aSelected && bSelected) {
+        return 1;
+      } else {
+        return a.username.toLowerCase().compareTo(b.username.toLowerCase());
+      }
+    });
+
     return Scaffold(
       // Removed AppBar to match WelcomePage style
       body: Padding(
@@ -379,7 +393,7 @@ class _TeamsPageState extends State<TeamsPage> {
                             SizedBox(height: 10), // Spacing
 
                             // Clear Selection Button
-                            TeamsActionButton(
+                            PlayGroundActionButton(
                               label: 'Clear Selection',
                               onPressed: _clearSelection,
                               icon: Icons.clear,
@@ -387,7 +401,7 @@ class _TeamsPageState extends State<TeamsPage> {
                             SizedBox(height: 8), // Spacing
 
                             // Select All Enlisted Players Button
-                            TeamsActionButton(
+                            PlayGroundActionButton(
                               label: 'Select All Enlisted Players',
                               onPressed: _selectAllEnlistedPlayers,
                               icon: Icons.select_all,
@@ -396,13 +410,13 @@ class _TeamsPageState extends State<TeamsPage> {
 
                             // Players List
                             Expanded(
-                              child: _players.isNotEmpty
+                              child: sortedPlayers.isNotEmpty
                                   ? ListView.builder(
-                                itemCount: _players.length,
+                                itemCount: sortedPlayers.length,
                                 itemBuilder: (context, index) {
-                                  Player player = _players[index];
+                                  Player player = sortedPlayers[index];
                                   bool isSelected = _selectedPlayers.contains(player);
-                                  return TeamsPlayerListTile(
+                                  return PlayGroundPlayerListTile(
                                     player: player,
                                     isSelected: isSelected,
                                     onTap: () => _togglePlayerSelection(player),
@@ -435,14 +449,14 @@ class _TeamsPageState extends State<TeamsPage> {
                               mainAxisAlignment: MainAxisAlignment.start,
                               children: [
                                 // Parameter-based Distribution Button
-                                TeamsTeamMethodButton(
+                                PlayGroundTeamMethodButton(
                                   label: 'Parameter',
                                   imagePath: 'assets/images/basketball.jpeg',
                                   onPressed: () => _createBalancedTeams(isAttributeBased: true),
                                 ),
                                 SizedBox(width: 16), // Spacing
                                 // Total Average Ranking Distribution Button
-                                TeamsTeamMethodButton(
+                                PlayGroundTeamMethodButton(
                                   label: 'Total',
                                   imagePath: 'assets/images/basketball.jpeg',
                                   onPressed: () => _createBalancedTeams(isAttributeBased: false),
@@ -485,7 +499,7 @@ class _TeamsPageState extends State<TeamsPage> {
                                   double totalAverages =
                                   averages.values.reduce((a, b) => a + b);
 
-                                  return TeamsTeamCard(
+                                  return PlayGroundTeamCard(
                                     teamName: 'Team ${teamIndex + 1}',
                                     players: team.map((p) => p.username).toList(),
                                     averages: averages,
@@ -515,7 +529,7 @@ class _TeamsPageState extends State<TeamsPage> {
             ),
             SizedBox(height: 12), // Spacing
 
-            // Legend Section
+            // Legend Section positioned lower
             Legend(),
           ],
         ),
@@ -524,13 +538,13 @@ class _TeamsPageState extends State<TeamsPage> {
   }
 }
 
-// Custom TeamsActionButton Widget
-class TeamsActionButton extends StatelessWidget {
+// Custom PlayGroundActionButton Widget
+class PlayGroundActionButton extends StatelessWidget {
   final String label;
   final VoidCallback onPressed;
   final IconData icon;
 
-  TeamsActionButton({
+  PlayGroundActionButton({
     required this.label,
     required this.onPressed,
     required this.icon,
@@ -561,13 +575,13 @@ class TeamsActionButton extends StatelessWidget {
   }
 }
 
-// Custom TeamsPlayerListTile Widget
-class TeamsPlayerListTile extends StatelessWidget {
+// Custom PlayGroundPlayerListTile Widget
+class PlayGroundPlayerListTile extends StatelessWidget {
   final Player player;
   final bool isSelected;
   final VoidCallback onTap;
 
-  TeamsPlayerListTile({
+  PlayGroundPlayerListTile({
     required this.player,
     required this.isSelected,
     required this.onTap,
@@ -602,13 +616,13 @@ class TeamsPlayerListTile extends StatelessWidget {
   }
 }
 
-// Custom TeamsTeamMethodButton Widget
-class TeamsTeamMethodButton extends StatelessWidget {
+// Custom PlayGroundTeamMethodButton Widget
+class PlayGroundTeamMethodButton extends StatelessWidget {
   final String label;
   final String imagePath;
   final VoidCallback onPressed;
 
-  TeamsTeamMethodButton({
+  PlayGroundTeamMethodButton({
     required this.label,
     required this.imagePath,
     required this.onPressed,
@@ -656,14 +670,14 @@ class TeamsTeamMethodButton extends StatelessWidget {
   }
 }
 
-// Custom TeamsTeamCard Widget
-class TeamsTeamCard extends StatelessWidget {
+// Custom PlayGroundTeamCard Widget
+class PlayGroundTeamCard extends StatelessWidget {
   final String teamName;
   final List<String> players;
   final Map<String, double> averages;
   final double totalAverages;
 
-  TeamsTeamCard({
+  PlayGroundTeamCard({
     required this.teamName,
     required this.players,
     required this.averages,
@@ -786,14 +800,14 @@ class TeamsTeamCard extends StatelessWidget {
                     int idx = entry.key;
                     var param = entry.value;
                     if (param['label'] == 'Team Average') {
-                      return TeamsParameterRow(
+                      return PlayGroundParameterRow(
                         icon: param['icon'] as IconData,
                         tooltip: param['label'] as String,
                         value: param['value'] as String,
                         isTotal: true,
                       );
                     } else {
-                      return TeamsParameterRow(
+                      return PlayGroundParameterRow(
                         icon: param['icon'] as IconData,
                         tooltip: param['label'] as String,
                         value: param['value'] as String,
@@ -810,14 +824,14 @@ class TeamsTeamCard extends StatelessWidget {
   }
 }
 
-// Custom TeamsParameterRow Widget with Icon and Value
-class TeamsParameterRow extends StatelessWidget {
+// Custom PlayGroundParameterRow Widget with Icon and Value
+class PlayGroundParameterRow extends StatelessWidget {
   final IconData icon;
   final String tooltip;
   final String value;
   final bool isTotal;
 
-  TeamsParameterRow({
+  PlayGroundParameterRow({
     required this.icon,
     required this.tooltip,
     required this.value,

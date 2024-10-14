@@ -207,7 +207,7 @@ class _HomePageState extends State<HomePage> {
                             icon: Icons.group,
                             color: Colors.teal[300],
                             tooltip: 'Teams Page',
-                            page: TeamsPage(),
+                            page: PlayGround(),
                             title: 'Playground',
                           ),
                           _buildDrawerIcon(

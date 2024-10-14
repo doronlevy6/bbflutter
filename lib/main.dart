@@ -70,7 +70,7 @@ class MyApp extends StatelessWidget {
         '/grade': (context) => GradePage(),
         '/welcome': (context) => WelcomePage(),
         '/get_score': (context) => GetScorePage(),
-        '/teams': (context) => TeamsPage(),
+        '/teams': (context) => PlayGround(),
         '/home': (context) => HomePage(),
       },
       onUnknownRoute: (settings) => MaterialPageRoute(

@@ -338,9 +338,9 @@ class EnlistButton extends StatelessWidget {
         ),
       ),
       style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.green[200], // Button background color
+        backgroundColor: Colors.green[100], // Button background color
         foregroundColor: Colors.green, // Button text color
-        // padding: EdgeInsets.symmetric(horizontal: 5, vertical: 5), // Adjust padding for a rounder look
+        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4), // Adjust padding for a rounder look
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(30), // More rounded shape
         ),
