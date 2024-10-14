@@ -331,16 +331,16 @@ class EnlistButton extends StatelessWidget {
       ),
       label: Text(
         'Play Next Game',
-        textAlign: TextAlign.center,
+        // textAlign: TextAlign.center,
         style: TextStyle(
           fontSize: 16, // Smaller font
           fontWeight: FontWeight.bold,
         ),
       ),
       style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.green[700], // Button background color
-        foregroundColor: Colors.white, // Button text color
-        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10), // Adjust padding for a rounder look
+        backgroundColor: Colors.green[200], // Button background color
+        foregroundColor: Colors.green, // Button text color
+        // padding: EdgeInsets.symmetric(horizontal: 5, vertical: 5), // Adjust padding for a rounder look
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(30), // More rounded shape
         ),
@@ -570,17 +570,3 @@ class ParameterRow extends StatelessWidget {
   }
 }
 
-// Legend Widget
-class Legend extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    // Your existing Legend implementation
-    return Container(
-      // Placeholder for the Legend widget
-      child: Text(
-        'Legend goes here',
-        style: TextStyle(color: Colors.green[700]),
-      ),
-    );
-  }
-}

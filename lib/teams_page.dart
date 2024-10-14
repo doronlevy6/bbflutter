@@ -4,7 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'model/player.dart'; // Adjust the path according to your project structure.
+import 'legend_page.dart'; // Assuming you have a Legend widget similar to WelcomePage
+import 'package:responsive_builder/responsive_builder.dart'; // Import responsive_builder
 
+// Define keys for SharedPreferences
 const String kEnlistedPlayersKey = 'enlistedPlayers';
 const String kSelectedPlayersKey = 'selectedPlayers';
 
@@ -330,256 +333,518 @@ class _TeamsPageState extends State<TeamsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Teams Page'),
-      ),
-      body: Row(
-        children: [
-          // Left side column (30% width)
-          Container(
-            width: MediaQuery.of(context).size.width * 0.3,
-            color: Colors.grey[200],
-            child: Column(
-              children: [
-                // Counter above player names
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(
-                    'Selected Players: ${_selectedPlayers.length}',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                // Existing Clear Selection Button
-                ElevatedButton(
-                  onPressed: _clearSelection,
-                  child: Text('Clear Selection'),
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: Size(150, 36),
-                  ),
-                ),
-                // New Select All Enlisted Players Button
-                ElevatedButton(
-                  onPressed: _selectAllEnlistedPlayers,
-                  child: Text('Select All Enlisted Players'),
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: Size(200, 36),
-                  ),
-                ),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: _players.length,
-                    itemBuilder: (context, index) {
-                      Player player = _players[index];
-                      bool isSelected = _selectedPlayers.contains(player);
-                      return ListTile(
-                        title: Text(player.username),
-                        trailing: isSelected
-                            ? Icon(Icons.check_circle, color: Colors.green)
-                            : Icon(Icons.radio_button_unchecked),
-                        onTap: () => _togglePlayerSelection(player),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Right side (remaining 70% width)
-          Expanded(
-            child: Column(
-              children: [
-                // Top buttons
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Wrap(
-                    spacing: 16.0,
-                    runSpacing: 8.0,
+      // Removed AppBar to match WelcomePage style
+      body: Padding(
+        padding: EdgeInsets.all(12.0), // Reduced padding for compactness
+        child: Column(
+          children: [
+            // Main Content: Player Selection and Teams
+            Expanded(
+              child: ResponsiveBuilder(
+                builder: (context, sizingInformation) {
+                  // Determine flex ratios based on device type
+                  int playerFlex;
+                  int teamFlex;
+
+                  if (sizingInformation.deviceScreenType == DeviceScreenType.mobile) {
+                    playerFlex = 4;
+                    teamFlex = 6;
+                  } else if (sizingInformation.deviceScreenType == DeviceScreenType.tablet) {
+                    playerFlex = 3;
+                    teamFlex = 7;
+                  } else {
+                    // Desktop and others
+                    playerFlex = 3;
+                    teamFlex = 7;
+                  }
+
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      GestureDetector(
-                        onTap: () => _createBalancedTeams(isAttributeBased: true),
+                      // Left Column: Player Selection
+                      Expanded(
+                        flex: playerFlex,
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Image.asset(
-                              'assets/images/basketball.jpeg', // Ensure this path matches your assets folder
-                              width: 100,
-                              height: 100,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  width: 100,
-                                  height: 100,
-                                  color: Colors.grey,
-                                  child: Icon(Icons.image_not_supported),
-                                );
-                              },
+                            // Selected Players Count
+                            Text(
+                              'Selected Players: ${_selectedPlayers.length}',
+                              style: TextStyle(
+                                color: Colors.green[800],
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16, // Consistent font size
+                              ),
                             ),
-                            SizedBox(height: 8),
-                            Text('Parameter'),
+                            SizedBox(height: 10), // Spacing
+
+                            // Clear Selection Button
+                            TeamsActionButton(
+                              label: 'Clear Selection',
+                              onPressed: _clearSelection,
+                              icon: Icons.clear,
+                            ),
+                            SizedBox(height: 8), // Spacing
+
+                            // Select All Enlisted Players Button
+                            TeamsActionButton(
+                              label: 'Select All Enlisted Players',
+                              onPressed: _selectAllEnlistedPlayers,
+                              icon: Icons.select_all,
+                            ),
+                            SizedBox(height: 12), // Spacing
+
+                            // Players List
+                            Expanded(
+                              child: _players.isNotEmpty
+                                  ? ListView.builder(
+                                itemCount: _players.length,
+                                itemBuilder: (context, index) {
+                                  Player player = _players[index];
+                                  bool isSelected = _selectedPlayers.contains(player);
+                                  return TeamsPlayerListTile(
+                                    player: player,
+                                    isSelected: isSelected,
+                                    onTap: () => _togglePlayerSelection(player),
+                                  );
+                                },
+                              )
+                                  : Center(
+                                child: Text(
+                                  'No players available.',
+                                  style: TextStyle(
+                                    color: Colors.green[700],
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
-                      GestureDetector(
-                        onTap: () => _createBalancedTeams(isAttributeBased: false),
+                      SizedBox(width: 12), // Spacing between columns
+
+                      // Right Column: Teams Display
+                      Expanded(
+                        flex: teamFlex,
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Image.asset(
-                              'assets/images/basketball.jpeg', // Ensure this path matches your assets folder
-                              width: 100,
-                              height: 100,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  width: 100,
-                                  height: 100,
-                                  color: Colors.grey,
-                                  child: Icon(Icons.image_not_supported),
-                                );
-                              },
+                            // Top Buttons: Create Teams
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              children: [
+                                // Parameter-based Distribution Button
+                                TeamsTeamMethodButton(
+                                  label: 'Parameter',
+                                  imagePath: 'assets/images/basketball.jpeg',
+                                  onPressed: () => _createBalancedTeams(isAttributeBased: true),
+                                ),
+                                SizedBox(width: 16), // Spacing
+                                // Total Average Ranking Distribution Button
+                                TeamsTeamMethodButton(
+                                  label: 'Total',
+                                  imagePath: 'assets/images/basketball.jpeg',
+                                  onPressed: () => _createBalancedTeams(isAttributeBased: false),
+                                ),
+                              ],
                             ),
-                            SizedBox(height: 8),
-                            Text('Total'),
+                            SizedBox(height: 12), // Spacing
+
+                            // Teams List
+                            Expanded(
+                              child: _teams.isNotEmpty
+                                  ? ListView.builder(
+                                itemCount: _teams.length,
+                                itemBuilder: (context, teamIndex) {
+                                  List<Player> team = _teams[teamIndex];
+                                  // Calculate averages for the team
+                                  Map<String, double> averages = {
+                                    'skillLevel': 0.0,
+                                    'scoringAbility': 0.0,
+                                    'defensiveSkills': 0.0,
+                                    'speedAndAgility': 0.0,
+                                    'shootingRange': 0.0,
+                                    'reboundSkills': 0.0,
+                                  };
+                                  for (var player in team) {
+                                    averages['skillLevel'] =
+                                        averages['skillLevel']! + player.skillLevel;
+                                    averages['scoringAbility'] =
+                                        averages['scoringAbility']! + player.scoringAbility;
+                                    averages['defensiveSkills'] =
+                                        averages['defensiveSkills']! + player.defensiveSkills;
+                                    averages['speedAndAgility'] =
+                                        averages['speedAndAgility']! + player.speedAndAgility;
+                                    averages['shootingRange'] =
+                                        averages['shootingRange']! + player.shootingRange;
+                                    averages['reboundSkills'] =
+                                        averages['reboundSkills']! + player.reboundSkills;
+                                  }
+                                  averages.updateAll((key, value) => value / team.length);
+                                  double totalAverages =
+                                  averages.values.reduce((a, b) => a + b);
+
+                                  return TeamsTeamCard(
+                                    teamName: 'Team ${teamIndex + 1}',
+                                    players: team.map((p) => p.username).toList(),
+                                    averages: averages,
+                                    totalAverages: totalAverages,
+                                  );
+                                },
+                              )
+                                  : Center(
+                                child: Text(
+                                  _selectedMethod.isNotEmpty
+                                      ? 'No teams created.'
+                                      : 'Select players and create balanced teams.',
+                                  style: TextStyle(
+                                    color: Colors.green[700],
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
                     ],
-                  ),
-                ),
-                // Display teams
-                Expanded(
-                  child: _teams.isNotEmpty
-                      ? ListView.builder(
-                    itemCount: _teams.length,
-                    itemBuilder: (context, teamIndex) {
-                      List<Player> team = _teams[teamIndex];
-                      // Calculate averages for the team
-                      Map<String, double> averages = {
-                        'skillLevel': 0.0,
-                        'scoringAbility': 0.0,
-                        'defensiveSkills': 0.0,
-                        'speedAndAgility': 0.0,
-                        'shootingRange': 0.0,
-                        'reboundSkills': 0.0,
-                      };
-                      for (var player in team) {
-                        averages['skillLevel'] =
-                            averages['skillLevel']! + player.skillLevel;
-                        averages['scoringAbility'] =
-                            averages['scoringAbility']! +
-                                player.scoringAbility;
-                        averages['defensiveSkills'] =
-                            averages['defensiveSkills']! +
-                                player.defensiveSkills;
-                        averages['speedAndAgility'] =
-                            averages['speedAndAgility']! +
-                                player.speedAndAgility;
-                        averages['shootingRange'] =
-                            averages['shootingRange']! +
-                                player.shootingRange;
-                        averages['reboundSkills'] =
-                            averages['reboundSkills']! +
-                                player.reboundSkills;
-                      }
-                      averages.updateAll((key, value) => value / team.length);
-                      double totalAverages =
-                      averages.values.reduce((a, b) => a + b);
+                  );
+                },
+              ),
+            ),
+            SizedBox(height: 12), // Spacing
 
-                      return Card(
-                        margin: EdgeInsets.all(8.0),
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Row(
-                            children: [
-                              // Team Members
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment:
-                                  CrossAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      'Team ${teamIndex + 1}',
-                                      style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.green),
-                                    ),
-                                    ...team.map((player) {
-                                      return Text(
-                                        player.username,
-                                        style:
-                                        TextStyle(color: Colors.green),
-                                      );
-                                    }).toList(),
-                                  ],
-                                ),
-                              ),
-                              // Averages
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment:
-                                  CrossAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      'Averages:',
-                                      style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.green),
-                                    ),
-                                    Text(
-                                      'Playmaker: ${averages['skillLevel']!.toStringAsFixed(2)}',
-                                      style:
-                                      TextStyle(color: Colors.green),
-                                    ),
-                                    Text(
-                                      'Scoring Ability: ${averages['scoringAbility']!.toStringAsFixed(2)}',
-                                      style:
-                                      TextStyle(color: Colors.green),
-                                    ),
-                                    Text(
-                                      'Defensive Skills: ${averages['defensiveSkills']!.toStringAsFixed(2)}',
-                                      style:
-                                      TextStyle(color: Colors.green),
-                                    ),
-                                    Text(
-                                      'Speed and Agility: ${averages['speedAndAgility']!.toStringAsFixed(2)}',
-                                      style:
-                                      TextStyle(color: Colors.green),
-                                    ),
-                                    Text(
-                                      '3 pt Shooting: ${averages['shootingRange']!.toStringAsFixed(2)}',
-                                      style:
-                                      TextStyle(color: Colors.green),
-                                    ),
-                                    Text(
-                                      'Rebound Skills: ${averages['reboundSkills']!.toStringAsFixed(2)}',
-                                      style:
-                                      TextStyle(color: Colors.green),
-                                    ),
-                                    Text(
-                                      'Total Averages Sum: ${totalAverages.toStringAsFixed(2)}',
-                                      style:
-                                      TextStyle(color: Colors.green),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
+            // Legend Section
+            Legend(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Custom TeamsActionButton Widget
+class TeamsActionButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onPressed;
+  final IconData icon;
+
+  TeamsActionButton({
+    required this.label,
+    required this.onPressed,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text(
+        label,
+        style: TextStyle(
+          fontSize: 14, // Smaller font
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.green[700], // Button background color
+        foregroundColor: Colors.white, // Button text color
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8), // Adjust padding
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8), // Rounded corners
+        ),
+        elevation: 3, // Button elevation
+      ),
+    );
+  }
+}
+
+// Custom TeamsPlayerListTile Widget
+class TeamsPlayerListTile extends StatelessWidget {
+  final Player player;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  TeamsPlayerListTile({
+    required this.player,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: isSelected ? Colors.green[100] : Colors.white,
+      elevation: 2,
+      margin: EdgeInsets.symmetric(vertical: 4),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ListTile(
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        leading: Icon(
+          isSelected ? Icons.check_circle : Icons.person,
+          color: isSelected ? Colors.green[700] : Colors.grey[400],
+        ),
+        title: Text(
+          player.username,
+          style: TextStyle(
+            color: Colors.green[800],
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+          ),
+        ),
+        onTap: onTap,
+      ),
+    );
+  }
+}
+
+// Custom TeamsTeamMethodButton Widget
+class TeamsTeamMethodButton extends StatelessWidget {
+  final String label;
+  final String imagePath;
+  final VoidCallback onPressed;
+
+  TeamsTeamMethodButton({
+    required this.label,
+    required this.imagePath,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Column(
+        children: [
+          // Image with error handling
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.asset(
+              imagePath,
+              width: 80,
+              height: 80,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  width: 80,
+                  height: 80,
+                  color: Colors.grey[300],
+                  child: Icon(
+                    Icons.image_not_supported,
+                    color: Colors.grey[700],
+                  ),
+                );
+              },
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.green[800],
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Custom TeamsTeamCard Widget
+class TeamsTeamCard extends StatelessWidget {
+  final String teamName;
+  final List<String> players;
+  final Map<String, double> averages;
+  final double totalAverages;
+
+  TeamsTeamCard({
+    required this.teamName,
+    required this.players,
+    required this.averages,
+    required this.totalAverages,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Define the order and labels for the parameters
+    final parameters = [
+      {
+        'icon': Icons.handshake,
+        'label': 'Skill Level',
+        'value': averages['skillLevel']!.toStringAsFixed(2)
+      },
+      {
+        'icon': Icons.score,
+        'label': 'Scoring Ability',
+        'value': averages['scoringAbility']!.toStringAsFixed(2)
+      },
+      {
+        'icon': Icons.shield,
+        'label': 'Defensive Skills',
+        'value': averages['defensiveSkills']!.toStringAsFixed(2)
+      },
+      {
+        'icon': Icons.speed,
+        'label': 'Speed & Agility',
+        'value': averages['speedAndAgility']!.toStringAsFixed(2)
+      },
+      {
+        'icon': Icons.sports_basketball,
+        'label': 'Shooting Range',
+        'value': averages['shootingRange']!.toStringAsFixed(2)
+      },
+      {
+        'icon': Icons.grain,
+        'label': 'Rebound Skills',
+        'value': averages['reboundSkills']!.toStringAsFixed(2)
+      },
+      {
+        'icon': Icons.calculate,
+        'label': 'Team Average',
+        'value': (totalAverages / 6).toStringAsFixed(2)
+      },
+    ];
+
+    return Card(
+      color: Colors.green[50],
+      elevation: 3,
+      margin: EdgeInsets.symmetric(vertical: 6),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Left Column: Team Name and Players
+            Expanded(
+              flex: 7,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Team Header
+                  Text(
+                    teamName,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green[800],
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  SizedBox(height: 8),
+                  // Players List
+                  ...players.map((player) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2.0),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.person,
+                          color: Colors.green[600],
+                          size: 14,
+                        ),
+                        SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            player,
+                            style: TextStyle(
+                              color: Colors.green[700],
+                              fontSize: 12,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                      );
-                    },
-                  )
-                      : Center(
-                    child: Text(
-                      _selectedMethod.isNotEmpty
-                          ? 'No teams created.'
-                          : 'Select players and create balanced teams.',
-                      style: TextStyle(fontSize: 16),
+                      ],
                     ),
+                  )),
+                ],
+              ),
+            ),
+            SizedBox(width: 12), // Spacing between columns
+
+            // Right Column: Averages
+            Expanded(
+              flex: 3,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Divider before averages
+                  Divider(
+                    color: Colors.green[700],
+                    thickness: 1,
+                    endIndent: 4,
                   ),
-                ),
-              ],
+                  // Averages List
+                  ...parameters.asMap().entries.map((entry) {
+                    int idx = entry.key;
+                    var param = entry.value;
+                    if (param['label'] == 'Team Average') {
+                      return TeamsParameterRow(
+                        icon: param['icon'] as IconData,
+                        tooltip: param['label'] as String,
+                        value: param['value'] as String,
+                        isTotal: true,
+                      );
+                    } else {
+                      return TeamsParameterRow(
+                        icon: param['icon'] as IconData,
+                        tooltip: param['label'] as String,
+                        value: param['value'] as String,
+                      );
+                    }
+                  }).toList(),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Custom TeamsParameterRow Widget with Icon and Value
+class TeamsParameterRow extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final String value;
+  final bool isTotal;
+
+  TeamsParameterRow({
+    required this.icon,
+    required this.tooltip,
+    required this.value,
+    this.isTotal = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            color: Colors.green[700],
+            size: 16,
+          ),
+          SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              '$value',
+              style: TextStyle(
+                color: Colors.green[700],
+                fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+                fontSize: 12,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
