@@ -8,7 +8,7 @@ import 'login_page.dart';
 import 'manager_page.dart';
 import 'grade_page.dart';
 import 'get_score_page.dart';
-import 'teams_page.dart';
+import 'playgound_page.dart';
 import 'home_page.dart';
 import 'welcome_page.dart';
 
