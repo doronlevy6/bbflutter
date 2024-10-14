@@ -3,8 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import 'widgets/icon_butten_with_label.dart';
-import 'model/player.dart'; // Adjust the path according to your project structure.
+import '../widgets/icon_butten_with_label.dart';
+import '../model/player.dart'; // Adjust the path according to your project structure.
 import 'legend_page.dart'; // Assuming you have a Legend widget similar to WelcomePage
 import 'package:responsive_builder/responsive_builder.dart'; // Import responsive_builder
 
@@ -805,7 +805,11 @@ class PlayGroundTeamCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Divider before averages
-
+                  Divider(
+                    color: Colors.green[700],
+                    thickness: 1,
+                    endIndent: 4,
+                  ),
                   // Averages List
                   ...parameters.asMap().entries.map((entry) {
                     int idx = entry.key;
