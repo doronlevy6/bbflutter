@@ -385,18 +385,18 @@ class _PlayGroundState extends State<PlayGround> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // Selected Players Count
+                            SizedBox(height: 10), // Spacing
                             Text(
                               'Selected Players: ${_selectedPlayers.length}',
                               style: TextStyle(
                                 color: Colors.green[800],
                                 fontWeight: FontWeight.bold,
-                                fontSize: 16, // Consistent font size
+                                fontSize: 12, // Consistent font size
                               ),
                             ),
-                            SizedBox(height: 10), // Spacing
 
-                            // New Row for Icon Buttons
                             Row(
+                            // New Row for Icon Buttons
                               children: [
                                 // Clear Selection Icon Button
                                 IconButtonWithLabel(
@@ -654,13 +654,13 @@ class PlayGroundTeamMethodButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             child: Image.asset(
               imagePath,
-              width: 80,
-              height: 80,
+              width: 40,
+              height: 40,
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) {
                 return Container(
-                  width: 80,
-                  height: 80,
+                  width: 40,
+                  height: 40,
                   color: Colors.grey[300],
                   child: Icon(
                     Icons.image_not_supported,

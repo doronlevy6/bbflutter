@@ -47,8 +47,20 @@ class _ManagementPageState extends State<ManagementPage> {
       return;
     }
 
-    await fetchData();
+    await fetchData(); // Fetch data from server
     await _loadEnlistedPlayers(); // Load enlisted players from SharedPreferences
+
+    // Update usernameSelections based on loaded enlisted players
+    setState(() {
+      for (var selection in usernameSelections) {
+        selection.isEnlisted = selectedUsernames.contains(selection.username);
+      }
+      // Initialize initialSelections
+      initialSelections = {
+        for (var selection in usernameSelections)
+          selection.username: selection.isEnlisted
+      };
+    });
   }
 
   Future<void> _saveEnlistedPlayers(List<String> players) async {
@@ -61,10 +73,6 @@ class _ManagementPageState extends State<ManagementPage> {
     List<String> savedPlayers = prefs.getStringList(kEnlistedPlayersKey) ?? [];
     setState(() {
       selectedUsernames = savedPlayers;
-      // Update usernameSelections based on loaded enlisted players
-      for (var selection in usernameSelections) {
-        selection.isEnlisted = selectedUsernames.contains(selection.username);
-      }
     });
   }
 
@@ -72,38 +80,18 @@ class _ManagementPageState extends State<ManagementPage> {
     try {
       ApiService apiService = ApiService();
       final usernamesResponse = await apiService.get('usernames');
-      final enlistedResponse = await apiService.get('enlist');
 
       if (usernamesResponse['success']) {
         List<dynamic> usernamesList = usernamesResponse['usernames'];
         List<String> usernamesData = List<String>.from(usernamesList);
 
-        List<dynamic> enlistedUsernamesList = [];
-        if (enlistedResponse['success']) {
-          enlistedUsernamesList = enlistedResponse['usernames'];
-        }
-        List<String> enlistedUsernamesData =
-        List<String>.from(enlistedUsernamesList);
-
         List<UsernameSelection> selections = usernamesData.map((username) {
-          bool isEnlisted = enlistedUsernamesData.contains(username);
-          return UsernameSelection(username: username, isEnlisted: isEnlisted);
+          return UsernameSelection(username: username, isEnlisted: false);
         }).toList();
 
         setState(() {
           usernameSelections = selections;
-          initialSelections = {
-            for (var selection in selections) selection.username: selection.isEnlisted
-          };
-          // Initialize selectedUsernames based on initial selections
-          selectedUsernames = usernameSelections
-              .where((selection) => selection.isEnlisted)
-              .map((selection) => selection.username)
-              .toList();
         });
-
-        // Save enlisted players to SharedPreferences
-        await _saveEnlistedPlayers(selectedUsernames);
       } else {
         // Handle error
         print('Failed to fetch usernames');
@@ -178,15 +166,15 @@ class _ManagementPageState extends State<ManagementPage> {
 
       // Update initialSelections to reflect current state
       setState(() {
-        initialSelections = {
-          for (var selection in usernameSelections)
-            selection.username: selection.isEnlisted
-        };
-        // Update selectedUsernames based on the new selections
-        selectedUsernames = usernameSelections
-            .where((selection) => selection.isEnlisted)
-            .map((selection) => selection.username)
-            .toList();
+        // Update initialSelections to reflect current state
+        initialSelections = Map<String, bool>.from(initialSelections);
+        usernamesToEnlist.forEach((username) {
+          initialSelections[username] = true;
+        });
+        usernamesToUnenlist.forEach((username) {
+          initialSelections[username] = false;
+        });
+        // We do not overwrite selectedUsernames here
       });
 
       // Save the updated enlisted players to SharedPreferences

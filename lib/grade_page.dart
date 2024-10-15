@@ -1136,7 +1136,7 @@ class GradeButton extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: isSelected
-              ? Colors.green[200]
+              ? Colors.green[300]
               : (isRowSelected
               ? Colors.green[100]
               : (grade != null && grade! > 0)
@@ -1148,7 +1148,7 @@ class GradeButton extends StatelessWidget {
             ? Text(
           '$grade',
           style: TextStyle(
-            color: isRowSelected ? Colors.green : Colors.green,
+            color:isSelected?Colors.white: isRowSelected ? Colors.green : Colors.green,
             fontWeight: FontWeight.bold,
             fontSize: 16,
           ),
