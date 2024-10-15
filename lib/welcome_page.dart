@@ -490,13 +490,10 @@ class TeamCard extends StatelessWidget {
                           // Shorter Divider
                           Row(
                             children: [
-                              Expanded(
-                                child: Divider(
-                                  color: Colors.green[700],
-                                  thickness: 1,
-                                  indent: 0,
-                                  endIndent: 4, // Adjust endIndent to shorten divider
-                                ),
+                              Container(
+                                width: 50, // Fixed width of 50 pixels
+                                height: 1, // Height of the line
+                                color: Colors.green[700], // Line color
                               ),
                               // No text here, just the divider
                             ],

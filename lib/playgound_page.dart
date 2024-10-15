@@ -811,11 +811,28 @@ class PlayGroundTeamCard extends StatelessWidget {
                     int idx = entry.key;
                     var param = entry.value;
                     if (param['label'] == 'Team Average') {
-                      return PlayGroundParameterRow(
-                        icon: param['icon'] as IconData,
-                        tooltip: param['label'] as String,
-                        value: param['value'] as String,
-                        isTotal: true,
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(height: 4), // Small spacing before divider
+                          // Shorter Divider
+                          Row(
+                            children: [
+                              Container(
+                                width: 50, // Fixed width of 50 pixels
+                                height: 1, // Height of the line
+                                color: Colors.green[700], // Line color
+                              ),
+                              // No text here, just the divider
+                            ],
+                          ),
+                          PlayGroundParameterRow(
+                            icon: param['icon'] as IconData,
+                            tooltip: param['label'] as String,
+                            value: param['value'] as String,
+                            isTotal: true, // Indicate that this is the total
+                          ),
+                        ],
                       );
                     } else {
                       return PlayGroundParameterRow(
