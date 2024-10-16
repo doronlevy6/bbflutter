@@ -475,8 +475,9 @@ class _GradePageState extends State<GradePage> {
             Expanded(
               flex: 2,
               child: Card(
-                elevation: 1,
+                      elevation: 1,
                 margin: EdgeInsets.symmetric(vertical: 1),
+                  color: Colors.white,
                 child: ListTile(
                   contentPadding: EdgeInsets.only(left: 4.0),
                   horizontalTitleGap: 4.0,
@@ -809,6 +810,7 @@ class _GradePageState extends State<GradePage> {
               child: Card(
                 elevation: 1,
                 margin: EdgeInsets.symmetric(vertical: 1),
+                color:Colors.white,
                 child: ListTile(
                   contentPadding: EdgeInsets.only(left: 4.0),
                   horizontalTitleGap: 4.0,
@@ -1136,12 +1138,12 @@ class GradeButton extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: isSelected
-              ? Colors.green[300]
-              : (isRowSelected
               ? Colors.green[100]
-              : (grade != null && grade! > 0)
+              : (isRowSelected
               ? Colors.green[50]
-              : Colors.green[50]),
+              : (grade != null && grade! > 0)
+              ? Colors.white
+              : Colors.green),
         ),
         alignment: Alignment.center,
         child: grade != null && grade! > 0
