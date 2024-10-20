@@ -127,6 +127,7 @@ class _ManagementPageState extends State<ManagementPage> {
       List<String> usernamesToEnlist = [];
       List<String> usernamesToUnenlist = [];
 
+      // Determine which users to enlist and unenlist based on changes
       usernameSelections.forEach((selection) {
         bool initial = initialSelections[selection.username] ?? false;
         bool current = selection.isEnlisted;
@@ -138,6 +139,9 @@ class _ManagementPageState extends State<ManagementPage> {
           }
         }
       });
+
+      // Reorder usernamesToEnlist based on selectedUsernames to preserve selection order
+      usernamesToEnlist.sort((a, b) => selectedUsernames.indexOf(a).compareTo(selectedUsernames.indexOf(b)));
 
       if (usernamesToEnlist.isNotEmpty || usernamesToUnenlist.isNotEmpty) {
         if (usernamesToEnlist.isNotEmpty) {
@@ -167,7 +171,6 @@ class _ManagementPageState extends State<ManagementPage> {
       // Update initialSelections to reflect current state
       setState(() {
         // Update initialSelections to reflect current state
-        initialSelections = Map<String, bool>.from(initialSelections);
         usernamesToEnlist.forEach((username) {
           initialSelections[username] = true;
         });
