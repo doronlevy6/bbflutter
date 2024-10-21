@@ -39,7 +39,8 @@ class _HomePageState extends State<HomePage> {
           });
         },
         child: Container(
-          padding: EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0), // Adjust padding
+          padding:
+          EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0), // Adjust padding
           child: Row(
             children: [
               Icon(
@@ -135,8 +136,14 @@ class _HomePageState extends State<HomePage> {
             child: FutureBuilder<Map<String, String>>(
               future: _getUserInfo(),
               builder: (context, snapshot) {
+                // Show a loading indicator while fetching user info
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(child: CircularProgressIndicator());
+                }
+
                 String username = snapshot.data?['username'] ?? 'Guest';
                 String email = snapshot.data?['email'] ?? 'guest@example.com';
+
                 return Column(
                   children: [
                     UserAccountsDrawerHeader(
@@ -194,14 +201,27 @@ class _HomePageState extends State<HomePage> {
                             page: GradePage(),
                             title: '${username}`s Grades',
                           ),
-                          _buildDrawerIcon(
-                            context,
-                            icon: Icons.score,
-                            color: Colors.purple[300],
-                            tooltip: 'Get Score Page',
-                            page: GetScorePage(),
-                            title: 'Get Score',
-                          ),
+
+                          // Conditionally show Get Score and Management links for user 'doron'
+                          if (username.toLowerCase() == 'doron') ...[
+                            _buildDrawerIcon(
+                              context,
+                              icon: Icons.score,
+                              color: Colors.purple[300],
+                              tooltip: 'Get Score Page',
+                              page: GetScorePage(),
+                              title: 'Get Score',
+                            ),
+                            _buildDrawerIcon(
+                              context,
+                              icon: Icons.admin_panel_settings,
+                              color: Colors.red[300],
+                              tooltip: 'Manager Page',
+                              page: ManagementPage(),
+                              title: 'Management',
+                            ),
+                          ],
+
                           _buildDrawerIcon(
                             context,
                             icon: Icons.group,
@@ -209,14 +229,6 @@ class _HomePageState extends State<HomePage> {
                             tooltip: 'Teams Page',
                             page: PlayGround(),
                             title: 'Playground',
-                          ),
-                          _buildDrawerIcon(
-                            context,
-                            icon: Icons.admin_panel_settings,
-                            color: Colors.red[300],
-                            tooltip: 'Manager Page',
-                            page: ManagementPage(),
-                            title: 'Management',
                           ),
                         ],
                       ),
