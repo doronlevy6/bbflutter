@@ -1143,14 +1143,14 @@ class GradeButton extends StatelessWidget {
               ? Colors.green[50]
               : (grade != null && grade! > 0)
               ? Colors.white
-              : Colors.green),
+              : Colors.white),
         ),
         alignment: Alignment.center,
         child: grade != null && grade! > 0
             ? Text(
           '$grade',
           style: TextStyle(
-            color:isSelected?Colors.white: isRowSelected ? Colors.green : Colors.green,
+            color:isSelected?Colors.green: isRowSelected ? Colors.green : Colors.green,
             fontWeight: FontWeight.bold,
             fontSize: 16,
           ),

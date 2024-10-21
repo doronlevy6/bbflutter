@@ -207,9 +207,7 @@ class _ManagementPageState extends State<ManagementPage> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Management Page'),
-      ),
+
       body: Container(
         // Background image
         decoration: BoxDecoration(
