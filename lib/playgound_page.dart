@@ -13,6 +13,7 @@ import 'package:responsive_builder/responsive_builder.dart'; // Import responsiv
 // Define keys for SharedPreferences
 const String kEnlistedPlayersKey = 'enlistedPlayers';
 const String kSelectedPlayersKey = 'selectedPlayers';
+const String kOverallPlayersRankingsKey = 'overallPlayersRankings';
 
 class PlayGround extends StatefulWidget {
   const PlayGround({Key? key}) : super(key: key);
@@ -22,7 +23,9 @@ class PlayGround extends StatefulWidget {
 }
 
 class _PlayGroundState extends State<PlayGround> {
-  final String _cacheKey = 'playersRankings';
+  // Removed the fixed _cacheKey
+  String? _userName;
+  String? _userSpecificCacheKey;
   List<Player> _players = [];
   List<Player> _selectedPlayers = [];
   List<List<Player>> _teams = [];
@@ -37,16 +40,27 @@ class _PlayGroundState extends State<PlayGround> {
   // Load all players from local storage and then load selected players
   Future<void> _loadPlayersFromLocalStorage() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? jsonString = prefs.getString(_cacheKey);
-    if (jsonString != null) {
-      List<dynamic> jsonData = jsonDecode(jsonString);
-      setState(() {
-        _players = jsonData.map((data) => Player.fromJson(data)).toList();
-      });
-      await _loadSelectedPlayers();
+    _userName = prefs.getString('user'); // Retrieve the current username
+
+    if (_userName != null) {
+      _userSpecificCacheKey = 'playersRankings_$_userName';
+      String? jsonString = prefs.getString(_userSpecificCacheKey!);
+      if (jsonString != null) {
+        List<dynamic> jsonData = jsonDecode(jsonString);
+        setState(() {
+          _players = jsonData.map((data) => Player.fromJson(data)).toList();
+        });
+        await _loadSelectedPlayers();
+      } else {
+        // Handle the case when no data is found for the user
+        print('No player rankings data found for user $_userName in local storage.');
+        // Optionally, you might want to load overall rankings or prompt the user to fetch data
+        await _loadOverallPlayerRankings();
+      }
     } else {
-      // Handle the case when no data is found
-      print('No players data found in local storage.');
+      // Handle the case when username is not found
+      print('No username found in SharedPreferences.');
+      // Optionally, navigate back to login or show an error
     }
   }
 
@@ -333,6 +347,23 @@ class _PlayGroundState extends State<PlayGround> {
     return total;
   }
 
+  // Load overall player rankings if user-specific rankings are not available
+  Future<void> _loadOverallPlayerRankings() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? jsonString = prefs.getString(kOverallPlayersRankingsKey);
+    if (jsonString != null) {
+      List<dynamic> jsonData = jsonDecode(jsonString);
+      setState(() {
+        _players = jsonData.map((data) => Player.fromJson(data)).toList();
+      });
+      await _loadSelectedPlayers();
+    } else {
+      // Handle the case when no overall data is found
+      print('No overall player rankings data found in local storage.');
+      // Optionally, prompt the user to fetch data from the server
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Sort players: selected players first, then not selected, both sorted alphabetically
@@ -396,7 +427,7 @@ class _PlayGroundState extends State<PlayGround> {
                             ),
 
                             Row(
-                            // New Row for Icon Buttons
+                              // New Row for Icon Buttons
                               children: [
                                 // Clear Selection Icon Button
                                 IconButtonWithLabel(
@@ -545,9 +576,6 @@ class _PlayGroundState extends State<PlayGround> {
   }
 }
 
-
-
-
 // Custom PlayGroundActionButton Widget
 class PlayGroundActionButton extends StatelessWidget {
   final String label;
@@ -610,7 +638,7 @@ class PlayGroundPlayerListTile extends StatelessWidget {
       child: ListTile(
         contentPadding: EdgeInsets.only(left: 4.0),
         horizontalTitleGap: 8.0,
-         minLeadingWidth: 0,
+        minLeadingWidth: 0,
         visualDensity: VisualDensity.compact,
         dense: true,
         leading: Icon(
