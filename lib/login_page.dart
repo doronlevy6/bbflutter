@@ -102,7 +102,9 @@ class _LoginPageState extends State<LoginPage> {
         await prefs.setString('user', data['user']['username']);
 
         // Fetch and cache player rankings after successful login
-        await fetchAndCachePlayerRankings();
+        String username = data['user']['username'];
+        await fetchAndCachePlayerRankingsForUser(username);
+        await fetchAndCacheOverallPlayerRankings();
 
         // Navigate to home page
         Navigator.pushReplacementNamed(context, '/home');
@@ -122,40 +124,65 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // Fetch and Cache Player Rankings
-  Future<void> fetchAndCachePlayerRankings() async {
+  Future<void> fetchAndCachePlayerRankingsForUser(String username) async {
     try {
       // Fetch data from the API
-      final data = await _apiService.get('players-rankings-doron');
+      final data = await _apiService.get('players-rankings/$username');
 
       if (data['success'] == true) {
         String jsonString = jsonEncode(data['playersRankings']);
         SharedPreferences prefs = await SharedPreferences.getInstance();
-        bool isSet = await prefs.setString(_cacheKey, jsonString);
+        bool isSet = await prefs.setString('playersRankings_$username', jsonString);
 
         if (isSet) {
-          print("Player rankings successfully cached.");
+          print("Player rankings for $username successfully cached.");
         } else {
-          // Handle the case where data was not cached successfully
           setState(() {
-            _errorMessage = 'Failed to cache player rankings.';
+            _errorMessage = 'Failed to cache player rankings for $username.';
           });
         }
       } else {
-        // Handle the case where the API response indicates failure
         setState(() {
-          _errorMessage = 'Failed to load player rankings.';
+          _errorMessage = 'Failed to load player rankings for $username.';
         });
       }
     } catch (error) {
-      // Handle any exceptions that occur during the fetch or cache process
       setState(() {
-        _errorMessage = 'Error fetching rankings: $error';
+        _errorMessage = 'Error fetching rankings for $username: $error';
       });
     }
   }
 
-  // UI Building
+
+  Future<void> fetchAndCacheOverallPlayerRankings() async {
+    try {
+      // Fetch data from the API
+      final data = await _apiService.get('players-rankings');
+
+      if (data['success'] == true) {
+        String jsonString = jsonEncode(data['playersRankings']);
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        bool isSet = await prefs.setString('overallPlayersRankings', jsonString);
+
+        if (isSet) {
+          print("Overall player rankings successfully cached.");
+        } else {
+          setState(() {
+            _errorMessage = 'Failed to cache overall player rankings.';
+          });
+        }
+      } else {
+        setState(() {
+          _errorMessage = 'Failed to load overall player rankings.';
+        });
+      }
+    } catch (error) {
+      setState(() {
+        _errorMessage = 'Error fetching overall rankings: $error';
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
