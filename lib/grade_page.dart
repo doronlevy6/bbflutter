@@ -1105,6 +1105,8 @@ class _GradePageState extends State<GradePage> {
 }
 
 /// Custom GradeButton Widget using Overlay
+
+
 class GradeButton extends StatelessWidget {
   final int? grade;
   final bool isSelected;
@@ -1146,19 +1148,49 @@ class GradeButton extends StatelessWidget {
               : Colors.white),
         ),
         alignment: Alignment.center,
-        child: grade != null && grade! > 0
-            ? Text(
-          '$grade',
-          style: TextStyle(
-            color:isSelected?Colors.green: isRowSelected ? Colors.green : Colors.green,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
-        )
-            : CircleAvatar(
-          radius: 10,
-          backgroundImage: AssetImage('assets/images/basketball.jpeg'),
-          backgroundColor: Colors.transparent,
+        child: Stack(
+          clipBehavior: Clip.none, // Allows the positioned widget to overflow if needed
+          children: [
+            // Main Content: Grade Text or CircleAvatar
+            grade != null && grade! > 0
+                ? Text(
+              '$grade',
+              style: TextStyle(
+                color: isSelected
+                    ? Colors.green
+                    : isRowSelected
+                    ? Colors.green
+                    : Colors.green,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            )
+                : CircleAvatar(
+              radius: 10,
+              backgroundImage: AssetImage('assets/images/basketball.jpeg'),
+              backgroundColor: Colors.transparent,
+            ),
+            // Positioned Number 6 at Bottom Right
+            Positioned(
+              bottom: -10, // Adjust as needed
+              right: -10,  // Adjust as needed
+              child: Container(
+                padding: EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Colors.white, // Background color for visibility
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  '6',
+                  style: TextStyle(
+                    fontSize: 10, // Smaller font size
+                    color: Colors.green, // Text color contrasting the background
+                    fontWeight: FontWeight.normal,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
