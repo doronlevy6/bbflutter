@@ -108,14 +108,25 @@ class _PlayGroundState extends State<PlayGround> {
     }
   }
 
-  // Load enlisted players from SharedPreferences and select them
+  // Load enlisted players from SharedPreferences and select them (limited to first 12)
   Future<void> _loadEnlistedPlayers() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     List<String>? enlistedPlayerUsernames = prefs.getStringList(kEnlistedPlayersKey);
     if (enlistedPlayerUsernames != null && enlistedPlayerUsernames.isNotEmpty) {
+      // Limit to first 12 players if more are enlisted
+      List<String> limitedEnlisted = enlistedPlayerUsernames.length > 12
+          ? enlistedPlayerUsernames.take(12).toList()
+          : enlistedPlayerUsernames;
+
+      if (enlistedPlayerUsernames.length > 12) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Only the first 12 enlisted players are selected by default.')),
+        );
+      }
+
       setState(() {
         _selectedPlayers = _players
-            .where((player) => enlistedPlayerUsernames.contains(player.username))
+            .where((player) => limitedEnlisted.contains(player.username))
             .toList();
       });
       // Save the enlisted players as the current selection
@@ -190,37 +201,38 @@ class _PlayGroundState extends State<PlayGround> {
     }
 
     int selectedCount = _selectedPlayers.length;
-
-    if (selectedCount > 12) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Maximum number of players is 12.')),
-      );
-      return;
-    }
-
     List<Player> playersToUse = _selectedPlayers;
 
-    if (selectedCount >= 9 && selectedCount <= 11) {
-      playersToUse = _selectedPlayers.take(8).toList();
+    // Handle selection limits and team creation based on player count
+    if (selectedCount > 12) {
+      // Limit to first 12 players
+      playersToUse = _selectedPlayers.take(12).toList();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Only the first 8 players will be used for team creation.')),
+        SnackBar(content: Text('Only the first 12 selected players will be used for team creation.')),
       );
+    } else if (selectedCount >= 9 && selectedCount <= 12) {
+      // For 9-12 players, create 3 teams of 4 players each
+      if (selectedCount < 12) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Selecting the first ${selectedCount} players for team creation.')),
+        );
+      }
+      // Ensure exactly 12 players for 3 teams of 4
+      playersToUse = selectedCount >= 12
+          ? _selectedPlayers.take(12).toList()
+          : _selectedPlayers;
     }
 
     setState(() {
       int numTeams;
 
-      // Determine the number of teams and handle special cases
-      if (selectedCount == 12) {
+      if (playersToUse.length == 12) {
         numTeams = 3;
-      } else if (selectedCount >= 9 && selectedCount <= 11) {
-        playersToUse = playersToUse.take(8).toList();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Only the first 8 players will be used for team creation.')),
-        );
-        numTeams = 2;
-      } else if (selectedCount <= 8) {
-        numTeams = selectedCount > 4 ? 2 : 1;
+      } else if (playersToUse.length >= 9 && playersToUse.length <= 11) {
+        // Adjusting to create 3 teams even if players are less than 12
+        numTeams = 3;
+      } else if (playersToUse.length <= 8) {
+        numTeams = playersToUse.length > 4 ? 2 : 1;
       } else {
         // Handle any other unexpected cases if necessary
         return;
@@ -643,8 +655,6 @@ class _PlayGroundState extends State<PlayGround> {
       ),
     );
   }
-
-
 }
 
 // Custom PlayGroundActionButton Widget
@@ -904,7 +914,6 @@ class PlayGroundTeamCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Divider before averages
-
                   // Averages List
                   ...parameters.asMap().entries.map((entry) {
                     int idx = entry.key;
