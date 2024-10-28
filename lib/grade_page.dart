@@ -223,8 +223,8 @@ class _GradePageState extends State<GradePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(successMessage),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 6),
           ),
         );
         // Optionally, you can refresh the data or navigate away

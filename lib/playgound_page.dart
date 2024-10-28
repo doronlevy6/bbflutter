@@ -502,27 +502,30 @@ class _PlayGroundState extends State<PlayGround> {
 
                                 // Conditionally render the toggle only for Doron
                                 if (_isDoron)
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.person,
-                                        color: Colors.green[800],
-                                        size: 20,
-                                      ),
-                                      Switch(
-                                        value: _useUserRankings,
-                                        onChanged: _toggleRankings,
-                                        activeColor: Colors.green,
-                                        inactiveThumbColor: Colors.grey,
-                                        inactiveTrackColor: Colors.grey[300],
-                                      ),
-                                      Icon(
-                                        Icons.group,
-                                        color: Colors.green[800],
-                                        size: 20,
-                                      ),
-                                    ],
-                                  ),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.person,
+                        color: Colors.green[800],
+                        size: 20,
+                      ),
+                      Transform.scale(
+                        scale: 0.7, // Adjust the scale factor as needed
+                        child: Switch(
+                          value: _useUserRankings,
+                          onChanged: _toggleRankings,
+                          activeColor: Colors.green,
+                          inactiveThumbColor: Colors.grey,
+                          inactiveTrackColor: Colors.grey[300],
+                        ),
+                      ),
+                      Icon(
+                        Icons.group,
+                        color: Colors.green[800],
+                        size: 20,
+                      ),
+                    ],
+                  ),
                               ],
                             ),
                             SizedBox(height: 12), // Spacing
