@@ -6,18 +6,20 @@ class IconButtonWithLabel extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onPressed;
+  final String? tooltip; // Optional tooltip parameter
 
   const IconButtonWithLabel({
     Key? key,
     required this.icon,
     required this.label,
     required this.onPressed,
+    this.tooltip, // Initialize tooltip
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    // Using InkWell for ripple effect on tap
-    return InkWell(
+    // If a tooltip is provided, wrap the InkWell with a Tooltip widget
+    Widget content = InkWell(
       onTap: onPressed,
       borderRadius: BorderRadius.circular(8), // Rounded corners
       child: Column(
@@ -39,5 +41,13 @@ class IconButtonWithLabel extends StatelessWidget {
         ],
       ),
     );
+
+    // Return either the content with a Tooltip or just the content
+    return tooltip != null
+        ? Tooltip(
+      message: tooltip!,
+      child: content,
+    )
+        : content;
   }
 }

@@ -23,13 +23,21 @@ class PlayGround extends StatefulWidget {
 }
 
 class _PlayGroundState extends State<PlayGround> {
-  // Removed the fixed _cacheKey
+  // Variables to hold both user-specific and overall rankings
   String? _userName;
   String? _userSpecificCacheKey;
-  List<Player> _players = [];
+  List<Player> _userPlayers = [];
+  List<Player> _overallPlayers = [];
+  List<Player> _players = []; // This will be the active list based on user choice
   List<Player> _selectedPlayers = [];
   List<List<Player>> _teams = [];
   String _selectedMethod = '';
+
+  // Variable to track which rankings to use
+  bool _useUserRankings = true; // Default to user rankings
+
+  // New variable to track if the user is Doron
+  bool _isDoron = false;
 
   @override
   void initState() {
@@ -37,31 +45,51 @@ class _PlayGroundState extends State<PlayGround> {
     _loadPlayersFromLocalStorage();
   }
 
-  // Load all players from local storage and then load selected players
+  // Load both user-specific and overall player rankings
   Future<void> _loadPlayersFromLocalStorage() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     _userName = prefs.getString('user'); // Retrieve the current username
 
     if (_userName != null) {
-      _userSpecificCacheKey = 'playersRankings_$_userName';
-      String? jsonString = prefs.getString(_userSpecificCacheKey!);
-      if (jsonString != null) {
-        List<dynamic> jsonData = jsonDecode(jsonString);
-        setState(() {
-          _players = jsonData.map((data) => Player.fromJson(data)).toList();
-        });
-        await _loadSelectedPlayers();
-      } else {
-        // Handle the case when no data is found for the user
-        print('No player rankings data found for user $_userName in local storage.');
-        // Optionally, you might want to load overall rankings or prompt the user to fetch data
-        await _loadOverallPlayerRankings();
+      _isDoron = _userName!.toLowerCase() == 'doron'; // Check if user is Doron
+      if (_isDoron) {
+        _userSpecificCacheKey = 'playersRankings_$_userName';
+        String? userJsonString = prefs.getString(_userSpecificCacheKey!);
+        if (userJsonString != null) {
+          List<dynamic> userJsonData = jsonDecode(userJsonString);
+          _userPlayers = userJsonData.map((data) => Player.fromJson(data)).toList();
+        } else {
+          // Handle the case when no user-specific data is found
+          print('No player rankings data found for user $_userName in local storage.');
+        }
       }
     } else {
       // Handle the case when username is not found
       print('No username found in SharedPreferences.');
-      // Optionally, navigate back to login or show an error
     }
+
+    // Load overall player rankings
+    String? overallJsonString = prefs.getString(kOverallPlayersRankingsKey);
+    if (overallJsonString != null) {
+      List<dynamic> overallJsonData = jsonDecode(overallJsonString);
+      _overallPlayers = overallJsonData.map((data) => Player.fromJson(data)).toList();
+    } else {
+      // Handle the case when no overall data is found
+      print('No overall player rankings data found in local storage.');
+    }
+
+    // Set the active players list based on the user status
+    setState(() {
+      if (_isDoron) {
+        _useUserRankings = true; // Default to user rankings for Doron
+        _players = _useUserRankings ? _userPlayers : _overallPlayers;
+      } else {
+        _useUserRankings = false; // Always use average rankings for others
+        _players = _overallPlayers;
+      }
+    });
+
+    await _loadSelectedPlayers();
   }
 
   // Load selected players from SharedPreferences
@@ -138,7 +166,21 @@ class _PlayGroundState extends State<PlayGround> {
     await _loadEnlistedPlayers();
   }
 
-  // Create balanced teams based on selected method
+  // Toggle between user rankings and overall rankings
+  void _toggleRankings(bool? value) {
+    if (!_isDoron || value == null) return; // Do nothing if not Doron
+
+    setState(() {
+      _useUserRankings = value;
+      _players = _useUserRankings ? _userPlayers : _overallPlayers;
+      _selectedPlayers.clear();
+      _teams.clear();
+      _selectedMethod = '';
+    });
+    _loadSelectedPlayers();
+  }
+
+  // Create balanced teams based on selected method and rankings source
   Future<void> _createBalancedTeams({required bool isAttributeBased}) async {
     if (_selectedPlayers.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -386,6 +428,8 @@ class _PlayGroundState extends State<PlayGround> {
         padding: EdgeInsets.all(12.0), // Reduced padding for compactness
         child: Column(
           children: [
+            // Removed the original Rankings Selection Toggle here
+
             // Main Content: Player Selection and Teams
             Expanded(
               child: ResponsiveBuilder(
@@ -427,7 +471,7 @@ class _PlayGroundState extends State<PlayGround> {
                             ),
 
                             Row(
-                              // New Row for Icon Buttons
+                              // Updated Row for Icon Buttons and Toggle (conditionally)
                               children: [
                                 // Clear Selection Icon Button
                                 IconButtonWithLabel(
@@ -435,13 +479,38 @@ class _PlayGroundState extends State<PlayGround> {
                                   label: 'Clear',
                                   onPressed: _clearSelection,
                                 ),
-                                SizedBox(width: 24), // Spacing between buttons
+                                SizedBox(width: 16), // Reduced spacing for compactness
                                 // Select All Enlisted Players Icon Button
                                 IconButtonWithLabel(
                                   icon: Icons.confirmation_number_outlined,
                                   label: 'Enlisted',
                                   onPressed: _selectAllEnlistedPlayers,
                                 ),
+                                SizedBox(width: 16), // Spacing before toggle
+
+                                // Conditionally render the toggle only for Doron
+                                if (_isDoron)
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.person,
+                                        color: Colors.green[800],
+                                        size: 20,
+                                      ),
+                                      Switch(
+                                        value: _useUserRankings,
+                                        onChanged: _toggleRankings,
+                                        activeColor: Colors.green,
+                                        inactiveThumbColor: Colors.grey,
+                                        inactiveTrackColor: Colors.grey[300],
+                                      ),
+                                      Icon(
+                                        Icons.group,
+                                        color: Colors.green[800],
+                                        size: 20,
+                                      ),
+                                    ],
+                                  ),
                               ],
                             ),
                             SizedBox(height: 12), // Spacing
@@ -574,6 +643,8 @@ class _PlayGroundState extends State<PlayGround> {
       ),
     );
   }
+
+
 }
 
 // Custom PlayGroundActionButton Widget
