@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../services/api_service.dart';
+import '../../services/api_service.dart';
 import 'legend_page.dart';
 
 class GradePage extends StatefulWidget {
@@ -223,8 +223,8 @@ class _GradePageState extends State<GradePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(successMessage),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 6),
           ),
         );
         // Optionally, you can refresh the data or navigate away
@@ -475,8 +475,9 @@ class _GradePageState extends State<GradePage> {
             Expanded(
               flex: 2,
               child: Card(
-                elevation: 1,
+                      elevation: 1,
                 margin: EdgeInsets.symmetric(vertical: 1),
+                  color: Colors.white,
                 child: ListTile(
                   contentPadding: EdgeInsets.only(left: 4.0),
                   horizontalTitleGap: 4.0,
@@ -809,6 +810,7 @@ class _GradePageState extends State<GradePage> {
               child: Card(
                 elevation: 1,
                 margin: EdgeInsets.symmetric(vertical: 1),
+                color:Colors.white,
                 child: ListTile(
                   contentPadding: EdgeInsets.only(left: 4.0),
                   horizontalTitleGap: 4.0,
@@ -1103,6 +1105,8 @@ class _GradePageState extends State<GradePage> {
 }
 
 /// Custom GradeButton Widget using Overlay
+
+
 class GradeButton extends StatelessWidget {
   final int? grade;
   final bool isSelected;
@@ -1136,27 +1140,57 @@ class GradeButton extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: isSelected
-              ? Colors.green[200]
-              : (isRowSelected
               ? Colors.green[100]
-              : (grade != null && grade! > 0)
+              : (isRowSelected
               ? Colors.green[50]
-              : Colors.green[50]),
+              : (grade != null && grade! > 0)
+              ? Colors.white
+              : Colors.white),
         ),
         alignment: Alignment.center,
-        child: grade != null && grade! > 0
-            ? Text(
-          '$grade',
-          style: TextStyle(
-            color: isRowSelected ? Colors.green : Colors.green,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
-        )
-            : CircleAvatar(
-          radius: 10,
-          backgroundImage: AssetImage('assets/images/basketball.jpeg'),
-          backgroundColor: Colors.transparent,
+        child: Stack(
+          clipBehavior: Clip.none, // Allows the positioned widget to overflow if needed
+          children: [
+            // Main Content: Grade Text or CircleAvatar
+            grade != null && grade! > 0
+                ? Text(
+              '$grade',
+              style: TextStyle(
+                color: isSelected
+                    ? Colors.green
+                    : isRowSelected
+                    ? Colors.green
+                    : Colors.green,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            )
+                : CircleAvatar(
+              radius: 10,
+              backgroundImage: AssetImage('assets/images/basketball.jpeg'),
+              backgroundColor: Colors.transparent,
+            ),
+            // Positioned Number 6 at Bottom Right
+            // Positioned(
+            //   bottom: -10, // Adjust as needed
+            //   right: -10,  // Adjust as needed
+            //   child: Container(
+            //     padding: EdgeInsets.all(2),
+            //     decoration: BoxDecoration(
+            //       color: Colors.white, // Background color for visibility
+            //       shape: BoxShape.circle,
+            //     ),
+            //     child: Text(
+            //       '6',
+            //       style: TextStyle(
+            //         fontSize: 10, // Smaller font size
+            //         color: Colors.green, // Text color contrasting the background
+            //         fontWeight: FontWeight.normal,
+            //       ),
+            //     ),
+            //   ),
+            // ),
+          ],
         ),
       ),
     );

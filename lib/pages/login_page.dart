@@ -152,6 +152,8 @@ class _LoginPageState extends State<LoginPage> {
       });
     }
   }
+
+
   Future<void> fetchAndCacheOverallPlayerRankings() async {
     try {
       // Fetch data from the API
@@ -180,9 +182,7 @@ class _LoginPageState extends State<LoginPage> {
       });
     }
   }
-  // Fetch and Cache Player Rankings
 
-  // UI Building
   @override
   Widget build(BuildContext context) {
     return Scaffold(

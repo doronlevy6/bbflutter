@@ -4,13 +4,13 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 // Import the pages
-import 'login_page.dart';
-import 'manager_page.dart';
-import 'grade_page.dart';
-import 'get_score_page.dart';
-import 'playgound_page.dart';
-import 'home_page.dart';
-import 'welcome_page.dart';
+import 'pages/login_page.dart';
+import 'pages/manager_page.dart';
+import 'pages/grade_page.dart';
+import 'pages/get_score_page.dart';
+import 'pages/playgound_page.dart';
+import 'pages/home_page.dart';
+import 'pages/welcome_page.dart';
 
 Future<void> main() async {
   // Ensure that widget binding is initialized

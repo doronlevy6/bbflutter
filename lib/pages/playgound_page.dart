@@ -13,6 +13,7 @@ import 'package:responsive_builder/responsive_builder.dart'; // Import responsiv
 // Define keys for SharedPreferences
 const String kEnlistedPlayersKey = 'enlistedPlayers';
 const String kSelectedPlayersKey = 'selectedPlayers';
+const String kOverallPlayersRankingsKey = 'overallPlayersRankings';
 
 class PlayGround extends StatefulWidget {
   const PlayGround({Key? key}) : super(key: key);
@@ -22,11 +23,21 @@ class PlayGround extends StatefulWidget {
 }
 
 class _PlayGroundState extends State<PlayGround> {
-  final String _cacheKey = 'playersRankings';
-  List<Player> _players = [];
+  // Variables to hold both user-specific and overall rankings
+  String? _userName;
+  String? _userSpecificCacheKey;
+  List<Player> _userPlayers = [];
+  List<Player> _overallPlayers = [];
+  List<Player> _players = []; // This will be the active list based on user choice
   List<Player> _selectedPlayers = [];
   List<List<Player>> _teams = [];
   String _selectedMethod = '';
+
+  // Variable to track which rankings to use
+  bool _useUserRankings = true; // Default to user rankings
+
+  // New variable to track if the user is Doron
+  bool _isDoron = false;
 
   @override
   void initState() {
@@ -34,20 +45,51 @@ class _PlayGroundState extends State<PlayGround> {
     _loadPlayersFromLocalStorage();
   }
 
-  // Load all players from local storage and then load selected players
+  // Load both user-specific and overall player rankings
   Future<void> _loadPlayersFromLocalStorage() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? jsonString = prefs.getString(_cacheKey);
-    if (jsonString != null) {
-      List<dynamic> jsonData = jsonDecode(jsonString);
-      setState(() {
-        _players = jsonData.map((data) => Player.fromJson(data)).toList();
-      });
-      await _loadSelectedPlayers();
+    _userName = prefs.getString('user'); // Retrieve the current username
+
+    if (_userName != null) {
+      _isDoron = _userName!.toLowerCase() == 'doron'; // Check if user is Doron
+      if (_isDoron) {
+        _userSpecificCacheKey = 'playersRankings_$_userName';
+        String? userJsonString = prefs.getString(_userSpecificCacheKey!);
+        if (userJsonString != null) {
+          List<dynamic> userJsonData = jsonDecode(userJsonString);
+          _userPlayers = userJsonData.map((data) => Player.fromJson(data)).toList();
+        } else {
+          // Handle the case when no user-specific data is found
+          print('No player rankings data found for user $_userName in local storage.');
+        }
+      }
     } else {
-      // Handle the case when no data is found
-      print('No players data found in local storage.');
+      // Handle the case when username is not found
+      print('No username found in SharedPreferences.');
     }
+
+    // Load overall player rankings
+    String? overallJsonString = prefs.getString(kOverallPlayersRankingsKey);
+    if (overallJsonString != null) {
+      List<dynamic> overallJsonData = jsonDecode(overallJsonString);
+      _overallPlayers = overallJsonData.map((data) => Player.fromJson(data)).toList();
+    } else {
+      // Handle the case when no overall data is found
+      print('No overall player rankings data found in local storage.');
+    }
+
+    // Set the active players list based on the user status
+    setState(() {
+      if (_isDoron) {
+        _useUserRankings = true; // Default to user rankings for Doron
+        _players = _useUserRankings ? _userPlayers : _overallPlayers;
+      } else {
+        _useUserRankings = false; // Always use average rankings for others
+        _players = _overallPlayers;
+      }
+    });
+
+    await _loadSelectedPlayers();
   }
 
   // Load selected players from SharedPreferences
@@ -66,14 +108,25 @@ class _PlayGroundState extends State<PlayGround> {
     }
   }
 
-  // Load enlisted players from SharedPreferences and select them
+  // Load enlisted players from SharedPreferences and select them (limited to first 12)
   Future<void> _loadEnlistedPlayers() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     List<String>? enlistedPlayerUsernames = prefs.getStringList(kEnlistedPlayersKey);
     if (enlistedPlayerUsernames != null && enlistedPlayerUsernames.isNotEmpty) {
+      // Limit to first 12 players if more are enlisted
+      List<String> limitedEnlisted = enlistedPlayerUsernames.length > 12
+          ? enlistedPlayerUsernames.take(12).toList()
+          : enlistedPlayerUsernames;
+
+      if (enlistedPlayerUsernames.length > 12) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Only the first 12 enlisted players are selected by default.')),
+        );
+      }
+
       setState(() {
         _selectedPlayers = _players
-            .where((player) => enlistedPlayerUsernames.contains(player.username))
+            .where((player) => limitedEnlisted.contains(player.username))
             .toList();
       });
       // Save the enlisted players as the current selection
@@ -124,7 +177,21 @@ class _PlayGroundState extends State<PlayGround> {
     await _loadEnlistedPlayers();
   }
 
-  // Create balanced teams based on selected method
+  // Toggle between user rankings and overall rankings
+  void _toggleRankings(bool? value) {
+    if (!_isDoron || value == null) return; // Do nothing if not Doron
+
+    setState(() {
+      _useUserRankings = value;
+      _players = _useUserRankings ? _userPlayers : _overallPlayers;
+      _selectedPlayers.clear();
+      _teams.clear();
+      _selectedMethod = '';
+    });
+    _loadSelectedPlayers();
+  }
+
+  // Create balanced teams based on selected method and rankings source
   Future<void> _createBalancedTeams({required bool isAttributeBased}) async {
     if (_selectedPlayers.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -134,37 +201,38 @@ class _PlayGroundState extends State<PlayGround> {
     }
 
     int selectedCount = _selectedPlayers.length;
-
-    if (selectedCount > 12) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Maximum number of players is 12.')),
-      );
-      return;
-    }
-
     List<Player> playersToUse = _selectedPlayers;
 
-    if (selectedCount >= 9 && selectedCount <= 11) {
-      playersToUse = _selectedPlayers.take(8).toList();
+    // Handle selection limits and team creation based on player count
+    if (selectedCount > 12) {
+      // Limit to first 12 players
+      playersToUse = _selectedPlayers.take(12).toList();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Only the first 8 players will be used for team creation.')),
+        SnackBar(content: Text('Only the first 12 selected players will be used for team creation.')),
       );
+    } else if (selectedCount >= 9 && selectedCount <= 12) {
+      // For 9-12 players, create 3 teams of 4 players each
+      if (selectedCount < 12) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Selecting the first ${selectedCount} players for team creation.')),
+        );
+      }
+      // Ensure exactly 12 players for 3 teams of 4
+      playersToUse = selectedCount >= 12
+          ? _selectedPlayers.take(12).toList()
+          : _selectedPlayers;
     }
 
     setState(() {
       int numTeams;
 
-      // Determine the number of teams and handle special cases
-      if (selectedCount == 12) {
+      if (playersToUse.length == 12) {
         numTeams = 3;
-      } else if (selectedCount >= 9 && selectedCount <= 11) {
-        playersToUse = playersToUse.take(8).toList();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Only the first 8 players will be used for team creation.')),
-        );
-        numTeams = 2;
-      } else if (selectedCount <= 8) {
-        numTeams = selectedCount > 4 ? 2 : 1;
+      } else if (playersToUse.length >= 9 && playersToUse.length <= 11) {
+        // Adjusting to create 3 teams even if players are less than 12
+        numTeams = 3;
+      } else if (playersToUse.length <= 8) {
+        numTeams = playersToUse.length > 4 ? 2 : 1;
       } else {
         // Handle any other unexpected cases if necessary
         return;
@@ -333,6 +401,23 @@ class _PlayGroundState extends State<PlayGround> {
     return total;
   }
 
+  // Load overall player rankings if user-specific rankings are not available
+  Future<void> _loadOverallPlayerRankings() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? jsonString = prefs.getString(kOverallPlayersRankingsKey);
+    if (jsonString != null) {
+      List<dynamic> jsonData = jsonDecode(jsonString);
+      setState(() {
+        _players = jsonData.map((data) => Player.fromJson(data)).toList();
+      });
+      await _loadSelectedPlayers();
+    } else {
+      // Handle the case when no overall data is found
+      print('No overall player rankings data found in local storage.');
+      // Optionally, prompt the user to fetch data from the server
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Sort players: selected players first, then not selected, both sorted alphabetically
@@ -355,6 +440,8 @@ class _PlayGroundState extends State<PlayGround> {
         padding: EdgeInsets.all(12.0), // Reduced padding for compactness
         child: Column(
           children: [
+            // Removed the original Rankings Selection Toggle here
+
             // Main Content: Player Selection and Teams
             Expanded(
               child: ResponsiveBuilder(
@@ -385,18 +472,18 @@ class _PlayGroundState extends State<PlayGround> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // Selected Players Count
+                            SizedBox(height: 10), // Spacing
                             Text(
                               'Selected Players: ${_selectedPlayers.length}',
                               style: TextStyle(
                                 color: Colors.green[800],
                                 fontWeight: FontWeight.bold,
-                                fontSize: 16, // Consistent font size
+                                fontSize: 12, // Consistent font size
                               ),
                             ),
-                            SizedBox(height: 10), // Spacing
 
-                            // New Row for Icon Buttons
                             Row(
+                              // Updated Row for Icon Buttons and Toggle (conditionally)
                               children: [
                                 // Clear Selection Icon Button
                                 IconButtonWithLabel(
@@ -404,13 +491,41 @@ class _PlayGroundState extends State<PlayGround> {
                                   label: 'Clear',
                                   onPressed: _clearSelection,
                                 ),
-                                SizedBox(width: 24), // Spacing between buttons
+                                SizedBox(width: 16), // Reduced spacing for compactness
                                 // Select All Enlisted Players Icon Button
                                 IconButtonWithLabel(
                                   icon: Icons.confirmation_number_outlined,
                                   label: 'Enlisted',
                                   onPressed: _selectAllEnlistedPlayers,
                                 ),
+                                SizedBox(width: 16), // Spacing before toggle
+
+                                // Conditionally render the toggle only for Doron
+                                if (_isDoron)
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.person,
+                        color: Colors.green[800],
+                        size: 20,
+                      ),
+                      Transform.scale(
+                        scale: 0.7, // Adjust the scale factor as needed
+                        child: Switch(
+                          value: _useUserRankings,
+                          onChanged: _toggleRankings,
+                          activeColor: Colors.green,
+                          inactiveThumbColor: Colors.grey,
+                          inactiveTrackColor: Colors.grey[300],
+                        ),
+                      ),
+                      Icon(
+                        Icons.group,
+                        color: Colors.green[800],
+                        size: 20,
+                      ),
+                    ],
+                  ),
                               ],
                             ),
                             SizedBox(height: 12), // Spacing
@@ -545,9 +660,6 @@ class _PlayGroundState extends State<PlayGround> {
   }
 }
 
-// ... [Rest of your custom widgets like PlayGroundPlayerListTile, PlayGroundTeamMethodButton, PlayGroundTeamCard, PlayGroundParameterRow]
-
-
 // Custom PlayGroundActionButton Widget
 class PlayGroundActionButton extends StatelessWidget {
   final String label;
@@ -610,7 +722,7 @@ class PlayGroundPlayerListTile extends StatelessWidget {
       child: ListTile(
         contentPadding: EdgeInsets.only(left: 4.0),
         horizontalTitleGap: 8.0,
-         minLeadingWidth: 0,
+        minLeadingWidth: 0,
         visualDensity: VisualDensity.compact,
         dense: true,
         leading: Icon(
@@ -654,13 +766,13 @@ class PlayGroundTeamMethodButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             child: Image.asset(
               imagePath,
-              width: 80,
-              height: 80,
+              width: 40,
+              height: 40,
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) {
                 return Container(
-                  width: 80,
-                  height: 80,
+                  width: 40,
+                  height: 40,
                   color: Colors.grey[300],
                   child: Icon(
                     Icons.image_not_supported,
@@ -805,21 +917,33 @@ class PlayGroundTeamCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Divider before averages
-                  Divider(
-                    color: Colors.green[700],
-                    thickness: 1,
-                    endIndent: 4,
-                  ),
                   // Averages List
                   ...parameters.asMap().entries.map((entry) {
                     int idx = entry.key;
                     var param = entry.value;
                     if (param['label'] == 'Team Average') {
-                      return PlayGroundParameterRow(
-                        icon: param['icon'] as IconData,
-                        tooltip: param['label'] as String,
-                        value: param['value'] as String,
-                        isTotal: true,
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(height: 4), // Small spacing before divider
+                          // Shorter Divider
+                          Row(
+                            children: [
+                              Container(
+                                width: 50, // Fixed width of 50 pixels
+                                height: 1, // Height of the line
+                                color: Colors.green[700], // Line color
+                              ),
+                              // No text here, just the divider
+                            ],
+                          ),
+                          PlayGroundParameterRow(
+                            icon: param['icon'] as IconData,
+                            tooltip: param['label'] as String,
+                            value: param['value'] as String,
+                            isTotal: true, // Indicate that this is the total
+                          ),
+                        ],
                       );
                     } else {
                       return PlayGroundParameterRow(
