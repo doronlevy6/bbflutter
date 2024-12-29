@@ -35,7 +35,7 @@ class _GradePageState extends State<GradePage> {
 
   @override
   void dispose() {
-    _removeFloatingButtons(); // This will reset the selection
+    _removeFloatingButtons(resetSelection: false); // Prevent setState() during dispose
     super.dispose();
   }
 
@@ -252,14 +252,13 @@ class _GradePageState extends State<GradePage> {
   void _removeFloatingButtons({bool resetSelection = true}) {
     _floatingButtonsOverlay?.remove();
     _floatingButtonsOverlay = null;
-    if (resetSelection) {
+    if (resetSelection && mounted) { // Check if the widget is still mounted
       setState(() {
         _selectedGradeButtonUsername = null;
         _selectedGradeButtonField = null;
       });
     }
   }
-
   /// Shows the floating + and - buttons at the specified position
   void _showFloatingButtons(Offset position, String username, String field) {
     _removeFloatingButtons(resetSelection: false); // Prevent resetting the selection
