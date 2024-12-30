@@ -1,5 +1,7 @@
 // lib/screens/grade_page.dart
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
@@ -168,7 +170,8 @@ class _GradePageState extends State<GradePage> {
       // Iterate through each player to categorize them
       for (var player in grading) {
         // Check if all grading fields are nullish (null or 0) and skip them
-        bool allGradesNullish = fields.every((field) => player[field] == null || player[field] == 0);
+        bool allGradesNullish = fields.every((field) =>
+        player[field] == null || player[field] == 0);
         if (allGradesNullish) {
           continue; // Skip this player
         }
@@ -185,7 +188,8 @@ class _GradePageState extends State<GradePage> {
 
         if (allGradesSet) {
           // Additionally, ensure all grades are within the valid range (1-10)
-          bool allGradesValid = fields.every((field) => player[field] >= 1 && player[field] <= 10);
+          bool allGradesValid = fields.every((field) =>
+          player[field] >= 1 && player[field] <= 10);
           if (allGradesValid) {
             validGrading.add(player);
           } else {
@@ -218,7 +222,9 @@ class _GradePageState extends State<GradePage> {
       if (response['success']) {
         String successMessage = 'Grading submitted successfully!';
         if (invalidPlayers.isNotEmpty) {
-          successMessage += '\nPlayers not submitted due to incomplete grades: ${invalidPlayers.join(', ')}.';
+          successMessage +=
+          '\nPlayers not submitted due to incomplete grades: ${invalidPlayers
+              .join(', ')}.';
         }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -227,7 +233,52 @@ class _GradePageState extends State<GradePage> {
             duration: Duration(seconds: 6),
           ),
         );
-        // Optionally, you can refresh the data or navigate away
+
+        // **Step 1: Fetch Updated Rankings**
+        try {
+          final updatedData = await _apiService.get('players-rankings/$user');
+
+          if (updatedData['success'] == true) {
+            // **Step 2: Update SharedPreferences**
+            String jsonString = jsonEncode(updatedData['playersRankings']);
+            SharedPreferences prefs = await SharedPreferences.getInstance();
+            bool isSet = await prefs.setString(
+                'playersRankings_$user', jsonString);
+
+            if (isSet) {
+              print("Player rankings for $user successfully cached.");
+            } else {
+              // Handle cache set failure
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Failed to update cached player rankings.'),
+                  backgroundColor: Colors.red,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+          } else {
+            // Handle failure to fetch updated rankings
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to fetch updated player rankings.'),
+                backgroundColor: Colors.red,
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+        } catch (error) {
+          // **Step 3: Handle Errors**
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error fetching updated rankings: $error'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+
+        // Optionally, you can refresh the UI or navigate away here
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -247,7 +298,6 @@ class _GradePageState extends State<GradePage> {
       );
     }
   }
-
   /// Removes the floating buttons overlay with optional selection reset
   void _removeFloatingButtons({bool resetSelection = true}) {
     _floatingButtonsOverlay?.remove();
