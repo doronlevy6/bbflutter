@@ -136,38 +136,56 @@ class _WelcomePageState extends State<WelcomePage> {
     });
   }
 
+// Inside _WelcomePageState, within the build() method where the greeting is displayed:
+
+  // בתוך הפונקציה build() של _WelcomePageState:
+
   @override
   Widget build(BuildContext context) {
+    // Check if the user exists in the enlistedPlayers list and determine their position.
+    String greetingMessage;
+    if (enlistedPlayers.contains(user)) {
+      int index = enlistedPlayers.indexOf(user);
+      if (index < 12) {
+        greetingMessage = 'Hello $user, you\'re playing in the next game!';
+      } else {
+        greetingMessage = 'Hello $user, you are on standby.\nPlease stay available for updates.';
+      }
+    } else {
+      greetingMessage = 'Hello $user!';
+    }
+
     return Scaffold(
-      // Removed AppBar as per the user's request
+      // AppBar removed per the user's request
       body: Padding(
         padding: EdgeInsets.all(12.0), // Reduced padding for compactness
         child: Column(
           children: [
-            // Main Content: Enlisted Players and Teams
+            // Main Content: Enlisted Players and Greeting Message
             Expanded(
               child: ResponsiveBuilder(
                 builder: (context, sizingInformation) {
-                  // Determine flex ratios based on device type
+                  // Determine flex ratios based on the device type
                   int playerFlex;
-                  int teamFlex;
+                  int greetingFlex;
 
                   if (sizingInformation.deviceScreenType == DeviceScreenType.mobile) {
                     playerFlex = 4;
-                    teamFlex = 6;
-                  } else if (sizingInformation.deviceScreenType == DeviceScreenType.tablet) {
+                    greetingFlex = 6;
+                  } else if (sizingInformation.deviceScreenType ==
+                      DeviceScreenType.tablet) {
                     playerFlex = 3;
-                    teamFlex = 7;
+                    greetingFlex = 7;
                   } else {
-                    // Desktop and others
+                    // For desktop and others
                     playerFlex = 3;
-                    teamFlex = 7;
+                    greetingFlex = 7;
                   }
 
                   return Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Left Column: Enlisted Players
+                      // Left Column: Enlisted Players list
                       Expanded(
                         flex: playerFlex,
                         child: Column(
@@ -175,39 +193,39 @@ class _WelcomePageState extends State<WelcomePage> {
                           children: [
                             if (!widget.showOnlyTeams) ...[
                               EnlistButton(onPressed: _enlistForGame),
-                              SizedBox(height: 10), // Reduced spacing
-                              // Removed 'Enlisted Players' Text
-                              // Moved 'Total Enlisted' to replace the 'Enlisted Players' label
+                              SizedBox(height: 10),
                               Text(
                                 'Total Enlisted: ${enlistedPlayers.length}',
                                 style: TextStyle(
                                     color: Colors.green[800],
                                     fontWeight: FontWeight.bold,
-                                    fontSize: 14), // Smaller font
+                                    fontSize: 14),
                               ),
-                              SizedBox(height: 8), // Reduced spacing
+                              SizedBox(height: 8),
                               Expanded(
                                 child: enlistedPlayers.isNotEmpty
                                     ? ListView.builder(
                                   itemCount: enlistedPlayers.length,
                                   itemBuilder: (context, index) {
                                     return Card(
-                                      elevation: 1, // Reduced elevation
+                                      elevation: 1,
                                       margin: EdgeInsets.symmetric(
-                                          vertical: 1), // Reduced margin
+                                          vertical: 1),
                                       child: ListTile(
-                                        contentPadding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0), // Further reduced padding
+                                        contentPadding: EdgeInsets.symmetric(
+                                            horizontal: 8.0, vertical: 2.0),
                                         visualDensity: VisualDensity.compact,
-                                        leading: Icon(Icons.person,
-                                            color: Colors.green[700],
-                                            size: 16), // Smaller icon
+                                        leading: Icon(
+                                          Icons.person,
+                                          color: Colors.green[700],
+                                          size: 16,
+                                        ),
                                         title: Text(
                                           enlistedPlayers[index],
                                           style: TextStyle(
                                               color: Colors.green[700],
-                                              fontSize: 14), // Smaller font
-                                          overflow:
-                                          TextOverflow.ellipsis, // Ensure single line
+                                              fontSize: 14),
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
                                     );
@@ -218,7 +236,7 @@ class _WelcomePageState extends State<WelcomePage> {
                                     'No players enlisted.',
                                     style: TextStyle(
                                         color: Colors.green[700],
-                                        fontSize: 14), // Smaller font
+                                        fontSize: 14),
                                   ),
                                 ),
                               ),
@@ -226,77 +244,20 @@ class _WelcomePageState extends State<WelcomePage> {
                           ],
                         ),
                       ),
-                      SizedBox(width: 12), // Reduced space between columns
-                      // Right Column: Teams and Averages
+                      SizedBox(width: 12),
+                      // Right Column: Greeting Message
                       Expanded(
-                        flex: teamFlex,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: teams.isNotEmpty
-                                  ? ListView.builder(
-                                itemCount: teams.length,
-                                itemBuilder: (context, teamIndex) {
-                                  List<Player> team = teams[teamIndex];
-
-                                  // Calculate Averages
-                                  Map<String, double> averages = {
-                                    'skillLevel': 0.0,
-                                    'scoringAbility': 0.0,
-                                    'defensiveSkills': 0.0,
-                                    'speedAndAgility': 0.0,
-                                    'shootingRange': 0.0,
-                                    'reboundSkills': 0.0,
-                                  };
-
-                                  for (var player in team) {
-                                    averages['skillLevel'] =
-                                        averages['skillLevel']! +
-                                            player.skillLevel;
-                                    averages['scoringAbility'] =
-                                        averages['scoringAbility']! +
-                                            player.scoringAbility;
-                                    averages['defensiveSkills'] =
-                                        averages['defensiveSkills']! +
-                                            player.defensiveSkills;
-                                    averages['speedAndAgility'] =
-                                        averages['speedAndAgility']! +
-                                            player.speedAndAgility;
-                                    averages['shootingRange'] =
-                                        averages['shootingRange']! +
-                                            player.shootingRange;
-                                    averages['reboundSkills'] =
-                                        averages['reboundSkills']! +
-                                            player.reboundSkills;
-                                  }
-
-                                  averages.updateAll(
-                                          (key, value) => value / team.length);
-
-                                  double totalAverages =
-                                  averages.values.reduce((a, b) => a + b);
-
-                                  return TeamCard(
-                                    teamName:
-                                    'Team ${team.isNotEmpty ? team.first.username : (teamIndex + 1)}',
-                                    players:
-                                    team.map((p) => p.username).toList(),
-                                    averages: averages,
-                                    totalAverages: totalAverages,
-                                  );
-                                },
-                              )
-                                  : Center(
-                                child: Text(
-                                  'No teams created.',
-                                  style: TextStyle(
-                                      color: Colors.green[700],
-                                      fontSize: 14), // Smaller font
-                                ),
-                              ),
+                        flex: greetingFlex,
+                        child: Center(
+                          child: Text(
+                            greetingMessage,
+                            style: TextStyle(
+                              color: Colors.green[800],
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
                             ),
-                          ],
+                            textAlign: TextAlign.center,
+                          ),
                         ),
                       ),
                     ],
@@ -304,14 +265,16 @@ class _WelcomePageState extends State<WelcomePage> {
                 },
               ),
             ),
-            SizedBox(height: 12), // Reduced spacing
-            // Legend Section
+            SizedBox(height: 12),
+            // Legend Section (as defined earlier)
             Legend(),
           ],
         ),
       ),
     );
   }
+
+
 }
 
 // Enlist Button Widget
@@ -331,7 +294,6 @@ class EnlistButton extends StatelessWidget {
       ),
       label: Text(
         'Play Next Game',
-        // textAlign: TextAlign.center,
         style: TextStyle(
           fontSize: 16, // Smaller font
           fontWeight: FontWeight.bold,
@@ -349,221 +311,3 @@ class EnlistButton extends StatelessWidget {
     );
   }
 }
-
-// Team Card Widget with Separate Columns for Team Info and Averages
-class TeamCard extends StatelessWidget {
-  final String teamName;
-  final List<String> players;
-  final Map<String, double> averages;
-  final double totalAverages;
-
-  TeamCard({
-    required this.teamName,
-    required this.players,
-    required this.averages,
-    required this.totalAverages,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    // Define the order and labels for the parameters
-    final parameters = [
-      {
-        'icon': Icons.handshake,
-        'label': 'Skill Level',
-        'value': averages['skillLevel']!.toStringAsFixed(2)
-      },
-      {
-        'icon': Icons.score,
-        'label': 'Scoring Ability',
-        'value': averages['scoringAbility']!.toStringAsFixed(2)
-      },
-      {
-        'icon': Icons.shield,
-        'label': 'Defensive Skills',
-        'value': averages['defensiveSkills']!.toStringAsFixed(2)
-      },
-      {
-        'icon': Icons.speed,
-        'label': 'Speed & Agility',
-        'value': averages['speedAndAgility']!.toStringAsFixed(2)
-      },
-      {
-        'icon': Icons.sports_basketball,
-        'label': 'Shooting Range',
-        'value': averages['shootingRange']!.toStringAsFixed(2)
-      },
-      {
-        'icon': Icons.grain,
-        'label': 'Rebound Skills',
-        'value': averages['reboundSkills']!.toStringAsFixed(2)
-      },
-      {
-        'icon': Icons.calculate,
-        'label': 'Team Average',
-        'value': (totalAverages / 6).toStringAsFixed(2)
-      },
-    ];
-
-    return Card(
-      color: Colors.green[50],
-      elevation: 3, // Reduced elevation
-      margin: EdgeInsets.symmetric(vertical: 6), // Reduced vertical margin
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10), // Slightly smaller radius
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0), // Reduced padding
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Left Column: Team Name and Players
-            Expanded(
-              flex: 7, // Increased flex to make left column wider
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Team Header
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          teamName,
-                          style: TextStyle(
-                            fontSize: 16, // Smaller font
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green[800],
-                          ),
-                          overflow: TextOverflow.ellipsis, // Adds ellipsis (...) if text overflows
-                          maxLines: 1, // Restricts text to a single line
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 8), // Reduced spacing
-                  // Display players directly without 'Players:' label
-                  ...players.map((player) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2.0),
-                    child: Row(
-                      children: [
-                        Icon(Icons.person,
-                            color: Colors.green[600], size: 14), // Smaller icon
-                        SizedBox(width: 4), // Reduced spacing
-                        Expanded(
-                          child: LayoutBuilder(
-                            builder: (context, constraints) {
-                              return Text(
-                                player,
-                                style: TextStyle(
-                                  color: Colors.green[700],
-                                  fontSize: 12, // Smaller font
-                                ),
-                                overflow:
-                                TextOverflow.ellipsis, // Single line
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  )),
-                ],
-              ),
-            ),
-            SizedBox(width: 12), // Reduced space between columns
-            // Right Column: Averages
-            Expanded(
-              flex: 3, // Decreased flex to make right column narrower
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Start Averages Display from top
-                  // Iterate through parameters and handle 'Team Average' differently
-                  ...parameters.asMap().entries.map((entry) {
-                    int idx = entry.key;
-                    var param = entry.value;
-                    if (param['label'] == 'Team Average') {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(height: 4), // Small spacing before divider
-                          // Shorter Divider
-                          Row(
-                            children: [
-                              Container(
-                                width: 50, // Fixed width of 50 pixels
-                                height: 1, // Height of the line
-                                color: Colors.green[700], // Line color
-                              ),
-                              // No text here, just the divider
-                            ],
-                          ),
-                          ParameterRow(
-                            icon: param['icon'] as IconData,
-                            tooltip: param['label'] as String,
-                            value: param['value'] as String,
-                            isTotal: true, // Indicate that this is the total
-                          ),
-                        ],
-                      );
-                    } else {
-                      return ParameterRow(
-                        icon: param['icon'] as IconData,
-                        tooltip: param['label'] as String,
-                        value: param['value'] as String,
-                      );
-                    }
-                  }).toList(),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// Parameter Row Widget with Icon and Value
-class ParameterRow extends StatelessWidget {
-  final IconData icon;
-  final String tooltip;
-  final String value;
-  final bool isTotal;
-
-  ParameterRow({
-    required this.icon,
-    required this.tooltip,
-    required this.value,
-    this.isTotal = false, // Default to false
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            color: Colors.green[700],
-            size: 16, // Smaller icon
-          ),
-          SizedBox(width: 4), // Reduced spacing
-          Expanded(
-            child: Text(
-              '$value',
-              style: TextStyle(
-                color: Colors.green[700],
-                fontWeight: isTotal ? FontWeight.bold : FontWeight.normal, // Bolder if total
-                fontSize: 12, // Smaller font
-              ),
-              overflow: TextOverflow.ellipsis, // Single line
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-

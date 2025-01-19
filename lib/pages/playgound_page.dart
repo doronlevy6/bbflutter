@@ -501,31 +501,8 @@ class _PlayGroundState extends State<PlayGround> {
                                 SizedBox(width: 16), // Spacing before toggle
 
                                 // Conditionally render the toggle only for Doron
-                                if (_isDoron)
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.person,
-                        color: Colors.green[800],
-                        size: 20,
-                      ),
-                      Transform.scale(
-                        scale: 0.7, // Adjust the scale factor as needed
-                        child: Switch(
-                          value: _useUserRankings,
-                          onChanged: _toggleRankings,
-                          activeColor: Colors.green,
-                          inactiveThumbColor: Colors.grey,
-                          inactiveTrackColor: Colors.grey[300],
-                        ),
-                      ),
-                      Icon(
-                        Icons.group,
-                        color: Colors.green[800],
-                        size: 20,
-                      ),
-                    ],
-                  ),
+                                // if (_isDoron)
+
                               ],
                             ),
                             SizedBox(height: 12), // Spacing
@@ -583,6 +560,30 @@ class _PlayGroundState extends State<PlayGround> {
                                   imagePath: 'assets/images/basketball.jpeg',
                                   onPressed: () => _createBalancedTeams(isAttributeBased: false),
                                 ),
+                                if (_isDoron) ...[
+                                  SizedBox(width: 5),
+                                  Icon(
+                                    Icons.group,
+                                    color: Colors.green[800],
+                                    size: 20,
+                                  ),
+                                  Transform.scale(
+                                    scale: 0.7, // Adjust the scale factor as needed
+                                    child: Switch(
+                                      value: _useUserRankings,
+                                      onChanged: _toggleRankings,
+                                      activeColor: Colors.green,
+                                      inactiveThumbColor: Colors.grey,
+                                      inactiveTrackColor: Colors.grey[300],
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.person,
+                                    color: Colors.green[800],
+                                    size: 20,
+                                  ),
+
+                                ],
                               ],
                             ),
                             SizedBox(height: 12), // Spacing
