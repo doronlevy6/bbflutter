@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '/model/player.dart'; // Adjust the path accordingly
@@ -9,6 +11,8 @@ import 'package:responsive_builder/responsive_builder.dart'; // Import responsiv
 // Define keys for SharedPreferences
 const String kUserKey = 'user';
 const String kEnlistedPlayersKey = 'enlistedPlayers';
+const String kOverallPlayersRankingsKey = 'overallPlayersRankings';
+const String kPlayersRankingsKey = 'playersRankings';
 
 class WelcomePage extends StatefulWidget {
   final bool showOnlyTeams;
@@ -24,6 +28,9 @@ class _WelcomePageState extends State<WelcomePage> {
   List<List<Player>> teams = [];
   List<String> enlistedPlayers = [];
   String user = '';
+  List<Map<String, dynamic>> overallPlayersRankings = [];
+  List<Map<String, dynamic>> playersRankings = [];
+
   late IO.Socket socket;
 
   @override
@@ -32,6 +39,7 @@ class _WelcomePageState extends State<WelcomePage> {
     _initializeUser();
     _fetchData();
     _setupSocketListener();
+    _loadRankingsData();
   }
 
   @override
@@ -39,6 +47,29 @@ class _WelcomePageState extends State<WelcomePage> {
     socket.dispose();
     super.dispose();
   }
+// This function loads both ranking keys from cache
+  Future<void> _loadRankingsData() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      // Decode overallPlayersRankings from JSON string into a list of maps.
+      String? overallPlayersRankingsString = prefs.getString(kOverallPlayersRankingsKey);
+      if (overallPlayersRankingsString != null && overallPlayersRankingsString.isNotEmpty) {
+        overallPlayersRankings = List<Map<String, dynamic>>.from(jsonDecode(overallPlayersRankingsString));
+      } else {
+        overallPlayersRankings = [];
+      }
+
+      // Build the user-specific key for playersRankings.
+      String userPlayersRankingsKey = 'playersRankings_$user';
+      String? playersRankingsString = prefs.getString(userPlayersRankingsKey);
+      if (playersRankingsString != null && playersRankingsString.isNotEmpty) {
+        playersRankings = List<Map<String, dynamic>>.from(jsonDecode(playersRankingsString));
+      } else {
+        playersRankings = [];
+      }
+    });
+  }
+
 
   Future<void> _initializeUser() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -142,42 +173,58 @@ class _WelcomePageState extends State<WelcomePage> {
 
   @override
   Widget build(BuildContext context) {
-    // Check if the user exists in the enlistedPlayers list and determine their position.
+    // Determine the greeting message based on the user's enrollment status and the number of enlisted players.
     String greetingMessage;
     if (enlistedPlayers.contains(user)) {
       int index = enlistedPlayers.indexOf(user);
       if (index < 12) {
         greetingMessage = 'Hello $user, you\'re playing in the next game!';
       } else {
-        greetingMessage = 'Hello $user, you are on standby.\nPlease stay available for updates.';
+        greetingMessage =
+        'Hello $user, you are on standby.\nPlease stay available for updates.';
       }
     } else {
-      greetingMessage = 'Hello $user!';
+      if (enlistedPlayers.length < 12) {
+        greetingMessage =
+        'Hello $user, to sign up for the next game, please click the "Play Next Game" button.';
+      } else if (enlistedPlayers.length >= 12) {
+        greetingMessage =
+        'Hello $user, click the "Play Next Game" button to join the standby list.';
+      } else {
+        greetingMessage = 'Hello $user!';
+      }
     }
+/// Calculate the rating message using the ranking keys from cache.
+    int totalPlayers = overallPlayersRankings.length;
+    int ratedPlayers = playersRankings.length; // Use the total number of items in playersRankings
+    int remaining = totalPlayers - ratedPlayers;
+    String ratingMessage = 'You have rated $ratedPlayers players. Please rate $remaining more players.';
+
+
+
 
     return Scaffold(
-      // AppBar removed per the user's request
+      // AppBar removed as per the user’s request.
       body: Padding(
-        padding: EdgeInsets.all(12.0), // Reduced padding for compactness
+        padding: EdgeInsets.all(12.0), // Reduced padding for compactness.
         child: Column(
           children: [
-            // Main Content: Enlisted Players and Greeting Message
+            // Main Content: Enlisted Players and Greeting Message.
             Expanded(
               child: ResponsiveBuilder(
                 builder: (context, sizingInformation) {
-                  // Determine flex ratios based on the device type
+                  // Determine flex ratios based on the device type.
                   int playerFlex;
                   int greetingFlex;
 
                   if (sizingInformation.deviceScreenType == DeviceScreenType.mobile) {
                     playerFlex = 4;
                     greetingFlex = 6;
-                  } else if (sizingInformation.deviceScreenType ==
-                      DeviceScreenType.tablet) {
+                  } else if (sizingInformation.deviceScreenType == DeviceScreenType.tablet) {
                     playerFlex = 3;
                     greetingFlex = 7;
                   } else {
-                    // For desktop and others
+                    // For desktop and others.
                     playerFlex = 3;
                     greetingFlex = 7;
                   }
@@ -185,7 +232,7 @@ class _WelcomePageState extends State<WelcomePage> {
                   return Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Left Column: Enlisted Players list
+                      // Left Column: Enlisted Players list.
                       Expanded(
                         flex: playerFlex,
                         child: Column(
@@ -209,8 +256,7 @@ class _WelcomePageState extends State<WelcomePage> {
                                   itemBuilder: (context, index) {
                                     return Card(
                                       elevation: 1,
-                                      margin: EdgeInsets.symmetric(
-                                          vertical: 1),
+                                      margin: EdgeInsets.symmetric(vertical: 1),
                                       child: ListTile(
                                         contentPadding: EdgeInsets.symmetric(
                                             horizontal: 8.0, vertical: 2.0),
@@ -245,34 +291,51 @@ class _WelcomePageState extends State<WelcomePage> {
                         ),
                       ),
                       SizedBox(width: 12),
-                      // Right Column: Greeting Message
+                      // Right Column: Greeting Message.
+                      // Right Column: Greeting and Rating Messages.
                       Expanded(
                         flex: greetingFlex,
                         child: Center(
-                          child: Text(
-                            greetingMessage,
-                            style: TextStyle(
-                              color: Colors.green[800],
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                greetingMessage,
+                                style: TextStyle(
+                                  color: Colors.green[800],
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              SizedBox(height: 20),
+                              Text(
+                                ratingMessage,
+                                style: TextStyle(
+                                  color: Colors.green[800],
+                                  fontSize: 18,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
                           ),
                         ),
                       ),
+
                     ],
                   );
                 },
               ),
             ),
             SizedBox(height: 12),
-            // Legend Section (as defined earlier)
+            // Legend Section (as defined earlier).
             Legend(),
           ],
         ),
       ),
     );
   }
+
 
 
 }
