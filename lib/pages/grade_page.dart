@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
 import 'legend_page.dart';
+import '../services/rankings_service.dart';
 
 class GradePage extends StatefulWidget {
   @override
@@ -235,48 +236,34 @@ class _GradePageState extends State<GradePage> {
         );
 
         // **Step 1: Fetch Updated Rankings**
-        try {
-          final updatedData = await _apiService.get('players-rankings/$user');
+        List<bool> results = await Future.wait([
+          RankingsService.fetchAndCachePlayerRankingsForUser(user!),
+          RankingsService.fetchAndCacheOverallPlayerRankings(),
+        ]);
 
-          if (updatedData['success'] == true) {
-            // **Step 2: Update SharedPreferences**
-            String jsonString = jsonEncode(updatedData['playersRankings']);
-            SharedPreferences prefs = await SharedPreferences.getInstance();
-            bool isSet = await prefs.setString(
-                'playersRankings_$user', jsonString);
+        bool cacheUserRankingsSuccess = results[0];
+        bool cacheOverallRankingsSuccess = results[1];
 
-            if (isSet) {
-              print("Player rankings for $user successfully cached.");
-            } else {
-              // Handle cache set failure
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Failed to update cached player rankings.'),
-                  backgroundColor: Colors.red,
-                  duration: Duration(seconds: 3),
-                ),
-              );
-            }
-          } else {
-            // Handle failure to fetch updated rankings
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Failed to fetch updated player rankings.'),
-                backgroundColor: Colors.red,
-                duration: Duration(seconds: 3),
-              ),
-            );
-          }
-        } catch (error) {
-          // **Step 3: Handle Errors**
+        if (!cacheUserRankingsSuccess) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error fetching updated rankings: $error'),
+              content: Text('Failed to update cached player rankings.'),
               backgroundColor: Colors.red,
               duration: Duration(seconds: 3),
             ),
           );
         }
+        if (!cacheOverallRankingsSuccess) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to update cached overall player rankings.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+
+
 
         // Optionally, you can refresh the UI or navigate away here
       } else {

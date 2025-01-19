@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import 'dart:convert';
+import '../services/rankings_service.dart';
 
 class LoginPage extends StatefulWidget {
   @override
@@ -103,8 +104,9 @@ class _LoginPageState extends State<LoginPage> {
 
         // Fetch and cache player rankings after successful login
         String username = data['user']['username'];
-        await fetchAndCachePlayerRankingsForUser(username);
-        await fetchAndCacheOverallPlayerRankings();
+
+        await RankingsService.fetchAndCachePlayerRankingsForUser(username);
+        await RankingsService.fetchAndCacheOverallPlayerRankings();
 
         // Navigate to home page
         Navigator.pushReplacementNamed(context, '/home');
@@ -124,64 +126,8 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  Future<void> fetchAndCachePlayerRankingsForUser(String username) async {
-    try {
-      // Fetch data from the API
-      final data = await _apiService.get('players-rankings/$username');
-
-      if (data['success'] == true) {
-        String jsonString = jsonEncode(data['playersRankings']);
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        bool isSet = await prefs.setString('playersRankings_$username', jsonString);
-
-        if (isSet) {
-          print("Player rankings for $username successfully cached.");
-        } else {
-          setState(() {
-            _errorMessage = 'Failed to cache player rankings for $username.';
-          });
-        }
-      } else {
-        setState(() {
-          _errorMessage = 'Failed to load player rankings for $username.';
-        });
-      }
-    } catch (error) {
-      setState(() {
-        _errorMessage = 'Error fetching rankings for $username: $error';
-      });
-    }
-  }
 
 
-  Future<void> fetchAndCacheOverallPlayerRankings() async {
-    try {
-      // Fetch data from the API
-      final data = await _apiService.get('players-rankings');
-
-      if (data['success'] == true) {
-        String jsonString = jsonEncode(data['playersRankings']);
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        bool isSet = await prefs.setString('overallPlayersRankings', jsonString);
-
-        if (isSet) {
-          print("Overall player rankings successfully cached.");
-        } else {
-          setState(() {
-            _errorMessage = 'Failed to cache overall player rankings.';
-          });
-        }
-      } else {
-        setState(() {
-          _errorMessage = 'Failed to load overall player rankings.';
-        });
-      }
-    } catch (error) {
-      setState(() {
-        _errorMessage = 'Error fetching overall rankings: $error';
-      });
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
