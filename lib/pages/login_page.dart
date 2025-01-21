@@ -12,26 +12,27 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  // Controllers for input fields
+  // בקרי טקסט לשדות המשתמש (לכניסה ורישום)
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
 
-  // Controllers for Create Team dialog inputs
+  // בקרי טקסט עבור פרטי הקבוצה בתהליך הרישום
+  // שינינו את _teamIdController ל _teamNameController עבור הכנסת שם הקבוצה
   final TextEditingController _teamNameController = TextEditingController();
   final TextEditingController _teamPasswordController = TextEditingController();
-  final TextEditingController _teamTypeController = TextEditingController();
 
-  // State variables
+  // בקרי טקסט עבור דיאלוג יצירת קבוצה (Create Team dialog)
+  final TextEditingController _createTeamNameController = TextEditingController();
+  final TextEditingController _createTeamPasswordController = TextEditingController();
+  final TextEditingController _createTeamTypeController = TextEditingController();
+
+  // משתני סטייט
   bool _isRegister = false;
   String _errorMessage = "";
   bool _isLoading = false;
   final ApiService _apiService = ApiService();
 
-  // Cache key for player rankings
-  final String _cacheKey = 'playersRankings';
-
-  // Dispose controllers when not needed
   @override
   void dispose() {
     _usernameController.dispose();
@@ -39,25 +40,34 @@ class _LoginPageState extends State<LoginPage> {
     _emailController.dispose();
     _teamNameController.dispose();
     _teamPasswordController.dispose();
-    _teamTypeController.dispose();
+    _createTeamNameController.dispose();
+    _createTeamPasswordController.dispose();
+    _createTeamTypeController.dispose();
     super.dispose();
   }
 
-  // Input validation
+  // בדיקת תקינות הקלט - גם בהתחברות וגם ברישום
   bool _validateInputs() {
-    if (_usernameController.text.isEmpty ||
-        _passwordController.text.isEmpty ||
+    if (_usernameController.text.isEmpty || _passwordController.text.isEmpty ||
         (_isRegister && _emailController.text.isEmpty)) {
       setState(() {
         _errorMessage = "Please fill in all required fields.";
       });
       return false;
     }
-    // Add more specific validation if needed
+    // במצב רישום, יש לבדוק גם את שדות הקבוצה (שם הקבוצה וסיסמת הקבוצה)
+    if (_isRegister &&
+        (_teamNameController.text.isEmpty || _teamPasswordController.text.isEmpty)) {
+      setState(() {
+        _errorMessage = "Please fill in team credentials (Team Name & Team Password).";
+      });
+      return false;
+    }
     return true;
   }
 
-  // Handle Registration
+  // טיפול ברישום משתמש
+  // שליחת הנתונים לאנדפוינט /register עם השדות: username, password, email, teamName ו-teamPassword
   Future<void> _handleRegister() async {
     if (!_validateInputs()) return;
 
@@ -70,10 +80,13 @@ class _LoginPageState extends State<LoginPage> {
         'username': _usernameController.text,
         'password': _passwordController.text,
         'email': _emailController.text,
+        // במקום teamId כעת נשלח teamName
+        'teamName': _teamNameController.text,
+        'teamPassword': _teamPasswordController.text,
       });
 
       if (data['success']) {
-        // Automatically login after registration
+        // במקרה של רישום מוצלח, ניתן לבצע התחברות אוטומטית
         await _handleLogin();
       } else {
         setState(() {
@@ -91,7 +104,7 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // Handle Login
+  // טיפול בהתחברות משתמש (כפי שהיה)
   Future<void> _handleLogin() async {
     if (!_validateInputs()) return;
 
@@ -110,12 +123,12 @@ class _LoginPageState extends State<LoginPage> {
         await prefs.setString('token', data['token']);
         await prefs.setString('user', data['user']['username']);
 
-        // Fetch and cache player rankings after successful login
+        // שליפת דירוגי שחקנים לאחר התחברות מוצלחת
         String username = data['user']['username'];
         await RankingsService.fetchAndCachePlayerRankingsForUser(username);
         await RankingsService.fetchAndCacheOverallPlayerRankings();
 
-        // Navigate to home page
+        // מעבר לדף הבית
         Navigator.pushReplacementNamed(context, '/home');
       } else {
         setState(() {
@@ -133,34 +146,29 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // Handle Create Team Request
+  // טיפול בדיאלוג יצירת קבוצה
   Future<void> _handleCreateTeam() async {
-    // Validate if fields are not empty
-    if (_teamNameController.text.isEmpty ||
-        _teamPasswordController.text.isEmpty ||
-        _teamTypeController.text.isEmpty) {
+    if (_createTeamNameController.text.isEmpty ||
+        _createTeamPasswordController.text.isEmpty ||
+        _createTeamTypeController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Please fill in all team details.')),
       );
       return;
     }
 
-    // Close the dialog first
     Navigator.of(context).pop();
-
-    // Optionally, show a loading indicator
     setState(() {
       _isLoading = true;
     });
     try {
       final data = await _apiService.post('create-team', {
-        'team_name': _teamNameController.text,
-        'team_password': _teamPasswordController.text,
-        'team_type': _teamTypeController.text,
+        'team_name': _createTeamNameController.text,
+        'team_password': _createTeamPasswordController.text,
+        'team_type': _createTeamTypeController.text,
       });
 
       if (data['success']) {
-        // Notify user of successful team creation
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Team created successfully!')),
         );
@@ -177,14 +185,13 @@ class _LoginPageState extends State<LoginPage> {
       setState(() {
         _isLoading = false;
       });
-      // Clear the team text fields
-      _teamNameController.clear();
-      _teamPasswordController.clear();
-      _teamTypeController.clear();
+      _createTeamNameController.clear();
+      _createTeamPasswordController.clear();
+      _createTeamTypeController.clear();
     }
   }
 
-  // Opens the Create Team dialog
+  // מתודה לפתיחת דיאלוג יצירת קבוצה
   void _openCreateTeamDialog() {
     showDialog(
       context: context,
@@ -195,7 +202,7 @@ class _LoginPageState extends State<LoginPage> {
             child: Column(
               children: [
                 TextField(
-                  controller: _teamNameController,
+                  controller: _createTeamNameController,
                   decoration: InputDecoration(
                     labelText: 'Team Name',
                     icon: Icon(Icons.group),
@@ -203,7 +210,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 SizedBox(height: 10),
                 TextField(
-                  controller: _teamPasswordController,
+                  controller: _createTeamPasswordController,
                   decoration: InputDecoration(
                     labelText: 'Team Password',
                     icon: Icon(Icons.lock),
@@ -212,7 +219,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 SizedBox(height: 10),
                 TextField(
-                  controller: _teamTypeController,
+                  controller: _createTeamTypeController,
                   decoration: InputDecoration(
                     labelText: 'Team Type',
                     icon: Icon(Icons.category),
@@ -224,7 +231,6 @@ class _LoginPageState extends State<LoginPage> {
           actions: [
             TextButton(
               onPressed: () {
-                // Close the dialog without doing anything
                 Navigator.of(context).pop();
               },
               child: Text('Cancel', style: TextStyle(color: Colors.red)),
@@ -260,9 +266,7 @@ class _LoginPageState extends State<LoginPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Optional App Logo or Image
-                SizedBox(height: 20),
-                // Title
+                // כותרת (Login או Register)
                 Text(
                   _isRegister ? 'Register' : 'Login',
                   style: TextStyle(
@@ -272,7 +276,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
                 SizedBox(height: 20),
-                // Form Card
+                // כרטיס טופס (Form Card)
                 Card(
                   color: Colors.white.withOpacity(0.8),
                   elevation: 4,
@@ -284,7 +288,7 @@ class _LoginPageState extends State<LoginPage> {
                     padding: EdgeInsets.all(24),
                     child: Column(
                       children: [
-                        // Username Field
+                        // שדה קלט: שם משתמש
                         TextField(
                           controller: _usernameController,
                           decoration: InputDecoration(
@@ -293,7 +297,7 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                         SizedBox(height: 16),
-                        // Password Field
+                        // שדה קלט: סיסמה
                         TextField(
                           controller: _passwordController,
                           obscureText: true,
@@ -303,21 +307,38 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                         SizedBox(height: 16),
-                        // Email Field (only for Registration)
-                        if (_isRegister)
-                          Column(
-                            children: [
-                              TextField(
-                                controller: _emailController,
-                                decoration: InputDecoration(
-                                  labelText: 'Email',
-                                  prefixIcon: Icon(Icons.email),
-                                ),
-                              ),
-                              SizedBox(height: 16),
-                            ],
+                        // שדות רישום נוספים שיופיעו במצב Register בלבד
+                        if (_isRegister) ...[
+                          // שדה קלט: אימייל
+                          TextField(
+                            controller: _emailController,
+                            decoration: InputDecoration(
+                              labelText: 'Email',
+                              prefixIcon: Icon(Icons.email),
+                            ),
                           ),
-                        // Error Message
+                          SizedBox(height: 16),
+                          // שדה קלט: שם קבוצה (במקום מזהה קבוצה)
+                          TextField(
+                            controller: _teamNameController,
+                            decoration: InputDecoration(
+                              labelText: 'Team Name',
+                              prefixIcon: Icon(Icons.info_outline),
+                            ),
+                          ),
+                          SizedBox(height: 16),
+                          // שדה קלט: סיסמת קבוצה
+                          TextField(
+                            controller: _teamPasswordController,
+                            decoration: InputDecoration(
+                              labelText: 'Team Password',
+                              prefixIcon: Icon(Icons.lock_outline),
+                            ),
+                            obscureText: true,
+                          ),
+                          SizedBox(height: 16),
+                        ],
+                        // הצגת הודעת שגיאה אם קיימת
                         if (_errorMessage.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -330,7 +351,7 @@ class _LoginPageState extends State<LoginPage> {
                               textAlign: TextAlign.center,
                             ),
                           ),
-                        // Submit Button (Login/Register)
+                        // כפתור לשליחת הטופס (Login או Register)
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
@@ -352,8 +373,7 @@ class _LoginPageState extends State<LoginPage> {
                               width: 24,
                               height: 24,
                               child: CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white),
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                                 strokeWidth: 2.0,
                               ),
                             )
@@ -368,7 +388,7 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                         SizedBox(height: 8),
-                        // Toggle Button for switching between Login and Register
+                        // כפתור להחלפה בין מצב Login ל- Register
                         TextButton(
                           onPressed: () {
                             setState(() {
@@ -377,6 +397,8 @@ class _LoginPageState extends State<LoginPage> {
                               _usernameController.clear();
                               _passwordController.clear();
                               _emailController.clear();
+                              _teamNameController.clear();
+                              _teamPasswordController.clear();
                             });
                           },
                           child: Text(
@@ -390,15 +412,14 @@ class _LoginPageState extends State<LoginPage> {
                             textAlign: TextAlign.center,
                           ),
                         ),
-                        SizedBox(height: 16),
-                        // New button to open Create Team dialog
+                        // כפתור לפתיחת דיאלוג יצירת קבוצה – מופיע תמיד
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton.icon(
                             onPressed: _openCreateTeamDialog,
                             icon: Icon(Icons.add_circle_outline, color: Colors.green),
                             label: Text(
-                              'Create New Team',
+                              'Create Team',
                               style: TextStyle(
                                 color: Colors.green,
                                 fontWeight: FontWeight.bold,
