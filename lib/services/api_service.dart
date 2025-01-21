@@ -52,10 +52,18 @@ class ApiService {
         },
         body: jsonEncode(data),
       );
+
+      // ניתוח התגובה לפי ה-body
+      final responseData = jsonDecode(response.body);
+
       if (response.statusCode == 200 || response.statusCode == 201) {
-        return jsonDecode(response.body);
+        return responseData;
       } else {
-        throw Exception('Failed to post data: ${response.statusCode}');
+        // החזרת שגיאה ברורה
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Unknown error occurred',
+        };
       }
     } catch (error) {
       throw Exception('POST request error: $error');
