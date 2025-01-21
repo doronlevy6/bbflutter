@@ -17,6 +17,11 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
 
+  // Controllers for Create Team dialog inputs
+  final TextEditingController _teamNameController = TextEditingController();
+  final TextEditingController _teamPasswordController = TextEditingController();
+  final TextEditingController _teamTypeController = TextEditingController();
+
   // State variables
   bool _isRegister = false;
   String _errorMessage = "";
@@ -32,6 +37,9 @@ class _LoginPageState extends State<LoginPage> {
     _usernameController.dispose();
     _passwordController.dispose();
     _emailController.dispose();
+    _teamNameController.dispose();
+    _teamPasswordController.dispose();
+    _teamTypeController.dispose();
     super.dispose();
   }
 
@@ -104,7 +112,6 @@ class _LoginPageState extends State<LoginPage> {
 
         // Fetch and cache player rankings after successful login
         String username = data['user']['username'];
-
         await RankingsService.fetchAndCachePlayerRankingsForUser(username);
         await RankingsService.fetchAndCacheOverallPlayerRankings();
 
@@ -126,8 +133,114 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  // Handle Create Team Request
+  Future<void> _handleCreateTeam() async {
+    // Validate if fields are not empty
+    if (_teamNameController.text.isEmpty ||
+        _teamPasswordController.text.isEmpty ||
+        _teamTypeController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please fill in all team details.')),
+      );
+      return;
+    }
 
+    // Close the dialog first
+    Navigator.of(context).pop();
 
+    // Optionally, show a loading indicator
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      final data = await _apiService.post('create-team', {
+        'team_name': _teamNameController.text,
+        'team_password': _teamPasswordController.text,
+        'team_type': _teamTypeController.text,
+      });
+
+      if (data['success']) {
+        // Notify user of successful team creation
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Team created successfully!')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(data['message'] ?? 'Team creation failed')),
+        );
+      }
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+      // Clear the team text fields
+      _teamNameController.clear();
+      _teamPasswordController.clear();
+      _teamTypeController.clear();
+    }
+  }
+
+  // Opens the Create Team dialog
+  void _openCreateTeamDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Create New Team'),
+          content: SingleChildScrollView(
+            child: Column(
+              children: [
+                TextField(
+                  controller: _teamNameController,
+                  decoration: InputDecoration(
+                    labelText: 'Team Name',
+                    icon: Icon(Icons.group),
+                  ),
+                ),
+                SizedBox(height: 10),
+                TextField(
+                  controller: _teamPasswordController,
+                  decoration: InputDecoration(
+                    labelText: 'Team Password',
+                    icon: Icon(Icons.lock),
+                  ),
+                  obscureText: true,
+                ),
+                SizedBox(height: 10),
+                TextField(
+                  controller: _teamTypeController,
+                  decoration: InputDecoration(
+                    labelText: 'Team Type',
+                    icon: Icon(Icons.category),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                // Close the dialog without doing anything
+                Navigator.of(context).pop();
+              },
+              child: Text('Cancel', style: TextStyle(color: Colors.red)),
+            ),
+            ElevatedButton(
+              onPressed: _handleCreateTeam,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+              ),
+              child: Text('Create'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -136,7 +249,7 @@ class _LoginPageState extends State<LoginPage> {
         decoration: BoxDecoration(
           image: DecorationImage(
             image: AssetImage('assets/images/bb3d.png'),
-            fit: BoxFit.cover, // Adjust this property as needed (cover, contain, etc.)
+            fit: BoxFit.cover,
           ),
         ),
         width: double.infinity,
@@ -147,12 +260,7 @@ class _LoginPageState extends State<LoginPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // App Logo or Image (Optional)
-                // Uncomment and ensure the image exists if you want to display a logo
-                // Image.asset(
-                //   'assets/images/blogo.png', // Ensure this image exists
-                //   height: 100,
-                // ),
+                // Optional App Logo or Image
                 SizedBox(height: 20),
                 // Title
                 Text(
@@ -176,7 +284,7 @@ class _LoginPageState extends State<LoginPage> {
                     padding: EdgeInsets.all(24),
                     child: Column(
                       children: [
-                        // Username
+                        // Username Field
                         TextField(
                           controller: _usernameController,
                           decoration: InputDecoration(
@@ -185,7 +293,7 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                         SizedBox(height: 16),
-                        // Password
+                        // Password Field
                         TextField(
                           controller: _passwordController,
                           obscureText: true,
@@ -195,7 +303,7 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                         SizedBox(height: 16),
-                        // Email (only for registration)
+                        // Email Field (only for Registration)
                         if (_isRegister)
                           Column(
                             children: [
@@ -222,7 +330,7 @@ class _LoginPageState extends State<LoginPage> {
                               textAlign: TextAlign.center,
                             ),
                           ),
-                        // Submit Button
+                        // Submit Button (Login/Register)
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
@@ -236,16 +344,16 @@ class _LoginPageState extends State<LoginPage> {
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8.0),
                               ),
-                              backgroundColor: Colors.green, // Button background color
-                              foregroundColor: Colors.white, // Button text color
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
                             ),
                             child: _isLoading
                                 ? SizedBox(
                               width: 24,
                               height: 24,
                               child: CircularProgressIndicator(
-                                valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white),
                                 strokeWidth: 2.0,
                               ),
                             )
@@ -260,7 +368,7 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                         SizedBox(height: 8),
-                        // Toggle Button
+                        // Toggle Button for switching between Login and Register
                         TextButton(
                           onPressed: () {
                             setState(() {
@@ -276,10 +384,26 @@ class _LoginPageState extends State<LoginPage> {
                                 ? 'Already have an account? Login'
                                 : 'Don\'t have an account? Register',
                             style: TextStyle(
-                              color: Colors.green, // Adjust color as needed
+                              color: Colors.green,
                               fontSize: 16,
                             ),
                             textAlign: TextAlign.center,
+                          ),
+                        ),
+                        SizedBox(height: 16),
+                        // New button to open Create Team dialog
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton.icon(
+                            onPressed: _openCreateTeamDialog,
+                            icon: Icon(Icons.add_circle_outline, color: Colors.green),
+                            label: Text(
+                              'Create New Team',
+                              style: TextStyle(
+                                color: Colors.green,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
                         ),
                       ],
