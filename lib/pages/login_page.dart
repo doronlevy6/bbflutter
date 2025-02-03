@@ -127,6 +127,7 @@ class _LoginPageState extends State<LoginPage> {
         String username = data['user']['username'];
         await RankingsService.fetchAndCachePlayerRankingsForUser(username);
         await RankingsService.fetchAndCacheOverallPlayerRankings();
+        await RankingsService.getEnlisted();
 
         // מעבר לדף הבית
         Navigator.pushReplacementNamed(context, '/home');

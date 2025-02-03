@@ -54,4 +54,29 @@ class RankingsService {
       return false;
     }
   }
+  static Future<bool> getEnlisted() async {
+    try {
+      final enlistResponse = await _apiService.get('enlist');
+      if (enlistResponse['success'] == true) {
+        List<String> fetchedPlayers = List<String>.from(enlistResponse['usernames']);
+        bool isSet = await _saveEnlistedPlayers(fetchedPlayers);
+        if (isSet) {
+          print("Enlisted players successfully cached using setStringList.");
+        }
+        return isSet;
+      } else {
+        print("Failed to load enlisted players.");
+        return false;
+      }
+    } catch (error) {
+      print("Error fetching enlisted players: $error");
+      return false;
+    }
+  }
+
+  static Future<bool> _saveEnlistedPlayers(List<String> players) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    return await prefs.setStringList("enlistedPlayers", players);
+  }
+
 }

@@ -37,7 +37,6 @@ class _WelcomePageState extends State<WelcomePage> {
   void initState() {
     super.initState();
     _initializeUser();
-    _fetchData();
     _setupSocketListener();
     _loadRankingsData();
   }
