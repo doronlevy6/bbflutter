@@ -95,16 +95,16 @@ class _WelcomePageState extends State<WelcomePage> {
         await _saveEnlistedPlayers(fetchedPlayers); // Save to SharedPreferences
       }
 
-      final teamsResponse = await _apiService.get('get-teams');
-      if (teamsResponse['success']) {
-        setState(() {
-          teams = (teamsResponse['teams'] as List)
-              .map<List<Player>>((team) => (team as List)
-              .map<Player>((playerData) => Player.fromJson(playerData))
-              .toList())
-              .toList();
-        });
-      }
+      // final teamsResponse = await _apiService.get('get-teams');
+      // if (teamsResponse['success']) {
+      //   setState(() {
+      //     teams = (teamsResponse['teams'] as List)
+      //         .map<List<Player>>((team) => (team as List)
+      //         .map<Player>((playerData) => Player.fromJson(playerData))
+      //         .toList())
+      //         .toList();
+      //   });
+      // }
     } catch (error) {
       print('Error fetching data: $error');
       ScaffoldMessenger.of(context).showSnackBar(
