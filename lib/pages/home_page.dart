@@ -203,7 +203,7 @@ class _HomePageState extends State<HomePage> {
                           ),
 
                           // Conditionally show Get Score and Management links for user 'doron'
-                          if (username.toLowerCase() == 'doron') ...[
+                          if (username.toLowerCase() == 'doron'||username.toLowerCase() == 'dor') ...[
                             _buildDrawerIcon(
                               context,
                               icon: Icons.score,

@@ -40,7 +40,7 @@ class _ManagementPageState extends State<ManagementPage> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     user = prefs.getString(kUserKey);
 
-    if (user != 'doron') {
+    if (user != 'doron'&& user!='dor') {
       setState(() {
         accessDenied = true;
       });
