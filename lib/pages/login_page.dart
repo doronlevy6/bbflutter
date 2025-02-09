@@ -1,5 +1,3 @@
-// lib/login_page.dart
-
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
@@ -12,26 +10,48 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  // בקרי טקסט לשדות המשתמש (לכניסה ורישום)
+  // משתנה לבחירת שפה: true - עברית, false - אנגלית
+  bool _isHebrew = false;
+
+  // בקרי טקסט לשדות המשתמש (כניסה ורישום)
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
 
   // בקרי טקסט עבור פרטי הקבוצה בתהליך הרישום
-  // שינינו את _teamIdController ל _teamNameController עבור הכנסת שם הקבוצה
   final TextEditingController _teamNameController = TextEditingController();
   final TextEditingController _teamPasswordController = TextEditingController();
 
-  // בקרי טקסט עבור דיאלוג יצירת קבוצה (Create Team dialog)
+  // בקרי טקסט עבור דיאלוג יצירת קבוצה
   final TextEditingController _createTeamNameController = TextEditingController();
   final TextEditingController _createTeamPasswordController = TextEditingController();
   final TextEditingController _createTeamTypeController = TextEditingController();
 
-  // משתני סטייט
+  // משתני סטייט נוספים
   bool _isRegister = false;
   String _errorMessage = "";
   bool _isLoading = false;
   final ApiService _apiService = ApiService();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLanguagePreference();
+  }
+
+  // קריאה לבחירת השפה ששמרנו ב-shared preferences
+  Future<void> _loadLanguagePreference() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isHebrew = prefs.getBool('isHebrew') ?? false;
+    });
+  }
+
+  // עדכון הבחירה ב-shared preferences בעת שינוי
+  Future<void> _updateLanguagePreference(bool isHebrew) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isHebrew', isHebrew);
+  }
 
   @override
   void dispose() {
@@ -46,7 +66,7 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  // בדיקת תקינות הקלט - גם בהתחברות וגם ברישום
+  // בדיקת תקינות הקלט (לכניסה ולרישום)
   bool _validateInputs() {
     if (_usernameController.text.isEmpty || _passwordController.text.isEmpty ||
         (_isRegister && _emailController.text.isEmpty)) {
@@ -55,7 +75,6 @@ class _LoginPageState extends State<LoginPage> {
       });
       return false;
     }
-    // במצב רישום, יש לבדוק גם את שדות הקבוצה (שם הקבוצה וסיסמת הקבוצה)
     if (_isRegister &&
         (_teamNameController.text.isEmpty || _teamPasswordController.text.isEmpty)) {
       setState(() {
@@ -67,10 +86,8 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   // טיפול ברישום משתמש
-  // שליחת הנתונים לאנדפוינט /register עם השדות: username, password, email, teamName ו-teamPassword
   Future<void> _handleRegister() async {
     if (!_validateInputs()) return;
-
     setState(() {
       _isLoading = true;
       _errorMessage = "";
@@ -80,13 +97,11 @@ class _LoginPageState extends State<LoginPage> {
         'username': _usernameController.text,
         'password': _passwordController.text,
         'email': _emailController.text,
-        // במקום teamId כעת נשלח teamName
         'teamName': _teamNameController.text,
         'teamPassword': _teamPasswordController.text,
       });
 
       if (data['success']) {
-        // במקרה של רישום מוצלח, ניתן לבצע התחברות אוטומטית
         await _handleLogin();
       } else {
         setState(() {
@@ -104,10 +119,9 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // טיפול בהתחברות משתמש (כפי שהיה)
+  // טיפול בהתחברות משתמש
   Future<void> _handleLogin() async {
     if (!_validateInputs()) return;
-
     setState(() {
       _isLoading = true;
       _errorMessage = "";
@@ -123,13 +137,11 @@ class _LoginPageState extends State<LoginPage> {
         await prefs.setString('token', data['token']);
         await prefs.setString('user', data['user']['username']);
 
-        // שליפת דירוגי שחקנים לאחר התחברות מוצלחת
         String username = data['user']['username'];
         await RankingsService.fetchAndCachePlayerRankingsForUser(username);
         await RankingsService.fetchAndCacheOverallPlayerRankings();
         await RankingsService.getEnlisted();
 
-        // מעבר לדף הבית
         Navigator.pushReplacementNamed(context, '/home');
       } else {
         setState(() {
@@ -267,6 +279,24 @@ class _LoginPageState extends State<LoginPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                // כפתור טוגל לשינוי שפה
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('English', style: TextStyle(color: Colors.white)),
+                    Switch(
+                      value: _isHebrew,
+                      onChanged: (value) {
+                        setState(() {
+                          _isHebrew = value;
+                        });
+                        _updateLanguagePreference(value);
+                      },
+                      activeColor: Colors.green,
+                    ),
+                    Text('עברית', style: TextStyle(color: Colors.white)),
+                  ],
+                ),
                 // כותרת (Login או Register)
                 Text(
                   _isRegister ? 'Register' : 'Login',
@@ -289,7 +319,6 @@ class _LoginPageState extends State<LoginPage> {
                     padding: EdgeInsets.all(24),
                     child: Column(
                       children: [
-                        // שדה קלט: שם משתמש
                         TextField(
                           controller: _usernameController,
                           decoration: InputDecoration(
@@ -298,7 +327,6 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                         SizedBox(height: 16),
-                        // שדה קלט: סיסמה
                         TextField(
                           controller: _passwordController,
                           obscureText: true,
@@ -308,9 +336,7 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                         SizedBox(height: 16),
-                        // שדות רישום נוספים שיופיעו במצב Register בלבד
                         if (_isRegister) ...[
-                          // שדה קלט: אימייל
                           TextField(
                             controller: _emailController,
                             decoration: InputDecoration(
@@ -319,7 +345,6 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ),
                           SizedBox(height: 16),
-                          // שדה קלט: שם קבוצה (במקום מזהה קבוצה)
                           TextField(
                             controller: _teamNameController,
                             decoration: InputDecoration(
@@ -328,7 +353,6 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ),
                           SizedBox(height: 16),
-                          // שדה קלט: סיסמת קבוצה
                           TextField(
                             controller: _teamPasswordController,
                             decoration: InputDecoration(
@@ -339,7 +363,6 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                           SizedBox(height: 16),
                         ],
-                        // הצגת הודעת שגיאה אם קיימת
                         if (_errorMessage.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -352,7 +375,6 @@ class _LoginPageState extends State<LoginPage> {
                               textAlign: TextAlign.center,
                             ),
                           ),
-                        // כפתור לשליחת הטופס (Login או Register)
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
@@ -389,7 +411,6 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                         SizedBox(height: 8),
-                        // כפתור להחלפה בין מצב Login ל- Register
                         TextButton(
                           onPressed: () {
                             setState(() {
@@ -413,7 +434,6 @@ class _LoginPageState extends State<LoginPage> {
                             textAlign: TextAlign.center,
                           ),
                         ),
-                        // כפתור לפתיחת דיאלוג יצירת קבוצה – מופיע תמיד
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton.icon(

@@ -1,44 +1,88 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class Legend extends StatelessWidget {
-  // Define the legend items
+class Legend extends StatefulWidget {
+  final bool showTeamAverage;
+  Legend({Key? key, this.showTeamAverage = true}) : super(key: key);
+
+  @override
+  _LegendState createState() => _LegendState();
+}
+
+class _LegendState extends State<Legend> {
+  bool _isHebrew = false;
+
+  // רשימת האייטמים למדריך
   final List<Map<String, dynamic>> legendItems = [
-    {'icon': Icons.handshake, 'label': 'Play Maker'},
-    {'icon': Icons.score, 'label': 'Scoring Ability'},
-    {'icon': Icons.shield, 'label': 'Defensive Skills'},
-    {'icon': Icons.speed, 'label': 'Speed & Agility'},
-    {'icon': Icons.sports_basketball, 'label': 'Shooting Range'},
-    {'icon': Icons.grain, 'label': 'Rebound Skills'},
-    {'icon': Icons.calculate, 'label': 'Team Average'},
+    {
+      'icon': Icons.handshake,
+      'label_en': 'Play Maker',
+      'label_he': 'רכז משחק',
+    },
+    {
+      'icon': Icons.score,
+      'label_en': 'Scoring Ability',
+      'label_he': 'יכולת קליעה',
+    },
+    {
+      'icon': Icons.shield,
+      'label_en': 'Defensive Skills',
+      'label_he': 'מיומנויות הגנה',
+    },
+    {
+      'icon': Icons.speed,
+      'label_en': 'Speed & Agility',
+      'label_he': 'מהירות וזריזות',
+    },
+    {
+      'icon': Icons.sports_basketball,
+      'label_en': 'Shooting Range',
+      'label_he': 'טווח קליעה',
+    },
+    {
+      'icon': Icons.grain,
+      'label_en': 'Rebound Skills',
+      'label_he': 'מיומנויות ריבאונד',
+    },
+    {
+      'icon': Icons.calculate,
+      'label_en': 'Team Average',
+      'label_he': 'ממוצע קבוצה',
+    },
   ];
 
-  // New parameter to control the visibility of "Team Average"
-  final bool showTeamAverage;
+  @override
+  void initState() {
+    super.initState();
+    _loadLanguagePreference();
+  }
 
-  // Constructor with the new parameter, defaulting to true
-   Legend({Key? key, this.showTeamAverage = true}) : super(key: key);
+  // טעינת הבחירה בשפה מ־SharedPreferences
+  Future<void> _loadLanguagePreference() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isHebrew = prefs.getBool('isHebrew') ?? false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Filter the legend items based on the showTeamAverage parameter
-    final List<Map<String, dynamic>> displayedItems = showTeamAverage
+    // סינון האייטמים בהתאם לפרמטר showTeamAverage
+    final displayedItems = widget.showTeamAverage
         ? legendItems
-        : legendItems
-        .where((item) => item['label'] != 'Team Average')
-        .toList();
+        : legendItems.where((item) => item['label_en'] != 'Team Average').toList();
 
     return Card(
       color: Colors.green[50],
       elevation: 2,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10), // Slightly smaller radius
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(1.0), // Reduced padding
+        padding: const EdgeInsets.all(1.0),
         child: Wrap(
-          spacing: 12, // Reduced spacing
-          runSpacing: 8, // Reduced run spacing
+          spacing: 12,
+          runSpacing: 8,
           children: displayedItems.map((item) {
             return Row(
               mainAxisSize: MainAxisSize.min,
@@ -46,15 +90,15 @@ class Legend extends StatelessWidget {
                 Icon(
                   item['icon'],
                   color: Colors.green[700],
-                  size: 16, // Smaller icon
+                  size: 16,
                 ),
-                const SizedBox(width: 4), // Reduced spacing
+                const SizedBox(width: 4),
                 Text(
-                  item['label'],
+                  _isHebrew ? item['label_he'] : item['label_en'],
                   style: TextStyle(
                     color: Colors.green[700],
-                    fontWeight: FontWeight.bold, // Made text bolder
-                    fontSize: 12, // Smaller font
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
                   ),
                 ),
               ],
