@@ -72,7 +72,7 @@ class _GradePageState extends State<GradePage> {
               continue;
             }
 
-            // If the current user is "doron" or "Moshe", they can rank themselves
+            // Allow self-ranking only for "doron" or "Moshe"
             if ((username == 'doron' || username == 'Moshe') && user == username) {
               // Allow ranking themselves
             } else if (username == user) {
@@ -81,41 +81,41 @@ class _GradePageState extends State<GradePage> {
             }
 
             if (rankingsByUser.containsKey(username)) {
-              // If ranking exists, use it
+              // If ranking exists, use it (UPDATED: using new keys param1...param6)
               initialGrading.add({
                 'username': username,
-                'skillLevel': rankingsByUser[username]['skill_level'] ?? 0,
-                'scoringAbility': rankingsByUser[username]['scoring_ability'] ?? 0,
-                'defensiveSkills': rankingsByUser[username]['defensive_skills'] ?? 0,
-                'speedAndAgility': rankingsByUser[username]['speed_and_agility'] ?? 0,
-                'shootingRange': rankingsByUser[username]['shooting_range'] ?? 0,
-                'reboundSkills': rankingsByUser[username]['rebound_skills'] ?? 0,
+                'param1': rankingsByUser[username]['param1'] ?? 0,
+                'param2': rankingsByUser[username]['param2'] ?? 0,
+                'param3': rankingsByUser[username]['param3'] ?? 0,
+                'param4': rankingsByUser[username]['param4'] ?? 0,
+                'param5': rankingsByUser[username]['param5'] ?? 0,
+                'param6': rankingsByUser[username]['param6'] ?? 0,
               });
             } else {
-              // Initialize with default values
+              // Initialize with default values (using new keys)
               initialGrading.add({
                 'username': username,
-                'skillLevel': 0, // 0 indicates no grade assigned
-                'scoringAbility': 0,
-                'defensiveSkills': 0,
-                'speedAndAgility': 0,
-                'shootingRange': 0,
-                'reboundSkills': 0,
+                'param1': 0,
+                'param2': 0,
+                'param3': 0,
+                'param4': 0,
+                'param5': 0,
+                'param6': 0,
               });
             }
           }
 
-          // Compute average for each player
+          // Compute average for each player (UPDATED: using new keys)
           for (var player in initialGrading) {
             double sum = 0;
             int count = 0;
             List<String> fields = [
-              'skillLevel',
-              'scoringAbility',
-              'defensiveSkills',
-              'speedAndAgility',
-              'shootingRange',
-              'reboundSkills'
+              'param1',
+              'param2',
+              'param3',
+              'param4',
+              'param5',
+              'param6'
             ];
             for (var field in fields) {
               int grade = player[field];
@@ -131,7 +131,7 @@ class _GradePageState extends State<GradePage> {
             player['average'] = average;
           }
 
-          // Sort the initialGrading list according to average (descending)
+          // Sort the initialGrading list according to average (descending by default)
           if (!_isAscending) {
             initialGrading.sort((a, b) => b['average'].compareTo(a['average']));
           } else {
@@ -158,14 +158,14 @@ class _GradePageState extends State<GradePage> {
       List<Map<String, dynamic>> validGrading = [];
       List<String> invalidPlayers = [];
 
-      // Define the grading fields
+      // Define the grading fields using new keys
       List<String> fields = [
-        'skillLevel',
-        'scoringAbility',
-        'defensiveSkills',
-        'speedAndAgility',
-        'shootingRange',
-        'reboundSkills'
+        'param1',
+        'param2',
+        'param3',
+        'param4',
+        'param5',
+        'param6'
       ];
 
       // Iterate through each player to categorize them
@@ -224,8 +224,7 @@ class _GradePageState extends State<GradePage> {
         String successMessage = 'Grading submitted successfully!';
         if (invalidPlayers.isNotEmpty) {
           successMessage +=
-          '\nPlayers not submitted due to incomplete grades: ${invalidPlayers
-              .join(', ')}.';
+          '\nPlayers not submitted due to incomplete grades: ${invalidPlayers.join(', ')}.';
         }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -262,9 +261,6 @@ class _GradePageState extends State<GradePage> {
             ),
           );
         }
-
-
-
         // Optionally, you can refresh the UI or navigate away here
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -285,17 +281,19 @@ class _GradePageState extends State<GradePage> {
       );
     }
   }
+
   /// Removes the floating buttons overlay with optional selection reset
   void _removeFloatingButtons({bool resetSelection = true}) {
     _floatingButtonsOverlay?.remove();
     _floatingButtonsOverlay = null;
-    if (resetSelection && mounted) { // Check if the widget is still mounted
+    if (resetSelection && mounted) {
       setState(() {
         _selectedGradeButtonUsername = null;
         _selectedGradeButtonField = null;
       });
     }
   }
+
   /// Shows the floating + and - buttons at the specified position
   void _showFloatingButtons(Offset position, String username, String field) {
     _removeFloatingButtons(resetSelection: false); // Prevent resetting the selection
@@ -307,8 +305,8 @@ class _GradePageState extends State<GradePage> {
         children: [
           // Positioned floating buttons aligned with the grade button
           Positioned(
-            left: position.dx - 30, // Adjust to center the buttons horizontally
-            top: position.dy - 90, // Position + button above the grade button
+            left: position.dx - 30,
+            top: position.dy - 90,
             child: Column(
               children: [
                 // + Button
@@ -316,9 +314,8 @@ class _GradePageState extends State<GradePage> {
                   opacity: 0.8,
                   duration: Duration(milliseconds: 300),
                   child: FloatingActionButton(
-                    mini: false, // Enlarge the button
+                    mini: false,
                     backgroundColor: Colors.green[200],
-                    // Background color set to green 200
                     onPressed: () {
                       setState(() {
                         int index = grading.indexWhere((p) => p['username'] == username);
@@ -337,7 +334,7 @@ class _GradePageState extends State<GradePage> {
                       style: TextStyle(
                         fontSize: 30,
                         fontWeight: FontWeight.w800,
-                        color: Colors.green, // Bold green + sign
+                        color: Colors.green,
                       ),
                     ),
                     tooltip: 'Increase Grade',
@@ -349,8 +346,8 @@ class _GradePageState extends State<GradePage> {
                   opacity: 0.8,
                   duration: Duration(milliseconds: 300),
                   child: FloatingActionButton(
-                    mini: false, // Enlarge the button
-                    backgroundColor: Colors.red[200], // Background color set to red 200
+                    mini: false,
+                    backgroundColor: Colors.red[200],
                     onPressed: () {
                       setState(() {
                         int index = grading.indexWhere((p) => p['username'] == username);
@@ -369,7 +366,7 @@ class _GradePageState extends State<GradePage> {
                       style: TextStyle(
                         fontSize: 30,
                         fontWeight: FontWeight.bold,
-                        color: Colors.red, // Bold red - sign
+                        color: Colors.red,
                       ),
                     ),
                     tooltip: 'Decrease Grade',
@@ -382,21 +379,20 @@ class _GradePageState extends State<GradePage> {
       ),
     );
 
-    // Insert the overlay
     overlay.insert(_floatingButtonsOverlay!);
   }
 
-  /// Updates the average grade for a player
+  /// Updates the average grade for a player (UPDATED: using new keys)
   void _updatePlayerAverage(Map<String, dynamic> player) {
     double sum = 0;
     int count = 0;
     List<String> fields = [
-      'skillLevel',
-      'scoringAbility',
-      'defensiveSkills',
-      'speedAndAgility',
-      'shootingRange',
-      'reboundSkills'
+      'param1',
+      'param2',
+      'param3',
+      'param4',
+      'param5',
+      'param6'
     ];
     for (var field in fields) {
       int grade = player[field];
@@ -439,12 +435,12 @@ class _GradePageState extends State<GradePage> {
           (p) => p['username'] == username,
       orElse: () => {
         'username': 'Unknown',
-        'skillLevel': 0,
-        'scoringAbility': 0,
-        'defensiveSkills': 0,
-        'speedAndAgility': 0,
-        'shootingRange': 0,
-        'reboundSkills': 0,
+        'param1': 0,
+        'param2': 0,
+        'param3': 0,
+        'param4': 0,
+        'param5': 0,
+        'param6': 0,
       },
     );
 
@@ -511,9 +507,9 @@ class _GradePageState extends State<GradePage> {
             Expanded(
               flex: 2,
               child: Card(
-                      elevation: 1,
+                elevation: 1,
                 margin: EdgeInsets.symmetric(vertical: 1),
-                  color: Colors.white,
+                color: Colors.white,
                 child: ListTile(
                   contentPadding: EdgeInsets.only(left: 4.0),
                   horizontalTitleGap: 4.0,
@@ -521,17 +517,15 @@ class _GradePageState extends State<GradePage> {
                   visualDensity: VisualDensity.compact,
                   dense: true,
                   onTap: () {
-                    // Show full username in a SnackBar on tap
                     ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: DefaultTextStyle(
-                            style: TextStyle(color: Colors.green), // Set text color to green
+                            style: TextStyle(color: Colors.green),
                             child: Text('Full username: ${player['username']}'),
                           ),
                           duration: Duration(seconds: 2),
-                          backgroundColor: Colors.white, // Set background color to white
+                          backgroundColor: Colors.white,
                         )
-
                     );
                   },
                   title: Row(
@@ -558,27 +552,26 @@ class _GradePageState extends State<GradePage> {
                     ],
                   ),
                 ),
-              )
-              ,
+              ),
             ),
-            // Grade Buttons
+            // Grade Buttons (UPDATED: using new keys instead of old ones)
             Expanded(
-              child: buildGradeButton(player['username'], 'skillLevel', isRowSelected),
-            ),
-            Expanded(
-              child: buildGradeButton(player['username'], 'scoringAbility', isRowSelected),
+              child: buildGradeButton(player['username'], 'param1', isRowSelected),
             ),
             Expanded(
-              child: buildGradeButton(player['username'], 'defensiveSkills', isRowSelected),
+              child: buildGradeButton(player['username'], 'param2', isRowSelected),
             ),
             Expanded(
-              child: buildGradeButton(player['username'], 'speedAndAgility', isRowSelected),
+              child: buildGradeButton(player['username'], 'param3', isRowSelected),
             ),
             Expanded(
-              child: buildGradeButton(player['username'], 'shootingRange', isRowSelected),
+              child: buildGradeButton(player['username'], 'param4', isRowSelected),
             ),
             Expanded(
-              child: buildGradeButton(player['username'], 'reboundSkills', isRowSelected),
+              child: buildGradeButton(player['username'], 'param5', isRowSelected),
+            ),
+            Expanded(
+              child: buildGradeButton(player['username'], 'param6', isRowSelected),
             ),
           ],
         ),
@@ -598,21 +591,22 @@ class _GradePageState extends State<GradePage> {
             children: [
               Row(
                 children: [
-
                   SizedBox(width: 10),
                   Expanded(
-                    child: Text('The selected player\'s grades will also appear above the table for easy comparison with others: ' ,style: TextStyle(fontSize: 16),
+                    child: Text(
+                      'The selected player\'s grades will also appear above the table for easy comparison with others: ',
+                      style: TextStyle(fontSize: 16),
                     ),
                   ),
                 ],
               ),
               Row(
                 children: [
-                  Icon(Icons.handshake, size: 24),
+                  Icon(Icons.looks_one, size: 24),
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Playmaker (PM): A player who excels at creating scoring opportunities for themselves or their teammates, often through passing or dribbling.',
+                      'Param1: Generic parameter 1',
                       style: TextStyle(fontSize: 16),
                     ),
                   ),
@@ -621,11 +615,11 @@ class _GradePageState extends State<GradePage> {
               SizedBox(height: 10),
               Row(
                 children: [
-                  Icon(Icons.score, size: 24),
+                  Icon(Icons.looks_two, size: 24),
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Scoring Ability (SA): The ability to score baskets effectively from various positions on the court, utilizing a variety of offensive moves.',
+                      'Param2: Generic parameter 2',
                       style: TextStyle(fontSize: 16),
                     ),
                   ),
@@ -634,11 +628,11 @@ class _GradePageState extends State<GradePage> {
               SizedBox(height: 10),
               Row(
                 children: [
-                  Icon(Icons.shield, size: 24),
+                  Icon(Icons.looks_3, size: 24),
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Defensive Skills (DS): The ability to prevent opponents from scoring through techniques such as shot blocking, ball stealing, and maintaining good defensive positioning.',
+                      'Param3: Generic parameter 3',
                       style: TextStyle(fontSize: 16),
                     ),
                   ),
@@ -647,11 +641,11 @@ class _GradePageState extends State<GradePage> {
               SizedBox(height: 10),
               Row(
                 children: [
-                  Icon(Icons.speed, size: 24),
+                  Icon(Icons.looks_4, size: 24),
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Speed and Agility (AG): The ability to move quickly and change direction easily, which aids both offensive and defensive plays.',
+                      'Param4: Generic parameter 4',
                       style: TextStyle(fontSize: 16),
                     ),
                   ),
@@ -660,11 +654,11 @@ class _GradePageState extends State<GradePage> {
               SizedBox(height: 10),
               Row(
                 children: [
-                  Icon(Icons.sports_basketball, size: 24),
+                  Icon(Icons.looks_5, size: 24),
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      '3-Point Shooting (3PT): The ability to successfully make shots from beyond the three-point arc.',
+                      'Param5: Generic parameter 5',
                       style: TextStyle(fontSize: 16),
                     ),
                   ),
@@ -673,19 +667,18 @@ class _GradePageState extends State<GradePage> {
               SizedBox(height: 10),
               Row(
                 children: [
-                  Icon(Icons.grain, size: 24),
+                  Icon(Icons.looks_6, size: 24),
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Rebound Skills (RB): The ability to secure rebounds on both offense and defense.',
+                      'Param6: Generic parameter 6',
                       style: TextStyle(fontSize: 16),
                     ),
                   ),
                 ],
               ),
             ],
-          )
-          ,
+          ),
         ),
       ),
     );
@@ -705,21 +698,22 @@ class _GradePageState extends State<GradePage> {
               children: [
                 Row(
                   children: [
-
                     SizedBox(width: 10),
                     Expanded(
-                      child: Text(' ציוני השחקן הנבחר יופיעו גם מעל הטבלה להשוואה נוחה עם אחרים: ' ,style: TextStyle(fontSize: 16),
+                      child: Text(
+                        'ציוני השחקן הנבחר יופיעו גם מעל הטבלה להשוואה נוחה עם אחרים: ',
+                        style: TextStyle(fontSize: 16),
                       ),
                     ),
                   ],
                 ),
                 Row(
                   children: [
-                    Icon(Icons.handshake, size: 24),
+                    Icon(Icons.looks_one, size: 24),
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'רכז (playmaker): שחקן שטוב ביצירת הזדמנויות קליעה לעצמו או לחבריו לקבוצה, לרוב באמצעות מסירה או כדרור.',
+                        'Param1: פרמטר כללי 1',
                         style: TextStyle(fontSize: 16),
                       ),
                     ),
@@ -728,11 +722,11 @@ class _GradePageState extends State<GradePage> {
                 SizedBox(height: 10),
                 Row(
                   children: [
-                    Icon(Icons.score, size: 24),
+                    Icon(Icons.looks_two, size: 24),
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'יכולת קליעה (scoring ability): היכולת לקלוע סל באופן כללי מכל עמדות על המגרש, באמצעות מגוון של תנועות התקפיות.',
+                        'Param2: פרמטר כללי 2',
                         style: TextStyle(fontSize: 16),
                       ),
                     ),
@@ -741,11 +735,11 @@ class _GradePageState extends State<GradePage> {
                 SizedBox(height: 10),
                 Row(
                   children: [
-                    Icon(Icons.shield, size: 24),
+                    Icon(Icons.looks_3, size: 24),
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'מיומנויות הגנה (defensive skills): היכולת למנוע מהיריב לקלוע, באמצעות טכניקות כגון חסימת זריקות, חטיפה של הכדור, ועמידה טובה במקום.',
+                        'Param3: פרמטר כללי 3',
                         style: TextStyle(fontSize: 16),
                       ),
                     ),
@@ -754,11 +748,11 @@ class _GradePageState extends State<GradePage> {
                 SizedBox(height: 10),
                 Row(
                   children: [
-                    Icon(Icons.speed, size: 24),
+                    Icon(Icons.looks_4, size: 24),
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'מהירות וזריזות (speed and agility): היכולת לנוע מהר ולשנות כיוון בקלות, דבר המסייע גם במצבים ההתקפיים וגם במצבים ההגנתיים.',
+                        'Param4: פרמטר כללי 4',
                         style: TextStyle(fontSize: 16),
                       ),
                     ),
@@ -767,11 +761,11 @@ class _GradePageState extends State<GradePage> {
                 SizedBox(height: 10),
                 Row(
                   children: [
-                    Icon(Icons.sports_basketball, size: 24),
+                    Icon(Icons.looks_5, size: 24),
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'קליעה לשלוש (3 pt shooting): היכולת לקלוע מעבר לקשת השלוש.',
+                        'Param5: פרמטר כללי 5',
                         style: TextStyle(fontSize: 16),
                       ),
                     ),
@@ -780,20 +774,18 @@ class _GradePageState extends State<GradePage> {
                 SizedBox(height: 10),
                 Row(
                   children: [
-                    Icon(Icons.grain, size: 24),
+                    Icon(Icons.looks_6, size: 24),
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'ריבאונד (rebound skills): היכולת לקחת ריבאונד בהתקפה ובהגנה.',
+                        'Param6: פרמטר כללי 6',
                         style: TextStyle(fontSize: 16),
                       ),
                     ),
                   ],
                 ),
-                SizedBox(height: 10),
               ],
-            )
-            ,
+            ),
           ),
         ),
       ),
@@ -824,7 +816,7 @@ class _GradePageState extends State<GradePage> {
     }
   }
 
-  /// Method to build the frozen player row
+  /// Method to build the frozen player row (UPDATED: using new keys)
   Widget buildFrozenPlayerRow() {
     Map<String, dynamic> player = grading.firstWhere(
           (p) => p['username'] == _frozenPlayerUsername,
@@ -835,7 +827,6 @@ class _GradePageState extends State<GradePage> {
     }
     return GestureDetector(
       onTap: () {
-        // Unfreeze the row when it's tapped again
         _selectPlayer(player['username']);
       },
       child: Container(
@@ -846,7 +837,7 @@ class _GradePageState extends State<GradePage> {
               child: Card(
                 elevation: 1,
                 margin: EdgeInsets.symmetric(vertical: 1),
-                color:Colors.white,
+                color: Colors.white,
                 child: ListTile(
                   contentPadding: EdgeInsets.only(left: 4.0),
                   horizontalTitleGap: 4.0,
@@ -854,17 +845,15 @@ class _GradePageState extends State<GradePage> {
                   visualDensity: VisualDensity.compact,
                   dense: true,
                   onTap: () {
-                    // Show full username in a SnackBar on tap
                     ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: DefaultTextStyle(
-                            style: TextStyle(color: Colors.green), // Set text color to green
+                            style: TextStyle(color: Colors.green),
                             child: Text('Full username: ${player['username']}'),
                           ),
                           duration: Duration(seconds: 3),
-                          backgroundColor: Colors.white, // Set background color to white
+                          backgroundColor: Colors.white,
                         )
-
                     );
                   },
                   title: Row(
@@ -891,26 +880,25 @@ class _GradePageState extends State<GradePage> {
                     ],
                   ),
                 ),
-              )
-              ,
+              ),
             ),
             Expanded(
-              child: buildGradeButton(_frozenPlayerUsername!, 'skillLevel', true),
+              child: buildGradeButton(_frozenPlayerUsername!, 'param1', true),
             ),
             Expanded(
-              child: buildGradeButton(_frozenPlayerUsername!, 'scoringAbility', true),
+              child: buildGradeButton(_frozenPlayerUsername!, 'param2', true),
             ),
             Expanded(
-              child: buildGradeButton(_frozenPlayerUsername!, 'defensiveSkills', true),
+              child: buildGradeButton(_frozenPlayerUsername!, 'param3', true),
             ),
             Expanded(
-              child: buildGradeButton(_frozenPlayerUsername!, 'speedAndAgility', true),
+              child: buildGradeButton(_frozenPlayerUsername!, 'param4', true),
             ),
             Expanded(
-              child: buildGradeButton(_frozenPlayerUsername!, 'shootingRange', true),
+              child: buildGradeButton(_frozenPlayerUsername!, 'param5', true),
             ),
             Expanded(
-              child: buildGradeButton(_frozenPlayerUsername!, 'reboundSkills', true),
+              child: buildGradeButton(_frozenPlayerUsername!, 'param6', true),
             ),
           ],
         ),
@@ -930,39 +918,30 @@ class _GradePageState extends State<GradePage> {
               // Legend widget
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                // Optionally, you might update the Legend widget to reflect new parameter names
                 child: Legend(showTeamAverage: false),
               ),
               SizedBox(height: 10),
               // Instruction or frozen row
               _buildFrozenRowOrInstruction(),
               SizedBox(height: 10),
-              // Legend row with icons and sorting
+              // Legend row with icons and sorting (UPDATED: tooltips changed to "Param1", etc.)
               Container(
                 color: Colors.grey[200],
                 padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
                 child: Row(
                   children: [
-                  Expanded(
-                  flex: 2,
-                  child: Row(
-
-                    children: [
-                      // User icon
-                      Icon(
-                        Icons.person,
-                        color: Colors.green[700],
-                        size: 22,
-                        semanticLabel: 'Username',
-                      ),
-                      SizedBox(width:6), // Spacing between the icon and text
-
-
-
-                      Row(
-
+                    Expanded(
+                      flex: 2,
+                      child: Row(
                         children: [
-                          // Sort icon button with no padding
-// Replace the GestureDetector with TextButton.icon
+                          Icon(
+                            Icons.person,
+                            color: Colors.green[700],
+                            size: 22,
+                            semanticLabel: 'Username',
+                          ),
+                          SizedBox(width:6),
                           TextButton.icon(
                             onPressed: () {
                               setState(() {
@@ -983,30 +962,20 @@ class _GradePageState extends State<GradePage> {
                               ),
                             ),
                             style: TextButton.styleFrom(
-                              padding: EdgeInsets.zero, // Remove default padding
-                              minimumSize: Size(0, 0), // Remove minimum size constraints
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap, // Shrink tap target
-                              alignment: Alignment.centerLeft, // Align content to the left
+                              padding: EdgeInsets.zero,
+                              minimumSize: Size(0, 0),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              alignment: Alignment.centerLeft,
                             ),
                           ),
-
-                          // Flexible text with ellipsis if overflow
-
                         ],
-                      )
-,
-
-                    ],
-                  )
-                    ,
-                ),
-
-
+                      ),
+                    ),
                     Expanded(
                       child: Tooltip(
-                        message: 'Playmaker',
+                        message: 'Param1',
                         child: Icon(
-                          Icons.handshake,
+                          Icons.looks_one,
                           color: Colors.green[700],
                           size: 24,
                         ),
@@ -1014,9 +983,9 @@ class _GradePageState extends State<GradePage> {
                     ),
                     Expanded(
                       child: Tooltip(
-                        message: 'Scoring Ability',
+                        message: 'Param2',
                         child: Icon(
-                          Icons.score,
+                          Icons.looks_two,
                           color: Colors.green[700],
                           size: 24,
                         ),
@@ -1024,9 +993,9 @@ class _GradePageState extends State<GradePage> {
                     ),
                     Expanded(
                       child: Tooltip(
-                        message: 'Defensive Skills',
+                        message: 'Param3',
                         child: Icon(
-                          Icons.shield,
+                          Icons.looks_3,
                           color: Colors.green[700],
                           size: 24,
                         ),
@@ -1034,9 +1003,9 @@ class _GradePageState extends State<GradePage> {
                     ),
                     Expanded(
                       child: Tooltip(
-                        message: 'Speed and Agility',
+                        message: 'Param4',
                         child: Icon(
-                          Icons.speed,
+                          Icons.looks_4,
                           color: Colors.green[700],
                           size: 24,
                         ),
@@ -1044,9 +1013,9 @@ class _GradePageState extends State<GradePage> {
                     ),
                     Expanded(
                       child: Tooltip(
-                        message: '3-Point Shooting',
+                        message: 'Param5',
                         child: Icon(
-                          Icons.sports_basketball,
+                          Icons.looks_5,
                           color: Colors.green[700],
                           size: 24,
                         ),
@@ -1054,9 +1023,9 @@ class _GradePageState extends State<GradePage> {
                     ),
                     Expanded(
                       child: Tooltip(
-                        message: 'Rebound Skills',
+                        message: 'Param6',
                         child: Icon(
-                          Icons.grain,
+                          Icons.looks_6,
                           color: Colors.green[700],
                           size: 24,
                         ),
@@ -1141,8 +1110,6 @@ class _GradePageState extends State<GradePage> {
 }
 
 /// Custom GradeButton Widget using Overlay
-
-
 class GradeButton extends StatelessWidget {
   final int? grade;
   final bool isSelected;
@@ -1185,18 +1152,13 @@ class GradeButton extends StatelessWidget {
         ),
         alignment: Alignment.center,
         child: Stack(
-          clipBehavior: Clip.none, // Allows the positioned widget to overflow if needed
+          clipBehavior: Clip.none,
           children: [
-            // Main Content: Grade Text or CircleAvatar
             grade != null && grade! > 0
                 ? Text(
               '$grade',
               style: TextStyle(
-                color: isSelected
-                    ? Colors.green
-                    : isRowSelected
-                    ? Colors.green
-                    : Colors.green,
+                color: Colors.green,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
@@ -1206,30 +1168,9 @@ class GradeButton extends StatelessWidget {
               backgroundImage: AssetImage('assets/images/basketball.jpeg'),
               backgroundColor: Colors.transparent,
             ),
-            // Positioned Number 6 at Bottom Right
-            // Positioned(
-            //   bottom: -10, // Adjust as needed
-            //   right: -10,  // Adjust as needed
-            //   child: Container(
-            //     padding: EdgeInsets.all(2),
-            //     decoration: BoxDecoration(
-            //       color: Colors.white, // Background color for visibility
-            //       shape: BoxShape.circle,
-            //     ),
-            //     child: Text(
-            //       '6',
-            //       style: TextStyle(
-            //         fontSize: 10, // Smaller font size
-            //         color: Colors.green, // Text color contrasting the background
-            //         fontWeight: FontWeight.normal,
-            //       ),
-            //     ),
-            //   ),
-            // ),
           ],
         ),
       ),
     );
   }
 }
-

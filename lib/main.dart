@@ -7,7 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'pages/login_page.dart';
 import 'pages/manager_page.dart';
 import 'pages/grade_page.dart';
-import 'pages/get_score_page.dart';
+// import 'pages/get_score_page.dart';
 import 'pages/playgound_page.dart';
 import 'pages/home_page.dart';
 import 'pages/welcome_page.dart';
@@ -69,7 +69,7 @@ class MyApp extends StatelessWidget {
         '/manager': (context) => ManagementPage(),
         '/grade': (context) => GradePage(),
         '/welcome': (context) => WelcomePage(),
-        '/get_score': (context) => GetScorePage(),
+        // '/get_score': (context) => GetScorePage(),
         '/teams': (context) => PlayGround(),
         '/home': (context) => HomePage(),
       },

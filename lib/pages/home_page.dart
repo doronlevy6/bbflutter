@@ -6,7 +6,7 @@ import 'welcome_page.dart';
 import 'login_page.dart'; // Import your other pages
 import 'manager_page.dart';
 import 'grade_page.dart';
-import 'get_score_page.dart';
+// import 'get_score_page.dart';
 import 'playgound_page.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:responsive_builder/responsive_builder.dart'; // Import responsive_builder
@@ -204,14 +204,14 @@ class _HomePageState extends State<HomePage> {
 
                           // Conditionally show Get Score and Management links for user 'doron'
                           if (username.toLowerCase() == 'doron'||username.toLowerCase() == 'dor') ...[
-                            _buildDrawerIcon(
-                              context,
-                              icon: Icons.score,
-                              color: Colors.purple[300],
-                              tooltip: 'Get Score Page',
-                              page: GetScorePage(),
-                              title: 'Get Score',
-                            ),
+                            // _buildDrawerIcon(
+                            //   context,
+                            //   icon: Icons.score,
+                            //   color: Colors.purple[300],
+                            //   tooltip: 'Get Score Page',
+                            //   page: GetScorePage(),
+                            //   title: 'Get Score',
+                            // ),
                             _buildDrawerIcon(
                               context,
                               icon: Icons.admin_panel_settings,

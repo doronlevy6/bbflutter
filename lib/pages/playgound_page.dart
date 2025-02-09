@@ -8,8 +8,6 @@ import '../model/player.dart'; // Adjust the path according to your project stru
 import 'legend_page.dart'; // Assuming you have a Legend widget similar to WelcomePage
 import 'package:responsive_builder/responsive_builder.dart'; // Import responsive_builder
 
-// Import the new IconButtonWithLabel widget
-
 // Define keys for SharedPreferences
 const String kEnlistedPlayersKey = 'enlistedPlayers';
 const String kSelectedPlayersKey = 'selectedPlayers';
@@ -249,68 +247,63 @@ class _PlayGroundState extends State<PlayGround> {
     });
   }
 
-  // Function to compute the total ranking of a player
+  // UPDATED: Compute the total ranking using new parameter names (param1 ... param6)
   double computeTotalRanking(Player player) {
-    return player.skillLevel +
-        player.scoringAbility +
-        player.defensiveSkills +
-        player.speedAndAgility +
-        player.shootingRange +
-        player.reboundSkills;
+    return player.param1 +
+        player.param2 +
+        player.param3 +
+        player.param4 +
+        player.param5 +
+        player.param6;
   }
 
   // Existing method: Distribute players into balanced teams based on attributes
   List<List<Player>> distributePlayers(List<Player> players, {required int numTeams}) {
     List<List<Player>> teams = List.generate(numTeams, (_) => []);
 
-    // Calculate the average of each attribute across all players
+    // UPDATED: Calculate the average of each parameter across all players
     Map<String, double> averages = {
-      'skillLevel': 0.0,
-      'scoringAbility': 0.0,
-      'defensiveSkills': 0.0,
-      'speedAndAgility': 0.0,
-      'shootingRange': 0.0,
-      'reboundSkills': 0.0,
+      'param1': 0.0,
+      'param2': 0.0,
+      'param3': 0.0,
+      'param4': 0.0,
+      'param5': 0.0,
+      'param6': 0.0,
     };
 
     for (var player in players) {
-      averages['skillLevel'] = averages['skillLevel']! + player.skillLevel;
-      averages['scoringAbility'] =
-          averages['scoringAbility']! + player.scoringAbility;
-      averages['defensiveSkills'] =
-          averages['defensiveSkills']! + player.defensiveSkills;
-      averages['speedAndAgility'] =
-          averages['speedAndAgility']! + player.speedAndAgility;
-      averages['shootingRange'] =
-          averages['shootingRange']! + player.shootingRange;
-      averages['reboundSkills'] =
-          averages['reboundSkills']! + player.reboundSkills;
+      averages['param1'] = averages['param1']! + player.param1;
+      averages['param2'] = averages['param2']! + player.param2;
+      averages['param3'] = averages['param3']! + player.param3;
+      averages['param4'] = averages['param4']! + player.param4;
+      averages['param5'] = averages['param5']! + player.param5;
+      averages['param6'] = averages['param6']! + player.param6;
     }
 
     averages.updateAll((key, value) => value / players.length);
 
-    // Function to calculate a team's total score in an attribute
+    // UPDATED: Function to calculate a team's total score for a given parameter
     double teamScore(List<Player> team, String attr) {
       double score = 0.0;
       for (var player in team) {
         switch (attr) {
-          case 'skillLevel':
-            score += player.skillLevel;
+          case 'param1':
+            score += player.param1;
             break;
-          case 'scoringAbility':
-            score += player.scoringAbility;
+          case 'param2':
+            score += player.param2;
             break;
-          case 'defensiveSkills':
-            score += player.defensiveSkills;
+          case 'param3':
+            score += player.param3;
             break;
-          case 'speedAndAgility':
-            score += player.speedAndAgility;
+          case 'param4':
+            score += player.param4;
             break;
-          case 'shootingRange':
-            score += player.shootingRange;
+          case 'param5':
+            score += player.param5;
             break;
-          case 'reboundSkills':
-            score += player.reboundSkills;
+          case 'param6':
+            score += player.param6;
             break;
         }
       }
@@ -319,16 +312,16 @@ class _PlayGroundState extends State<PlayGround> {
 
     // Distribute players to the teams that most need them
     for (var player in players) {
-      // Find the attribute that this player is strongest in
-      String strongestAttr = 'skillLevel';
-      double strongestVal = player.skillLevel;
+      // UPDATED: Find the parameter that this player is strongest in
+      String strongestAttr = 'param1';
+      double strongestVal = player.param1;
       Map<String, double> playerAttributes = {
-        'skillLevel': player.skillLevel,
-        'scoringAbility': player.scoringAbility,
-        'defensiveSkills': player.defensiveSkills,
-        'speedAndAgility': player.speedAndAgility,
-        'shootingRange': player.shootingRange,
-        'reboundSkills': player.reboundSkills,
+        'param1': player.param1,
+        'param2': player.param2,
+        'param3': player.param3,
+        'param4': player.param4,
+        'param5': player.param5,
+        'param6': player.param6,
       };
 
       playerAttributes.forEach((attr, value) {
@@ -338,7 +331,7 @@ class _PlayGroundState extends State<PlayGround> {
         }
       });
 
-      // Find the team that is furthest below the average in this attribute and has fewer than 4 players
+      // Find the team that is furthest below the average in this parameter and has fewer than 4 players
       int bestTeamIndex = -1;
       double bestTeamScore = double.infinity;
       for (int i = 0; i < numTeams; i++) {
@@ -364,7 +357,7 @@ class _PlayGroundState extends State<PlayGround> {
   List<List<Player>> distributePlayersTier(List<Player> players, {required int numTeams}) {
     List<List<Player>> teams = List.generate(numTeams, (_) => []);
 
-    // Create a copy of the players list and sort it
+    // Create a copy of the players list and sort it using the total ranking computed with new parameters
     List<Player> sortedPlayers = List.from(players);
     sortedPlayers.sort((a, b) => computeTotalRanking(b).compareTo(computeTotalRanking(a)));
 
@@ -392,7 +385,7 @@ class _PlayGroundState extends State<PlayGround> {
     return teams;
   }
 
-  // Function to calculate a team's total ranking
+  // Function to calculate a team's total ranking using new parameters
   double teamTotalRanking(List<Player> team) {
     double total = 0.0;
     for (var player in team) {
@@ -481,7 +474,6 @@ class _PlayGroundState extends State<PlayGround> {
                                 fontSize: 12, // Consistent font size
                               ),
                             ),
-
                             Row(
                               // Updated Row for Icon Buttons and Toggle (conditionally)
                               children: [
@@ -499,14 +491,11 @@ class _PlayGroundState extends State<PlayGround> {
                                   onPressed: _selectAllEnlistedPlayers,
                                 ),
                                 SizedBox(width: 16), // Spacing before toggle
-
                                 // Conditionally render the toggle only for Doron
                                 // if (_isDoron)
-
                               ],
                             ),
                             SizedBox(height: 12), // Spacing
-
                             // Players List
                             Expanded(
                               child: sortedPlayers.isNotEmpty
@@ -536,7 +525,6 @@ class _PlayGroundState extends State<PlayGround> {
                         ),
                       ),
                       SizedBox(width: 12), // Spacing between columns
-
                       // Right Column: Teams Display
                       Expanded(
                         flex: teamFlex,
@@ -582,12 +570,10 @@ class _PlayGroundState extends State<PlayGround> {
                                     color: Colors.green[800],
                                     size: 20,
                                   ),
-
                                 ],
                               ],
                             ),
                             SizedBox(height: 12), // Spacing
-
                             // Teams List
                             Expanded(
                               child: _teams.isNotEmpty
@@ -595,33 +581,26 @@ class _PlayGroundState extends State<PlayGround> {
                                 itemCount: _teams.length,
                                 itemBuilder: (context, teamIndex) {
                                   List<Player> team = _teams[teamIndex];
-                                  // Calculate averages for the team
+                                  // UPDATED: Calculate averages for the team using new parameter keys
                                   Map<String, double> averages = {
-                                    'skillLevel': 0.0,
-                                    'scoringAbility': 0.0,
-                                    'defensiveSkills': 0.0,
-                                    'speedAndAgility': 0.0,
-                                    'shootingRange': 0.0,
-                                    'reboundSkills': 0.0,
+                                    'param1': 0.0,
+                                    'param2': 0.0,
+                                    'param3': 0.0,
+                                    'param4': 0.0,
+                                    'param5': 0.0,
+                                    'param6': 0.0,
                                   };
                                   for (var player in team) {
-                                    averages['skillLevel'] =
-                                        averages['skillLevel']! + player.skillLevel;
-                                    averages['scoringAbility'] =
-                                        averages['scoringAbility']! + player.scoringAbility;
-                                    averages['defensiveSkills'] =
-                                        averages['defensiveSkills']! + player.defensiveSkills;
-                                    averages['speedAndAgility'] =
-                                        averages['speedAndAgility']! + player.speedAndAgility;
-                                    averages['shootingRange'] =
-                                        averages['shootingRange']! + player.shootingRange;
-                                    averages['reboundSkills'] =
-                                        averages['reboundSkills']! + player.reboundSkills;
+                                    averages['param1'] = averages['param1']! + player.param1;
+                                    averages['param2'] = averages['param2']! + player.param2;
+                                    averages['param3'] = averages['param3']! + player.param3;
+                                    averages['param4'] = averages['param4']! + player.param4;
+                                    averages['param5'] = averages['param5']! + player.param5;
+                                    averages['param6'] = averages['param6']! + player.param6;
                                   }
                                   averages.updateAll((key, value) => value / team.length);
                                   double totalAverages =
                                   averages.values.reduce((a, b) => a + b);
-
                                   return PlayGroundTeamCard(
                                     teamName: 'Team ${teamIndex + 1}',
                                     players: team.map((p) => p.username).toList(),
@@ -651,7 +630,6 @@ class _PlayGroundState extends State<PlayGround> {
               ),
             ),
             SizedBox(height: 12), // Spacing
-
             // Legend Section positioned lower
             Legend(),
           ],
@@ -688,7 +666,6 @@ class PlayGroundActionButton extends StatelessWidget {
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.green[200], // Button background color
         foregroundColor: Colors.green[700], // Button text color
-
         padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4), // Adjust padding
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8), // Rounded corners
@@ -814,37 +791,37 @@ class PlayGroundTeamCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Define the order and labels for the parameters
+    // UPDATED: Define the order and labels for the parameters using new names
     final parameters = [
       {
         'icon': Icons.handshake,
-        'label': 'Skill Level',
-        'value': averages['skillLevel']!.toStringAsFixed(2)
+        'label': 'Param1',
+        'value': averages['param1']!.toStringAsFixed(2)
       },
       {
         'icon': Icons.score,
-        'label': 'Scoring Ability',
-        'value': averages['scoringAbility']!.toStringAsFixed(2)
+        'label': 'Param2',
+        'value': averages['param2']!.toStringAsFixed(2)
       },
       {
         'icon': Icons.shield,
-        'label': 'Defensive Skills',
-        'value': averages['defensiveSkills']!.toStringAsFixed(2)
+        'label': 'Param3',
+        'value': averages['param3']!.toStringAsFixed(2)
       },
       {
         'icon': Icons.speed,
-        'label': 'Speed & Agility',
-        'value': averages['speedAndAgility']!.toStringAsFixed(2)
+        'label': 'Param4',
+        'value': averages['param4']!.toStringAsFixed(2)
       },
       {
         'icon': Icons.sports_basketball,
-        'label': 'Shooting Range',
-        'value': averages['shootingRange']!.toStringAsFixed(2)
+        'label': 'Param5',
+        'value': averages['param5']!.toStringAsFixed(2)
       },
       {
         'icon': Icons.grain,
-        'label': 'Rebound Skills',
-        'value': averages['reboundSkills']!.toStringAsFixed(2)
+        'label': 'Param6',
+        'value': averages['param6']!.toStringAsFixed(2)
       },
       {
         'icon': Icons.calculate,
@@ -910,14 +887,12 @@ class PlayGroundTeamCard extends StatelessWidget {
               ),
             ),
             SizedBox(width: 12), // Spacing between columns
-
             // Right Column: Averages
             Expanded(
               flex: 3,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Divider before averages
                   // Averages List
                   ...parameters.asMap().entries.map((entry) {
                     int idx = entry.key;
@@ -927,7 +902,6 @@ class PlayGroundTeamCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           SizedBox(height: 4), // Small spacing before divider
-                          // Shorter Divider
                           Row(
                             children: [
                               Container(
@@ -935,7 +909,6 @@ class PlayGroundTeamCard extends StatelessWidget {
                                 height: 1, // Height of the line
                                 color: Colors.green[700], // Line color
                               ),
-                              // No text here, just the divider
                             ],
                           ),
                           PlayGroundParameterRow(
