@@ -407,22 +407,22 @@ class _PlayGroundState extends State<PlayGround> {
   Widget build(BuildContext context) {
     // Localized text strings
     String selectedPlayersText =
-    _isHebrew ? 'שחקנים נבחרו: ' : 'Selected Players: ';
+    _isHebrew ? 'שחקנים שנבחרו: ' : 'Selected Players: ';
     String noPlayersText =
     _isHebrew ? 'אין שחקנים זמינים.' : 'No players available.';
     String clearText = _isHebrew ? 'נקה' : 'Clear';
-    String enlistedText = _isHebrew ? 'נרשמו' : 'Enlisted';
-    String parameterText = _isHebrew ? 'פרמטר' : 'Parameter';
-    String totalText = _isHebrew ? 'סה"כ' : 'Total';
+    String enlistedText = _isHebrew ? 'נרשמים' : 'Enlisted';
+    String parameterText = _isHebrew ? 'לפי עמדה' : 'By Position';
+    String totalText = _isHebrew ? 'לפי ממוצע' : 'By Avg';
     String noTeamsText = _isHebrew ? 'לא נוצרו קבוצות.' : 'No teams created.';
     String selectPlayersText = _isHebrew
-        ? 'בחר שחקנים וצרו קבוצות מאוזנות.'
+        ? 'בחר שחקנים וצור קבוצות מאוזנות.'
         : 'Select players and create balanced teams.';
 
     // Sorting players: selected players first, then not selected, both alphabetically.
     List<Player> sortedPlayers = List.from(_players);
     sortedPlayers.sort((a, b) {
-      bool aSelected = _selectedPlayers.contains(a);
+      bool aSelected = _selectedPlayers.contains(a) ;
       bool bSelected = _selectedPlayers.contains(b);
       if (aSelected && !bSelected) {
         return -1;
@@ -753,8 +753,7 @@ class PlayGroundTeamMethodButton extends StatelessWidget {
             label,
             style: TextStyle(
               color: Colors.green[800],
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
+              fontSize: 12,
             ),
             textAlign: TextAlign.center,
           ),

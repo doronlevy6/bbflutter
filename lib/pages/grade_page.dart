@@ -514,12 +514,13 @@ class _GradePageState extends State<GradePage> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      SizedBox(width: 4),
+                      SizedBox(width: 2),
                       Text(
                         player['average'] != null ? player['average'].toStringAsFixed(1) : '0.0',
                         style: TextStyle(
                           color: Colors.green[700],
-                          fontSize: 10,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold
                         ),
                       ),
                       SizedBox(width: 6),
