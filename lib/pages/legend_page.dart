@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/legend_config.dart';
 
 class Legend extends StatefulWidget {
   final bool showTeamAverage;
@@ -11,66 +12,33 @@ class Legend extends StatefulWidget {
 
 class _LegendState extends State<Legend> {
   bool _isHebrew = false;
-
-  // רשימת האייטמים למדריך
-  final List<Map<String, dynamic>> legendItems = [
-    {
-      'icon': Icons.handshake,
-      'label_en': 'Play Maker',
-      'label_he': 'רכז משחק',
-    },
-    {
-      'icon': Icons.score,
-      'label_en': 'Scoring Ability',
-      'label_he': 'יכולת קליעה',
-    },
-    {
-      'icon': Icons.shield,
-      'label_en': 'Defensive Skills',
-      'label_he': 'מיומנויות הגנה',
-    },
-    {
-      'icon': Icons.speed,
-      'label_en': 'Speed & Agility',
-      'label_he': 'מהירות וזריזות',
-    },
-    {
-      'icon': Icons.sports_basketball,
-      'label_en': 'Shooting Range',
-      'label_he': 'טווח קליעה',
-    },
-    {
-      'icon': Icons.grain,
-      'label_en': 'Rebound Skills',
-      'label_he': 'מיומנויות ריבאונד',
-    },
-    {
-      'icon': Icons.calculate,
-      'label_en': 'Team Average',
-      'label_he': 'ממוצע קבוצה',
-    },
-  ];
+  String _sport = 'basketball'; // ערך ברירת מחדל
 
   @override
   void initState() {
     super.initState();
-    _loadLanguagePreference();
+    _loadPreferences();
   }
 
-  // טעינת הבחירה בשפה מ־SharedPreferences
-  Future<void> _loadLanguagePreference() async {
+  // טעינת הבחירה בשפה ובסוג הספורט מ־SharedPreferences
+  Future<void> _loadPreferences() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       _isHebrew = prefs.getBool('isHebrew') ?? false;
+      _sport = prefs.getString('sport') ?? 'basketball';
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // סינון האייטמים בהתאם לפרמטר showTeamAverage
-    final displayedItems = widget.showTeamAverage
-        ? legendItems
-        : legendItems.where((item) => item['label_en'] != 'Team Average').toList();
+    // משיכת ההגדרות מתוך הקובץ המשותף לפי סוג הספורט
+    final definitions = getLegendDefinitions(_sport);
+    final legendItems = definitions.entries.where((entry) {
+      if (!widget.showTeamAverage && entry.key == 'teamAverage') {
+        return false;
+      }
+      return true;
+    }).map((entry) => entry.value).toList();
 
     return Card(
       color: Colors.green[50],
@@ -83,7 +51,7 @@ class _LegendState extends State<Legend> {
         child: Wrap(
           spacing: 12,
           runSpacing: 8,
-          children: displayedItems.map((item) {
+          children: legendItems.map((item) {
             return Row(
               mainAxisSize: MainAxisSize.min,
               children: [

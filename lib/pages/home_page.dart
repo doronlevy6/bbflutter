@@ -6,6 +6,8 @@ import 'welcome_page.dart';
 import 'login_page.dart'; // Import your other pages
 import 'manager_page.dart';
 import 'grade_page.dart';
+import 'grade_page.dart';
+import 'settings.dart';
 // import 'get_score_page.dart';
 import 'playgound_page.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -226,9 +228,17 @@ class _HomePageState extends State<HomePage> {
                             context,
                             icon: Icons.group,
                             color: Colors.teal[300],
-                            tooltip: 'Teams Page',
+                            tooltip: 'Playground',
                             page: PlayGround(),
                             title: 'Playground',
+                          ),
+                          _buildDrawerIcon(
+                            context,
+                            icon: Icons.settings,
+                            color: Colors.grey[300],
+                            tooltip: 'Settings Page',
+                            page: SettingsPage(), // ודא שיש לך עמוד SettingsPage מוגדר
+                            title: 'Settings',
                           ),
                         ],
                       ),

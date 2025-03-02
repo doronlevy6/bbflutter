@@ -1,12 +1,12 @@
 // lib/screens/grade_page.dart
 
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
 import 'legend_page.dart';
 import '../services/rankings_service.dart';
+import '../config/legend_config.dart';
 
 class GradePage extends StatefulWidget {
   @override
@@ -29,6 +29,7 @@ class _GradePageState extends State<GradePage> {
 
   // Variable to track sorting order
   bool _isAscending = false; // Initial sorting is descending
+  String _sport = 'basketball'; // ערך ברירת מחדל
 
   @override
   void initState() {
@@ -45,6 +46,7 @@ class _GradePageState extends State<GradePage> {
   Future<void> fetchInitialData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     user = prefs.getString('user');
+    _sport = prefs.getString('sport') ?? 'basketball';
 
     if (user == null) {
       // Navigate to login page if user is not logged in
@@ -450,9 +452,12 @@ class _GradePageState extends State<GradePage> {
 
     // Check if this grade button is selected
     bool isSelected = _selectedGradeButtonUsername == username && _selectedGradeButtonField == field;
+    final definitions = getLegendDefinitions(_sport);
+    final iconData = definitions[field]?['icon'];
 
     return GradeButton(
       grade: player[field],
+      icon: iconData, // Use icon from legend definitions
       isSelected: isSelected,
       isRowSelected: isRowSelected,
       onIncrement: () {
@@ -518,14 +523,14 @@ class _GradePageState extends State<GradePage> {
                   dense: true,
                   onTap: () {
                     ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: DefaultTextStyle(
-                            style: TextStyle(color: Colors.green),
-                            child: Text('Full username: ${player['username']}'),
-                          ),
-                          duration: Duration(seconds: 2),
-                          backgroundColor: Colors.white,
-                        )
+                      SnackBar(
+                        content: DefaultTextStyle(
+                          style: TextStyle(color: Colors.green),
+                          child: Text('Full username: ${player['username']}'),
+                        ),
+                        duration: Duration(seconds: 2),
+                        backgroundColor: Colors.white,
+                      ),
                     );
                   },
                   title: Row(
@@ -846,14 +851,14 @@ class _GradePageState extends State<GradePage> {
                   dense: true,
                   onTap: () {
                     ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: DefaultTextStyle(
-                            style: TextStyle(color: Colors.green),
-                            child: Text('Full username: ${player['username']}'),
-                          ),
-                          duration: Duration(seconds: 3),
-                          backgroundColor: Colors.white,
-                        )
+                      SnackBar(
+                        content: DefaultTextStyle(
+                          style: TextStyle(color: Colors.green),
+                          child: Text('Full username: ${player['username']}'),
+                        ),
+                        duration: Duration(seconds: 3),
+                        backgroundColor: Colors.white,
+                      ),
                     );
                   },
                   title: Row(
@@ -909,6 +914,10 @@ class _GradePageState extends State<GradePage> {
   @override
   Widget build(BuildContext context) {
     double textSize = Theme.of(context).textTheme.bodyLarge?.fontSize ?? 14;
+    // Get the legend definitions based on sport
+    final definitions = getLegendDefinitions(_sport);
+    // Determine language (using locale)
+    bool isHebrew = Localizations.localeOf(context).languageCode == 'he';
     return Scaffold(
       body: Stack(
         children: [
@@ -925,7 +934,7 @@ class _GradePageState extends State<GradePage> {
               // Instruction or frozen row
               _buildFrozenRowOrInstruction(),
               SizedBox(height: 10),
-              // Legend row with icons and sorting (UPDATED: tooltips changed to "Param1", etc.)
+              // Legend row with icons and sorting (UPDATED: using icons and labels from legend_config)
               Container(
                 color: Colors.grey[200],
                 padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
@@ -941,7 +950,7 @@ class _GradePageState extends State<GradePage> {
                             size: 22,
                             semanticLabel: 'Username',
                           ),
-                          SizedBox(width:6),
+                          SizedBox(width: 6),
                           TextButton.icon(
                             onPressed: () {
                               setState(() {
@@ -971,66 +980,20 @@ class _GradePageState extends State<GradePage> {
                         ],
                       ),
                     ),
-                    Expanded(
+                    ...['param1', 'param2', 'param3', 'param4', 'param5', 'param6']
+                        .map((param) => Expanded(
                       child: Tooltip(
-                        message: 'Param1',
+                        message: isHebrew
+                            ? definitions[param]!['label_he']
+                            : definitions[param]!['label_en'],
                         child: Icon(
-                          Icons.looks_one,
+                          definitions[param]!['icon'],
                           color: Colors.green[700],
                           size: 24,
                         ),
                       ),
-                    ),
-                    Expanded(
-                      child: Tooltip(
-                        message: 'Param2',
-                        child: Icon(
-                          Icons.looks_two,
-                          color: Colors.green[700],
-                          size: 24,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Tooltip(
-                        message: 'Param3',
-                        child: Icon(
-                          Icons.looks_3,
-                          color: Colors.green[700],
-                          size: 24,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Tooltip(
-                        message: 'Param4',
-                        child: Icon(
-                          Icons.looks_4,
-                          color: Colors.green[700],
-                          size: 24,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Tooltip(
-                        message: 'Param5',
-                        child: Icon(
-                          Icons.looks_5,
-                          color: Colors.green[700],
-                          size: 24,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Tooltip(
-                        message: 'Param6',
-                        child: Icon(
-                          Icons.looks_6,
-                          color: Colors.green[700],
-                          size: 24,
-                        ),
-                      ),
-                    ),
+                    ))
+                        .toList(),
                   ],
                 ),
               ),
@@ -1112,6 +1075,7 @@ class _GradePageState extends State<GradePage> {
 /// Custom GradeButton Widget using Overlay
 class GradeButton extends StatelessWidget {
   final int? grade;
+  final IconData? icon;
   final bool isSelected;
   final bool isRowSelected;
   final VoidCallback onIncrement;
@@ -1120,6 +1084,7 @@ class GradeButton extends StatelessWidget {
 
   GradeButton({
     required this.grade,
+    required this.icon,
     required this.isSelected,
     required this.isRowSelected,
     required this.onIncrement,
