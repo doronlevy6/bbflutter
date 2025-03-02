@@ -1,14 +1,12 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '/model/player.dart'; // Adjust the path accordingly
 import 'legend_page.dart';
 import '../services/api_service.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
-import 'package:responsive_builder/responsive_builder.dart'; // Import responsive_builder
+import 'package:responsive_builder/responsive_builder.dart';
 
-// Define keys for SharedPreferences
 const String kUserKey = 'user';
 const String kEnlistedPlayersKey = 'enlistedPlayers';
 const String kOverallPlayersRankingsKey = 'overallPlayersRankings';
@@ -16,7 +14,6 @@ const String kPlayersRankingsKey = 'playersRankings';
 
 class WelcomePage extends StatefulWidget {
   final bool showOnlyTeams;
-
   WelcomePage({this.showOnlyTeams = false});
 
   @override
@@ -31,12 +28,14 @@ class _WelcomePageState extends State<WelcomePage> {
   List<Map<String, dynamic>> overallPlayersRankings = [];
   List<Map<String, dynamic>> playersRankings = [];
 
+  bool _isHebrew = false;
   late IO.Socket socket;
 
   @override
   void initState() {
     super.initState();
     _initializeUser();
+    _loadLanguage();
     _setupSocketListener();
     _loadRankingsData();
   }
@@ -46,19 +45,26 @@ class _WelcomePageState extends State<WelcomePage> {
     socket.dispose();
     super.dispose();
   }
-// This function loads both ranking keys from cache
+
+  // Load the language setting from SharedPreferences using key 'isHebrew'
+  Future<void> _loadLanguage() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    bool isHebrew = prefs.getBool('isHebrew') ?? false;
+    setState(() {
+      _isHebrew = isHebrew;
+    });
+  }
+
+  // Load ranking data from SharedPreferences
   Future<void> _loadRankingsData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      // Decode overallPlayersRankings from JSON string into a list of maps.
       String? overallPlayersRankingsString = prefs.getString(kOverallPlayersRankingsKey);
       if (overallPlayersRankingsString != null && overallPlayersRankingsString.isNotEmpty) {
         overallPlayersRankings = List<Map<String, dynamic>>.from(jsonDecode(overallPlayersRankingsString));
       } else {
         overallPlayersRankings = [];
       }
-
-      // Build the user-specific key for playersRankings.
       String userPlayersRankingsKey = 'playersRankings_$user';
       String? playersRankingsString = prefs.getString(userPlayersRankingsKey);
       if (playersRankingsString != null && playersRankingsString.isNotEmpty) {
@@ -68,7 +74,6 @@ class _WelcomePageState extends State<WelcomePage> {
       }
     });
   }
-
 
   Future<void> _initializeUser() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -91,9 +96,9 @@ class _WelcomePageState extends State<WelcomePage> {
         setState(() {
           enlistedPlayers = fetchedPlayers;
         });
-        await _saveEnlistedPlayers(fetchedPlayers); // Save to SharedPreferences
+        await _saveEnlistedPlayers(fetchedPlayers);
       }
-
+      // Uncomment and adjust if teams data is needed:
       // final teamsResponse = await _apiService.get('get-teams');
       // if (teamsResponse['success']) {
       //   setState(() {
@@ -107,7 +112,7 @@ class _WelcomePageState extends State<WelcomePage> {
     } catch (error) {
       print('Error fetching data: $error');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching data. Please try again later.')),
+        SnackBar(content: Text(_isHebrew ? 'שגיאה בטעינת הנתונים. אנא נסה שוב מאוחר יותר.' : 'Error fetching data. Please try again later.')),
       );
     }
   }
@@ -117,19 +122,18 @@ class _WelcomePageState extends State<WelcomePage> {
       final response = await _apiService.post('enlist-users', {
         'usernames': [user],
       });
-
       if (response['success']) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('You have been enlisted for the next game!')),
+          SnackBar(content: Text(_isHebrew ? 'נרשמת למשחק הבא!' : 'You have been enlisted for the next game!')),
         );
-        await _fetchData(); // Fetch and save the updated enlistedPlayers
+        await _fetchData();
       } else {
         throw Exception('Failed to enlist');
       }
     } catch (error) {
       print('Error enlisting: $error');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to enlist for the next game.')),
+        SnackBar(content: Text(_isHebrew ? 'נכשלת ברישום למשחק הבא.' : 'Failed to enlist for the next game.')),
       );
     }
   }
@@ -139,18 +143,13 @@ class _WelcomePageState extends State<WelcomePage> {
       'transports': ['websocket'],
       'autoConnect': false,
     });
-
     socket.connect();
-
     socket.on('connect', (_) {
       print('Connected to socket.io server');
     });
-
     socket.on('teamsUpdated', (_) {
       _fetchData();
     });
-
-    // Example of handling enlistedPlayers update via socket
     socket.on('enlistedPlayersUpdated', (data) {
       if (data['success']) {
         List<String> updatedPlayers = List<String>.from(data['usernames']);
@@ -160,215 +159,225 @@ class _WelcomePageState extends State<WelcomePage> {
         _saveEnlistedPlayers(updatedPlayers);
       }
     });
-
     socket.on('disconnect', (_) {
       print('Disconnected from socket.io server');
     });
   }
 
-// Inside _WelcomePageState, within the build() method where the greeting is displayed:
-
-  // בתוך הפונקציה build() של _WelcomePageState:
-
   @override
   Widget build(BuildContext context) {
-    // Determine the greeting message based on the user's enrollment status and the number of enlisted players.
+    // Define localized text strings
+    String playNextGameText = _isHebrew ? 'שחק במשחק הבא' : 'Play Next Game';
+    String totalEnlistedText = _isHebrew ? 'סה"כ רשומים: ' : 'Total Enlisted: ';
+    String noPlayersText = _isHebrew ? 'אין שחקנים רשומים.' : 'No players enlisted.';
+
+    // Build greeting message based on enrollment status
     String greetingMessage;
     if (enlistedPlayers.contains(user)) {
       int index = enlistedPlayers.indexOf(user);
       if (index < 12) {
-        greetingMessage = 'Hello $user, you\'re playing in the next game!';
+        greetingMessage = _isHebrew
+            ? 'שלום $user, אתה משחק במשחק הבא!'
+            : 'Hello $user, you\'re playing in the next game!';
       } else {
-        greetingMessage =
-        'Hello $user, you are on standby.\nPlease stay available for updates.';
+        greetingMessage = _isHebrew
+            ? 'שלום $user, אתה בהמתנה.\nאנא הישאר זמין לעדכונים.'
+            : 'Hello $user, you are on standby.\nPlease stay available for updates.';
       }
     } else {
       if (enlistedPlayers.length < 12) {
-        greetingMessage =
-        'Hello $user, to sign up for the next game, please click the "Play Next Game" button.';
+        greetingMessage = _isHebrew
+            ? 'שלום $user, כדי להירשם למשחק הבא, לחץ על כפתור "$playNextGameText".'
+            : 'Hello $user, to sign up for the next game, please click the "$playNextGameText" button.';
       } else if (enlistedPlayers.length >= 12) {
-        greetingMessage =
-        'Hello $user, click the "Play Next Game" button to join the standby list.';
+        greetingMessage = _isHebrew
+            ? 'שלום $user, לחץ על "$playNextGameText" כדי להצטרף לרשימת ההמתנה.'
+            : 'Hello $user, click the "$playNextGameText" button to join the standby list.';
       } else {
-        greetingMessage = 'Hello $user!';
+        greetingMessage = _isHebrew ? 'שלום $user!' : 'Hello $user!';
       }
     }
-/// Calculate the rating message using the ranking keys from cache.
+
     int totalPlayers = overallPlayersRankings.length;
-    int ratedPlayers = playersRankings.length; // Use the total number of items in playersRankings
+    int ratedPlayers = playersRankings.length;
     int remaining = totalPlayers - ratedPlayers;
-    String ratingMessage = 'You have rated $ratedPlayers players. Please rate $remaining more players.';
+    String ratingMessage = _isHebrew
+        ? 'דירגת $ratedPlayers שחקנים. אנא דרג עוד $remaining שחקנים.'
+        : 'You have rated $ratedPlayers players. Please rate $remaining more players.';
 
+    return Directionality(
+      textDirection: _isHebrew ? TextDirection.rtl : TextDirection.ltr,
+      child: Scaffold(
+        body: Padding(
+          padding: EdgeInsets.all(12.0),
+          child: Column(
+            children: [
+              Expanded(
+                child: ResponsiveBuilder(
+                  builder: (context, sizingInformation) {
+                    int playerFlex;
+                    int greetingFlex;
+                    if (sizingInformation.deviceScreenType == DeviceScreenType.mobile) {
+                      playerFlex = 4;
+                      greetingFlex = 6;
+                    } else if (sizingInformation.deviceScreenType == DeviceScreenType.tablet) {
+                      playerFlex = 3;
+                      greetingFlex = 7;
+                    } else {
+                      playerFlex = 3;
+                      greetingFlex = 7;
+                    }
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: playerFlex,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (!widget.showOnlyTeams) ...[
+                                EnlistButton(
+                                  onPressed: _enlistForGame,
+                                  buttonText: playNextGameText,
+                                ),
+                                SizedBox(height: 10),
+                                Text(
+                                  '$totalEnlistedText${enlistedPlayers.length}',
+                                  style: TextStyle(
+                                      color: Colors.green[800],
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14),
+                                ),
+                                SizedBox(height: 8),
+                                Expanded(
+                                  child: enlistedPlayers.isNotEmpty
+                                      ? ListView.builder(
+                                    itemCount: enlistedPlayers.length,
+                                    itemBuilder: (context, index) {
+                                      return Card(
+                                        elevation: 1,
+                                        margin: EdgeInsets.symmetric(vertical: 1),
+                                        child: ListTile(
+                                          contentPadding: EdgeInsets.symmetric(horizontal: 4.0), // יותר ריווח כללי
+                                          visualDensity: VisualDensity(horizontal: -4, vertical: -4), // מצמצם גובה
+                                          minVerticalPadding: 0,
+                                          dense: true,
 
-
-
-    return Scaffold(
-      // AppBar removed as per the user’s request.
-      body: Padding(
-        padding: EdgeInsets.all(12.0), // Reduced padding for compactness.
-        child: Column(
-          children: [
-            // Main Content: Enlisted Players and Greeting Message.
-            Expanded(
-              child: ResponsiveBuilder(
-                builder: (context, sizingInformation) {
-                  // Determine flex ratios based on the device type.
-                  int playerFlex;
-                  int greetingFlex;
-
-                  if (sizingInformation.deviceScreenType == DeviceScreenType.mobile) {
-                    playerFlex = 4;
-                    greetingFlex = 6;
-                  } else if (sizingInformation.deviceScreenType == DeviceScreenType.tablet) {
-                    playerFlex = 3;
-                    greetingFlex = 7;
-                  } else {
-                    // For desktop and others.
-                    playerFlex = 3;
-                    greetingFlex = 7;
-                  }
-
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Left Column: Enlisted Players list.
-                      Expanded(
-                        flex: playerFlex,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (!widget.showOnlyTeams) ...[
-                              EnlistButton(onPressed: _enlistForGame),
-                              SizedBox(height: 10),
-                              Text(
-                                'Total Enlisted: ${enlistedPlayers.length}',
-                                style: TextStyle(
-                                    color: Colors.green[800],
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14),
-                              ),
-                              SizedBox(height: 8),
-                              Expanded(
-                                child: enlistedPlayers.isNotEmpty
-                                    ? ListView.builder(
-                                  itemCount: enlistedPlayers.length,
-                                  itemBuilder: (context, index) {
-                                    return Card(
-                                      elevation: 1,
-                                      margin: EdgeInsets.symmetric(vertical: 1),
-                                      child: ListTile(
-                                        contentPadding: EdgeInsets.symmetric(
-                                            horizontal: 8.0, vertical: 2.0),
-                                        visualDensity: VisualDensity.compact,
-                                        leading: Icon(
-                                          Icons.person,
-                                          color: Colors.green[700],
-                                          size: 16,
-                                        ),
-                                        title: Text(
-                                          enlistedPlayers[index],
-                                          style: TextStyle(
+                                          leading: Padding(
+                                            padding: EdgeInsets.only(left: 2.0), // מרחיק את האייקון מהקצה
+                                            child: Icon(
+                                              Icons.person,
                                               color: Colors.green[700],
-                                              fontSize: 14),
-                                          overflow: TextOverflow.ellipsis,
+                                              size: 16,
+                                            ),
+                                          ),
+
+                                          horizontalTitleGap: 5.0, // מקרב את הטקסט לאייקון
+
+                                          title: Text(
+                                            enlistedPlayers[index],
+                                            style: TextStyle(
+                                              color: Colors.green[700],
+                                              fontSize: 14,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
                                         ),
-                                      ),
-                                    );
-                                  },
-                                )
-                                    : Center(
-                                  child: Text(
-                                    'No players enlisted.',
-                                    style: TextStyle(
-                                        color: Colors.green[700],
-                                        fontSize: 14),
+                                      );
+
+
+                                    },
+                                  )
+                                      : Center(
+                                    child: Text(
+                                      noPlayersText,
+                                      style: TextStyle(
+                                          color: Colors.green[700],
+                                          fontSize: 14),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                      SizedBox(width: 12),
-                      // Right Column: Greeting Message.
-                      // Right Column: Greeting and Rating Messages.
-                      Expanded(
-                        flex: greetingFlex,
-                        child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                greetingMessage,
-                                style: TextStyle(
-                                  color: Colors.green[800],
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                              SizedBox(height: 20),
-                              Text(
-                                ratingMessage,
-                                style: TextStyle(
-                                  color: Colors.green[800],
-                                  fontSize: 18,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
+                              ],
                             ],
                           ),
                         ),
-                      ),
-
-                    ],
-                  );
-                },
+                        SizedBox(width: 12),
+                        Expanded(
+                          flex: greetingFlex,
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  greetingMessage,
+                                  style: TextStyle(
+                                    color: Colors.green[800],
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                SizedBox(height: 20),
+                                Text(
+                                  ratingMessage,
+                                  style: TextStyle(
+                                    color: Colors.green[800],
+                                    fontSize: 18,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ),
-            ),
-            SizedBox(height: 12),
-            // Legend Section (as defined earlier).
-            Legend(),
-          ],
+              SizedBox(height: 12),
+
+            ],
+          ),
         ),
       ),
     );
   }
-
-
-
 }
 
-// Enlist Button Widget
+// Enlist Button Widget with customizable text
 class EnlistButton extends StatelessWidget {
   final VoidCallback onPressed;
+  final String buttonText;
 
-  EnlistButton({required this.onPressed});
+  EnlistButton({required this.onPressed, required this.buttonText});
 
   @override
   Widget build(BuildContext context) {
     return ElevatedButton.icon(
       onPressed: onPressed,
       icon: CircleAvatar(
-        radius: 20, // Half of the original height and width (30)
+        radius: 20,
         backgroundImage: AssetImage('assets/images/basketball.jpeg'),
-        backgroundColor: Colors.transparent, // Optional: Makes the background transparent
+        backgroundColor: Colors.transparent,
       ),
       label: Text(
-        'Play Next Game',
+        buttonText,
+        textAlign: TextAlign.center,
         style: TextStyle(
-          fontSize: 16, // Smaller font
+          fontSize: 16,
           fontWeight: FontWeight.bold,
+
         ),
       ),
       style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.green[100], // Button background color
-        foregroundColor: Colors.green, // Button text color
-        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4), // Adjust padding for a rounder look
+        backgroundColor: Colors.green[100],
+        foregroundColor: Colors.green,
+        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(30), // More rounded shape
+          borderRadius: BorderRadius.circular(30),
         ),
-        elevation: 5, // Default elevation
+        elevation: 5,
       ),
     );
   }

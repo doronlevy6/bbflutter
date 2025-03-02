@@ -1,17 +1,13 @@
-// lib/home_page.dart
-
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'welcome_page.dart';
-import 'login_page.dart'; // Import your other pages
+import 'login_page.dart';
 import 'manager_page.dart';
 import 'grade_page.dart';
-import 'grade_page.dart';
 import 'settings.dart';
-// import 'get_score_page.dart';
 import 'playgound_page.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:responsive_builder/responsive_builder.dart'; // Import responsive_builder
+import 'package:responsive_builder/responsive_builder.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -19,17 +15,48 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // Define the default page and title
+  // Default page and title in English
   Widget _currentPage = WelcomePage();
   String _appBarTitle = 'Teams and Averages';
+  bool _isHebrew = false;
 
-  // Method to build each icon in the Drawer
-  Widget _buildDrawerIcon(BuildContext context,
-      {required IconData icon,
+  @override
+  void initState() {
+    super.initState();
+    _loadLanguage();
+  }
+
+  // Load the language setting from SharedPreferences using key 'isHebrew'
+  void _loadLanguage() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    bool isHebrew = prefs.getBool('isHebrew') ?? false;
+    setState(() {
+      _isHebrew = isHebrew;
+      // Update AppBar title based on the language
+      _appBarTitle = _isHebrew ? 'רשימת נרשמים' : 'enlisted playres';
+    });
+  }
+
+  // Get user information (username and email) from SharedPreferences
+  Future<Map<String, String>> _getUserInfo() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? username = prefs.getString('user');
+    String? email = prefs.getString('email');
+    return {
+      'username': username ?? 'Guest',
+      'email': email ?? 'guest@example.com',
+    };
+  }
+
+  // Build a drawer icon item with tooltip and navigation functionality
+  Widget _buildDrawerIcon(
+      BuildContext context, {
+        required IconData icon,
         required Color? color,
         required String tooltip,
         required Widget page,
-        required String title}) {
+        required String title,
+      }) {
     return Tooltip(
       message: tooltip,
       child: InkWell(
@@ -41,25 +68,23 @@ class _HomePageState extends State<HomePage> {
           });
         },
         child: Container(
-          padding:
-          EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0), // Adjust padding
+          padding: EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
           child: Row(
             children: [
               Icon(
                 icon,
                 color: color,
-                size: 24, // Reduced size for better responsiveness
+                size: 24,
               ),
               SizedBox(width: 12),
-              // Use Expanded to allow text to take available space
               Expanded(
                 child: Text(
                   title,
                   style: TextStyle(
-                    fontSize: 16, // Adjusted font size
+                    fontSize: 16,
                     color: Colors.black87,
                   ),
-                  overflow: TextOverflow.ellipsis, // Handle overflow
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -69,25 +94,12 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // Method to get user info from SharedPreferences
-  Future<Map<String, String>> _getUserInfo() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? username = prefs.getString('user');
-    String? email = prefs.getString('email');
-    return {
-      'username': username ?? 'Guest',
-      'email': email ?? 'guest@example.com',
-    };
-  }
-
   @override
   Widget build(BuildContext context) {
     return ResponsiveBuilder(
       builder: (context, sizingInformation) {
-        // Determine device type
+        // Determine device type and set drawer width accordingly
         var deviceType = sizingInformation.deviceScreenType;
-
-        // Set Drawer width based on device type
         double drawerWidth;
         switch (deviceType) {
           case DeviceScreenType.desktop:
@@ -100,7 +112,6 @@ class _HomePageState extends State<HomePage> {
             drawerWidth = 200;
             break;
           default:
-          // Mobile
             drawerWidth = MediaQuery.of(context).size.width * 0.75;
         }
 
@@ -117,155 +128,154 @@ class _HomePageState extends State<HomePage> {
             appBarFontSize = 16;
             break;
           default:
-          // Mobile
             appBarFontSize = 20;
         }
 
-        return Scaffold(
-          appBar: AppBar(
-            title: Text(
-              _appBarTitle,
-              style: GoogleFonts.akayaKanadaka(
-                fontSize: appBarFontSize,
-                fontWeight: FontWeight.w400,
-                color: Colors.white,
+        return Directionality(
+          textDirection: _isHebrew ? TextDirection.rtl : TextDirection.ltr,
+          child: Scaffold(
+            appBar: AppBar(
+              title: Text(
+                _appBarTitle,
+                style: GoogleFonts.akayaKanadaka(
+                  fontSize: appBarFontSize,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.white,
+                ),
               ),
+              backgroundColor: Colors.green[700],
             ),
-            backgroundColor: Colors.green[700], // Base green color
-          ),
-          drawer: Drawer(
-            width: drawerWidth, // Set adaptive width
-            child: FutureBuilder<Map<String, String>>(
-              future: _getUserInfo(),
-              builder: (context, snapshot) {
-                // Show a loading indicator while fetching user info
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Center(child: CircularProgressIndicator());
-                }
+            drawer: Drawer(
+              width: drawerWidth,
+              child: FutureBuilder<Map<String, String>>(
+                future: _getUserInfo(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Center(child: CircularProgressIndicator());
+                  }
+                  String username = snapshot.data?['username'] ?? 'Guest';
+                  String email = snapshot.data?['email'] ?? 'guest@example.com';
 
-                String username = snapshot.data?['username'] ?? 'Guest';
-                String email = snapshot.data?['email'] ?? 'guest@example.com';
+                  // Define localized text based on _isHebrew flag
+                  final loginTitle = _isHebrew ? 'התחברות/רישום' : 'Login';
+                  final loginTooltip = _isHebrew ? 'התחברות/רישום' : 'Login/Register';
+                  final homeTitle = _isHebrew ? 'רשימת נרשמים' : 'enlisted playres';
+                  final gradeTitle = _isHebrew ? 'ציוני  $username ' : "$username's Grades";
+                  final gradeTooltip = _isHebrew ? 'ציונים' : 'Grade Page';
+                  final managementTitle = _isHebrew ? 'ניהול' : 'Management';
+                  final playgroundTitle = _isHebrew ? 'מגרש משחקים' : 'Playground';
+                  final settingsTitle = _isHebrew ? 'הגדרות' : 'Settings';
+                  final logoutTitle = _isHebrew ? 'התנתק' : 'Logout';
 
-                return Column(
-                  children: [
-                    UserAccountsDrawerHeader(
-                      accountName: Text(
-                        username,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16, // Adjust font size
+                  return Column(
+                    children: [
+                      UserAccountsDrawerHeader(
+                        accountName: Text(
+                          username,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        accountEmail: Text(
+                          email,
+                          style: TextStyle(
+                            fontSize: 14,
+                          ),
+                        ),
+                        currentAccountPicture: CircleAvatar(
+                          backgroundColor: Colors.white,
+                          child: Icon(
+                            Icons.person,
+                            size: 40,
+                            color: Colors.green[700],
+                          ),
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.green[600],
                         ),
                       ),
-                      accountEmail: Text(
-                        email,
-                        style: TextStyle(
-                          fontSize: 14, // Adjust font size
-                        ),
-                      ),
-                      currentAccountPicture: CircleAvatar(
-                        backgroundColor: Colors.white,
-                        child: Icon(
-                          Icons.person,
-                          size: 40,
-                          color: Colors.green[700],
-                        ),
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.green[600],
-                      ),
-                    ),
-                    Expanded(
-                      child: ListView(
-                        padding: EdgeInsets.zero, // Remove default padding
-                        children: [
-                          // Adding the Drawer links in the specified order
-                          _buildDrawerIcon(
-                            context,
-                            icon: Icons.login,
-                            color: Colors.blue[300],
-                            tooltip: 'Login/Register',
-                            page: LoginPage(),
-                            title: 'Login',
-                          ),
-                          _buildDrawerIcon(
-                            context,
-                            icon: Icons.home,
-                            color: Colors.green[300],
-                            tooltip: 'Home',
-                            page: WelcomePage(),
-                            title: 'Home',
-                          ),
-                          _buildDrawerIcon(
-                            context,
-                            icon: Icons.grade,
-                            color: Colors.orange[300],
-                            tooltip: 'Grade Page',
-                            page: GradePage(),
-                            title: '${username}`s Grades',
-                          ),
-
-                          // Conditionally show Get Score and Management links for user 'doron'
-                          if (username.toLowerCase() == 'doron'||username.toLowerCase() == 'dor') ...[
-                            // _buildDrawerIcon(
-                            //   context,
-                            //   icon: Icons.score,
-                            //   color: Colors.purple[300],
-                            //   tooltip: 'Get Score Page',
-                            //   page: GetScorePage(),
-                            //   title: 'Get Score',
-                            // ),
+                      Expanded(
+                        child: ListView(
+                          padding: EdgeInsets.zero,
+                          children: [
                             _buildDrawerIcon(
                               context,
-                              icon: Icons.admin_panel_settings,
-                              color: Colors.red[300],
-                              tooltip: 'Manager Page',
-                              page: ManagementPage(),
-                              title: 'Management',
+                              icon: Icons.login,
+                              color: Colors.blue[300],
+                              tooltip: loginTooltip,
+                              page: LoginPage(),
+                              title: loginTitle,
+                            ),
+                            _buildDrawerIcon(
+                              context,
+                              icon: Icons.home,
+                              color: Colors.green[300],
+                              tooltip: homeTitle,
+                              page: WelcomePage(),
+                              title: homeTitle,
+                            ),
+                            _buildDrawerIcon(
+                              context,
+                              icon: Icons.grade,
+                              color: Colors.orange[300],
+                              tooltip: gradeTooltip,
+                              page: GradePage(),
+                              title: gradeTitle,
+                            ),
+                            // Conditionally display management option for user 'doron'
+                            if (username.toLowerCase() == 'doron' || username.toLowerCase() == 'dor')
+                              _buildDrawerIcon(
+                                context,
+                                icon: Icons.admin_panel_settings,
+                                color: Colors.red[300],
+                                tooltip: managementTitle,
+                                page: ManagementPage(),
+                                title: managementTitle,
+                              ),
+                            _buildDrawerIcon(
+                              context,
+                              icon: Icons.group,
+                              color: Colors.teal[300],
+                              tooltip: playgroundTitle,
+                              page: PlayGround(),
+                              title: playgroundTitle,
+                            ),
+                            if (username.toLowerCase() == 'doron')
+                            _buildDrawerIcon(
+                              context,
+                              icon: Icons.settings,
+                              color: Colors.grey[300],
+                              tooltip: settingsTitle,
+                              page: SettingsPage(),
+                              title: settingsTitle,
                             ),
                           ],
-
-                          _buildDrawerIcon(
-                            context,
-                            icon: Icons.group,
-                            color: Colors.teal[300],
-                            tooltip: 'Playground',
-                            page: PlayGround(),
-                            title: 'Playground',
-                          ),
-                          _buildDrawerIcon(
-                            context,
-                            icon: Icons.settings,
-                            color: Colors.grey[300],
-                            tooltip: 'Settings Page',
-                            page: SettingsPage(), // ודא שיש לך עמוד SettingsPage מוגדר
-                            title: 'Settings',
-                          ),
-                        ],
-                      ),
-                    ),
-                    Divider(),
-                    ListTile(
-                      leading: Icon(Icons.logout, color: Colors.red),
-                      title: Text(
-                        'Logout',
-                        style: TextStyle(
-                          fontSize: 16, // Adjust font size
                         ),
                       ),
-                      onTap: () async {
-                        SharedPreferences prefs =
-                        await SharedPreferences.getInstance();
-                        await prefs.clear();
-                        Navigator.pushNamedAndRemoveUntil(
-                            context, '/login', (Route<dynamic> route) => false);
-                      },
-                    ),
-                  ],
-                );
-              },
+                      Divider(),
+                      ListTile(
+                        leading: Icon(Icons.logout, color: Colors.red),
+                        title: Text(
+                          logoutTitle,
+                          style: TextStyle(
+                            fontSize: 16,
+                          ),
+                        ),
+                        onTap: () async {
+                          SharedPreferences prefs = await SharedPreferences.getInstance();
+                          await prefs.clear();
+                          Navigator.pushNamedAndRemoveUntil(
+                              context, '/login', (Route<dynamic> route) => false);
+                        },
+                      ),
+                    ],
+                  );
+                },
+              ),
             ),
+            body: _currentPage,
           ),
-          body: _currentPage,
         );
       },
     );

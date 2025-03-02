@@ -33,6 +33,47 @@ class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
   final ApiService _apiService = ApiService();
 
+  // מפה של טקסטים בהתאם לשפה
+  Map<String, String> get texts => _isHebrew
+      ? {
+    'titleLogin': 'כניסה',
+    'titleRegister': 'רישום',
+    'username': 'שם משתמש',
+    'password': 'סיסמה',
+    'email': 'אימייל',
+    'teamName': 'שם קבוצה',
+    'teamPassword': 'סיסמת קבוצה',
+    'createNewTeam': 'צור קבוצה חדשה',
+    'cancel': 'ביטול',
+    'create': 'צור',
+    'alreadyHaveAccount': 'כבר יש לך חשבון? התחבר',
+    'dontHaveAccount': 'אין לך חשבון? הירשם',
+    'fillAllFields': 'אנא מלא את כל השדות הנדרשים.',
+    'fillTeamCredentials':
+    'אנא מלא את פרטי הקבוצה (שם קבוצה וסיסמה).',
+    'teamCreatedSuccessfully': 'הקבוצה נוצרה בהצלחה!',
+    'teamCreationFailed': 'יצירת הקבוצה נכשלה',
+  }
+      : {
+    'titleLogin': 'Login',
+    'titleRegister': 'Register',
+    'username': 'Username',
+    'password': 'Password',
+    'email': 'Email',
+    'teamName': 'Team Name',
+    'teamPassword': 'Team Password',
+    'createNewTeam': 'Create New Team',
+    'cancel': 'Cancel',
+    'create': 'Create',
+    'alreadyHaveAccount': 'Already have an account? Login',
+    'dontHaveAccount': 'Don\'t have an account? Register',
+    'fillAllFields': 'Please fill in all required fields.',
+    'fillTeamCredentials':
+    'Please fill in team credentials (Team Name & Team Password).',
+    'teamCreatedSuccessfully': 'Team created successfully!',
+    'teamCreationFailed': 'Team creation failed',
+  };
+
   @override
   void initState() {
     super.initState();
@@ -68,17 +109,19 @@ class _LoginPageState extends State<LoginPage> {
 
   // בדיקת תקינות הקלט (לכניסה ולרישום)
   bool _validateInputs() {
-    if (_usernameController.text.isEmpty || _passwordController.text.isEmpty ||
+    if (_usernameController.text.isEmpty ||
+        _passwordController.text.isEmpty ||
         (_isRegister && _emailController.text.isEmpty)) {
       setState(() {
-        _errorMessage = "Please fill in all required fields.";
+        _errorMessage = texts['fillAllFields']!;
       });
       return false;
     }
     if (_isRegister &&
-        (_teamNameController.text.isEmpty || _teamPasswordController.text.isEmpty)) {
+        (_teamNameController.text.isEmpty ||
+            _teamPasswordController.text.isEmpty)) {
       setState(() {
-        _errorMessage = "Please fill in team credentials (Team Name & Team Password).";
+        _errorMessage = texts['fillTeamCredentials']!;
       });
       return false;
     }
@@ -105,7 +148,7 @@ class _LoginPageState extends State<LoginPage> {
         await _handleLogin();
       } else {
         setState(() {
-          _errorMessage = data['message'] ?? 'Registration failed';
+          _errorMessage = data['message'] ?? texts['teamCreationFailed']!;
         });
       }
     } catch (error) {
@@ -145,7 +188,7 @@ class _LoginPageState extends State<LoginPage> {
         Navigator.pushReplacementNamed(context, '/home');
       } else {
         setState(() {
-          _errorMessage = data['message'] ?? 'Login failed';
+          _errorMessage = data['message'] ?? texts['teamCreationFailed']!;
         });
       }
     } catch (error) {
@@ -165,7 +208,7 @@ class _LoginPageState extends State<LoginPage> {
         _createTeamPasswordController.text.isEmpty ||
         _createTeamTypeController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please fill in all team details.')),
+        SnackBar(content: Text(texts['fillAllFields']!)),
       );
       return;
     }
@@ -183,11 +226,11 @@ class _LoginPageState extends State<LoginPage> {
 
       if (data['success']) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Team created successfully!')),
+          SnackBar(content: Text(texts['teamCreatedSuccessfully']!)),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(data['message'] ?? 'Team creation failed')),
+          SnackBar(content: Text(data['message'] ?? texts['teamCreationFailed']!)),
         );
       }
     } catch (error) {
@@ -210,14 +253,14 @@ class _LoginPageState extends State<LoginPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Create New Team'),
+          title: Text(texts['createNewTeam']!),
           content: SingleChildScrollView(
             child: Column(
               children: [
                 TextField(
                   controller: _createTeamNameController,
                   decoration: InputDecoration(
-                    labelText: 'Team Name',
+                    labelText: texts['teamName'],
                     icon: Icon(Icons.group),
                   ),
                 ),
@@ -225,7 +268,7 @@ class _LoginPageState extends State<LoginPage> {
                 TextField(
                   controller: _createTeamPasswordController,
                   decoration: InputDecoration(
-                    labelText: 'Team Password',
+                    labelText: texts['teamPassword'],
                     icon: Icon(Icons.lock),
                   ),
                   obscureText: true,
@@ -234,7 +277,7 @@ class _LoginPageState extends State<LoginPage> {
                 TextField(
                   controller: _createTeamTypeController,
                   decoration: InputDecoration(
-                    labelText: 'Team Type',
+                    labelText: 'Team Type', // ניתן להוסיף מחרוזת גם כאן אם רוצים
                     icon: Icon(Icons.category),
                   ),
                 ),
@@ -246,14 +289,14 @@ class _LoginPageState extends State<LoginPage> {
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: Text('Cancel', style: TextStyle(color: Colors.red)),
+              child: Text(texts['cancel']!, style: TextStyle(color: Colors.red)),
             ),
             ElevatedButton(
               onPressed: _handleCreateTeam,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
               ),
-              child: Text('Create'),
+              child: Text(texts['create']!),
             ),
           ],
         );
@@ -279,27 +322,9 @@ class _LoginPageState extends State<LoginPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // כפתור טוגל לשינוי שפה
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text('English', style: TextStyle(color: Colors.white)),
-                    Switch(
-                      value: _isHebrew,
-                      onChanged: (value) {
-                        setState(() {
-                          _isHebrew = value;
-                        });
-                        _updateLanguagePreference(value);
-                      },
-                      activeColor: Colors.green,
-                    ),
-                    Text('עברית', style: TextStyle(color: Colors.white)),
-                  ],
-                ),
-                // כותרת (Login או Register)
+                // כותרת (Login או Register) בהתאם לשפה ובמצב הרישום
                 Text(
-                  _isRegister ? 'Register' : 'Login',
+                  _isRegister ? texts['titleRegister']! : texts['titleLogin']!,
                   style: TextStyle(
                     fontSize: 28,
                     color: Colors.white,
@@ -322,7 +347,7 @@ class _LoginPageState extends State<LoginPage> {
                         TextField(
                           controller: _usernameController,
                           decoration: InputDecoration(
-                            labelText: 'Username',
+                            labelText: texts['username'],
                             prefixIcon: Icon(Icons.person),
                           ),
                         ),
@@ -331,7 +356,7 @@ class _LoginPageState extends State<LoginPage> {
                           controller: _passwordController,
                           obscureText: true,
                           decoration: InputDecoration(
-                            labelText: 'Password',
+                            labelText: texts['password'],
                             prefixIcon: Icon(Icons.lock),
                           ),
                         ),
@@ -340,7 +365,7 @@ class _LoginPageState extends State<LoginPage> {
                           TextField(
                             controller: _emailController,
                             decoration: InputDecoration(
-                              labelText: 'Email',
+                              labelText: texts['email'],
                               prefixIcon: Icon(Icons.email),
                             ),
                           ),
@@ -348,7 +373,7 @@ class _LoginPageState extends State<LoginPage> {
                           TextField(
                             controller: _teamNameController,
                             decoration: InputDecoration(
-                              labelText: 'Team Name',
+                              labelText: texts['teamName'],
                               prefixIcon: Icon(Icons.info_outline),
                             ),
                           ),
@@ -356,7 +381,7 @@ class _LoginPageState extends State<LoginPage> {
                           TextField(
                             controller: _teamPasswordController,
                             decoration: InputDecoration(
-                              labelText: 'Team Password',
+                              labelText: texts['teamPassword'],
                               prefixIcon: Icon(Icons.lock_outline),
                             ),
                             obscureText: true,
@@ -401,7 +426,7 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                             )
                                 : Text(
-                              _isRegister ? 'Register' : 'Login',
+                              _isRegister ? texts['titleRegister']! : texts['titleLogin']!,
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -425,8 +450,8 @@ class _LoginPageState extends State<LoginPage> {
                           },
                           child: Text(
                             _isRegister
-                                ? 'Already have an account? Login'
-                                : 'Don\'t have an account? Register',
+                                ? texts['alreadyHaveAccount']!
+                                : texts['dontHaveAccount']!,
                             style: TextStyle(
                               color: Colors.green,
                               fontSize: 16,
@@ -434,19 +459,41 @@ class _LoginPageState extends State<LoginPage> {
                             textAlign: TextAlign.center,
                           ),
                         ),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton.icon(
-                            onPressed: _openCreateTeamDialog,
-                            icon: Icon(Icons.add_circle_outline, color: Colors.green),
-                            label: Text(
-                              'Create Team',
-                              style: TextStyle(
-                                color: Colors.green,
-                                fontWeight: FontWeight.bold,
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Text('English',
+                                    style: TextStyle(
+                                        color: Colors.green, fontWeight: FontWeight.bold)),
+                                Switch(
+                                  value: _isHebrew,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _isHebrew = value;
+                                    });
+                                    _updateLanguagePreference(value);
+                                  },
+                                  activeColor: Colors.green,
+                                ),
+                                Text('עברית',
+                                    style: TextStyle(
+                                        color: Colors.green, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                            TextButton.icon(
+                              onPressed: _openCreateTeamDialog,
+                              icon: Icon(Icons.add_circle_outline, color: Colors.green),
+                              label: Text(
+                                texts['createNewTeam']!,
+                                style: TextStyle(
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                         ),
                       ],
                     ),
