@@ -616,7 +616,7 @@ class _GradePageState extends State<GradePage> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.green,
-                fontSize: 20,
+                fontSize:  MediaQuery.of(context).size.width < 400 ? 14 : 20,
               ),
             ),
           ),

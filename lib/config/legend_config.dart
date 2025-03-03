@@ -13,13 +13,13 @@ Map<String, Map<String, dynamic>> getLegendDefinitions(String sport) {
       },
       'param2': {
         'icon': Icons.emoji_events,
-        'label_en': 'Scoring Ability',
+        'label_en': 'Scoring ',
         'label_he': 'יכולת הבקעה',
       },
       'param3': {
-        'icon': Icons.directions_run,
-        'label_en': 'Dribbling',
-        'label_he': 'בישולים',
+        'icon': Icons.remove_red_eye,
+        'label_en': 'Vision',
+        'label_he': 'ראיית משחק',
       },
       'param4': {
         'icon': Icons.sports,
@@ -28,12 +28,12 @@ Map<String, Map<String, dynamic>> getLegendDefinitions(String sport) {
       },
       'param5': {
         'icon': Icons.shield,
-        'label_en': 'Tackling & Defense',
-        'label_he': 'לחימה והגנה',
+        'label_en': ' Defense',
+        'label_he': ' הגנה',
       },
       'param6': {
         'icon': Icons.speed,
-        'label_en': 'Movement & Speed',
+        'label_en': ' speed',
         'label_he': 'תנועה ומהירות',
       },
       'teamAverage': {
