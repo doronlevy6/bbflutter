@@ -57,7 +57,7 @@ class _LoginPageState extends State<LoginPage> {
     'teamCreationFailed': 'יצירת הקבוצה נכשלה',
     'teamTooltip': 'אם אינך יודע את שם הקבוצה , שאל את מנהל הקבוצה.',
     'teamPasswordTooltip': ' אם אינך יודע את סיסמת הקבוצה , שאל את מנהל הקבוצה.',
-    'selectTeamHint': 'גלול ובחר ',
+    'selectTeamHint': 'בחר ',
   }
       : {
     'titleLogin': 'Login',
@@ -79,7 +79,7 @@ class _LoginPageState extends State<LoginPage> {
     'teamCreationFailed': 'Team creation failed',
     'teamTooltip': 'If you don\'t know your team name, ask your team manager.',
     'teamPasswordTooltip': ' If you don\'t know Your team password, ask your team manager.',
-    'selectTeamHint': 'Scroll and select',
+    'selectTeamHint': ' select',
   };
   List<String> _teams = [];
   String? _selectedTeam;
@@ -430,15 +430,20 @@ class _LoginPageState extends State<LoginPage> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Image.asset('assets/images/us-flag.png', width: 30, height: 30),
-                          Switch(
-                            value: _isHebrew,
-                            onChanged: (value) {
-                              setState(() {
-                                _isHebrew = value;
-                              });
-                              _updateLanguagePreference(value);
-                            },
-                            activeColor: Colors.green,
+                          Transform.scale(
+                            scale: 0.7,
+                            child: Switch(
+                              value: _isHebrew,
+                              onChanged: (value) {
+                                setState(() {
+                                  _isHebrew = value;
+                                });
+                                _updateLanguagePreference(value);
+                              },
+                                activeColor: Colors.blueGrey,         // צבע האגודל כאשר הטוגל פעיל
+                                 // צבע המסלול כאשר הטוגל לא פעיל
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
                           ),
                           Image.asset('assets/images/il-flag.png', width: 30, height: 30),
                         ],
