@@ -57,7 +57,7 @@ class _LoginPageState extends State<LoginPage> {
     'teamCreationFailed': 'יצירת הקבוצה נכשלה',
     'teamTooltip': 'אם אינך יודע את שם הקבוצה , שאל את מנהל הקבוצה.',
     'teamPasswordTooltip': ' אם אינך יודע את סיסמת הקבוצה , שאל את מנהל הקבוצה.',
-    'selectTeamHint': 'גלול ובחר את שם הקבוצה שלך',
+    'selectTeamHint': 'גלול ובחר ',
   }
       : {
     'titleLogin': 'Login',
@@ -79,7 +79,7 @@ class _LoginPageState extends State<LoginPage> {
     'teamCreationFailed': 'Team creation failed',
     'teamTooltip': 'If you don\'t know your team name, ask your team manager.',
     'teamPasswordTooltip': ' If you don\'t know Your team password, ask your team manager.',
-    'selectTeamHint': 'Scroll and select your team name',
+    'selectTeamHint': 'Scroll and select',
   };
   List<String> _teams = [];
   String? _selectedTeam;
@@ -91,9 +91,6 @@ class _LoginPageState extends State<LoginPage> {
         setState(() {
           _teams = List<String>.from(data['teams'].map((team) => team['team_name']));
           _teams.sort((a, b) => a.compareTo(b));
-          // if (_teams.isNotEmpty) {
-          //   _selectedTeam = _teams[0];
-          // }
         });
       }
     } catch (error) {
@@ -316,42 +313,65 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     SizedBox(height: 10),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.center, // מרכז את הכפתורים
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        ElevatedButton(
+                        ElevatedButton.icon(
                           onPressed: () {
                             setStateDialog(() {
                               _selectedTeamType = "fb";
                             });
                           },
-                          child: Text(
-                            _isHebrew ? "⚽ כדורגל" : "Soccer ⚽",
-                            style: TextStyle(fontSize: 16),
+                          icon: Container(
+                            width: 33,
+                            height: 33,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              image: DecorationImage(
+                                image: AssetImage('assets/images/fb.png'),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                          label: Text(
+                            _isHebrew ? "כדורגל" : "Soccer",
+                            style: TextStyle(fontSize: 14),
                           ),
                           style: ElevatedButton.styleFrom(
-                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                            backgroundColor: _selectedTeamType == "fb" ? Colors.green : Colors.grey,
+                            fixedSize: Size(130, 45),
+                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                            backgroundColor: _selectedTeamType == "fb" ? Colors.green[400] : Colors.green[100],
                           ),
                         ),
                         SizedBox(width: 5),
-                        ElevatedButton(
+                        ElevatedButton.icon(
                           onPressed: () {
                             setStateDialog(() {
-                              _selectedTeamType = "bb";
+                              _selectedTeamType = "bk";
                             });
                           },
-                          child: Text(
-                            _isHebrew ? "🏀 כדורסל" : "Basketball 🏀",
-                            style: TextStyle(fontSize: 16),
+                          icon: Container(
+                            width: 24,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              image: DecorationImage(
+                                image: AssetImage('assets/images/basketball.png'),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                          label: Text(
+                            _isHebrew ? "כדורסל" : "Basketball",
+                            style: TextStyle(fontSize: 14),
                           ),
                           style: ElevatedButton.styleFrom(
-                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                            backgroundColor: _selectedTeamType == "bb" ? Colors.green : Colors.grey,
+                            fixedSize: Size(130, 45),
+                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                            backgroundColor: _selectedTeamType == "bk" ? Colors.green[400] : Colors.green[100],
                           ),
                         ),
                       ],
                     )
-,
                   ],
                 ),
               ),
@@ -383,8 +403,12 @@ class _LoginPageState extends State<LoginPage> {
       body: Container(
         decoration: BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/images/bb3d.png'),
+            image: AssetImage('assets/images/reka.webp'),
             fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(
+              Colors.black.withOpacity(0.7),
+              BlendMode.dstATop,
+            ),
           ),
         ),
         width: double.infinity,
@@ -392,216 +416,213 @@ class _LoginPageState extends State<LoginPage> {
         child: Center(
           child: SingleChildScrollView(
             padding: EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // כותרת (Login או Register) בהתאם לשפה ובמצב הרישום
-                Text(
-                  _isRegister ? texts['titleRegister']! : texts['titleLogin']!,
-                  style: TextStyle(
-                    fontSize: 28,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(height: 20),
-                // כרטיס טופס (Form Card)
-                Card(
-                  color: Colors.white.withOpacity(0.8),
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  margin: EdgeInsets.symmetric(horizontal: 8),
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Column(
-                      children: [
-                        TextField(
-                          controller: _usernameController,
-                          decoration: InputDecoration(
-                            labelText: texts['username'],
-                            prefixIcon: Icon(Icons.person),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: 550),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // החלפת השורה: הוספת שורה משותפת לשפה ול"צור קבוצה חדשה" עם שתי אלמנטים
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // בחירת שפה בצד שמאל
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Image.asset('assets/images/us-flag.png', width: 30, height: 30),
+                          Switch(
+                            value: _isHebrew,
+                            onChanged: (value) {
+                              setState(() {
+                                _isHebrew = value;
+                              });
+                              _updateLanguagePreference(value);
+                            },
+                            activeColor: Colors.green,
                           ),
+                          Image.asset('assets/images/il-flag.png', width: 30, height: 30),
+                        ],
+                      ),
+                      // כפתור "צור קבוצה חדשה" בצד ימין
+                      TextButton.icon(
+                        onPressed: _openCreateTeamDialog,
+                        icon: Icon(Icons.add_circle_outline, color: Colors.white),
+                        label: Text(
+                          texts['createNewTeam']!,
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                         ),
-                        SizedBox(height: 16),
-                        TextField(
-                          controller: _passwordController,
-                          obscureText: true,
-                          decoration: InputDecoration(
-                            labelText: texts['password'],
-                            prefixIcon: Icon(Icons.lock),
-                          ),
-                        ),
-                        SizedBox(height: 16),
-                        if (_isRegister) ...[
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 20),
+                  Center(
+                    child: Text(
+                      _isRegister ? texts['titleRegister']! : texts['titleLogin']!,
+                      style: TextStyle(
+                        fontSize: 28,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 20),
+                  // כרטיס הטופס (מבלי האלמנט "צור קבוצה חדשה" שתוקרן מחוץ)
+                  Card(
+                    color: Colors.white.withOpacity(0.8),
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    margin: EdgeInsets.symmetric(horizontal: 8),
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Column(
+                        children: [
                           TextField(
-                            controller: _emailController,
+                            controller: _usernameController,
                             decoration: InputDecoration(
-                              labelText: texts['email'],
-                              prefixIcon: Icon(Icons.email),
+                              labelText: texts['username'],
+                              prefixIcon: Icon(Icons.person),
                             ),
                           ),
                           SizedBox(height: 16),
-
-
-                          DropdownButtonFormField<String>(
-                            value: _selectedTeam, // וודאו שערך זה הוא null אם המשתמש עוד לא בחר קבוצה
+                          TextField(
+                            controller: _passwordController,
+                            obscureText: true,
                             decoration: InputDecoration(
-                              labelText: texts['teamName'],
-                              prefixIcon: Icon(Icons.group), // אייקון שמייצג קבוצה
-                              suffixIcon: Builder(
-                                builder: (context) => Tooltip(
-                                  message: texts['teamTooltip']!,
-                                  waitDuration: Duration(milliseconds: 500), // השהיה להצגת הטול-טיפ
-                                  child: Icon(Icons.help_outline, size: 20, color: Colors.blueAccent),
+                              labelText: texts['password'],
+                              prefixIcon: Icon(Icons.lock),
+                            ),
+                          ),
+                          SizedBox(height: 16),
+                          if (_isRegister) ...[
+                            TextField(
+                              controller: _emailController,
+                              decoration: InputDecoration(
+                                labelText: texts['email'],
+                                prefixIcon: Icon(Icons.email),
+                              ),
+                            ),
+                            SizedBox(height: 16),
+                            DropdownButtonFormField<String>(
+                              value: _selectedTeam,
+                              decoration: InputDecoration(
+                                labelText: texts['teamName'],
+                                prefixIcon: Icon(Icons.group),
+                                suffixIcon: Builder(
+                                  builder: (context) => Tooltip(
+                                    message: texts['teamTooltip']!,
+                                    waitDuration: Duration(milliseconds: 500),
+                                    child: Icon(Icons.help_outline, size: 20, color: Colors.blueAccent),
+                                  ),
+                                ),
+                              ),
+                              hint: Text(texts['selectTeamHint']!),
+                              items: _teams.map((team) {
+                                return DropdownMenuItem(
+                                  value: team,
+                                  child: Text(team),
+                                );
+                              }).toList(),
+                              onChanged: (newValue) {
+                                setState(() {
+                                  _selectedTeam = newValue;
+                                });
+                              },
+                            ),
+                            SizedBox(height: 16),
+                            TextField(
+                              controller: _teamPasswordController,
+                              decoration: InputDecoration(
+                                labelText: texts['teamPassword'],
+                                prefixIcon: Icon(Icons.lock_outline),
+                                suffixIcon: Builder(
+                                  builder: (context) => Tooltip(
+                                    message: texts['teamPasswordTooltip']!,
+                                    waitDuration: Duration(milliseconds: 500),
+                                    child: Icon(Icons.help_outline, size: 20, color: Colors.blueAccent),
+                                  ),
+                                ),
+                              ),
+                              obscureText: true,
+                            ),
+                            SizedBox(height: 16),
+                          ],
+                          if (_errorMessage.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8.0),
+                              child: Text(
+                                _errorMessage,
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: _isLoading
+                                  ? null
+                                  : _isRegister
+                                  ? _handleRegister
+                                  : _handleLogin,
+                              style: ElevatedButton.styleFrom(
+                                padding: EdgeInsets.symmetric(vertical: 16.0),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8.0),
+                                ),
+                                backgroundColor: Colors.green,
+                                foregroundColor: Colors.white,
+                              ),
+                              child: _isLoading
+                                  ? SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  strokeWidth: 2.0,
+                                ),
+                              )
+                                  : Text(
+                                _isRegister ? texts['titleRegister']! : texts['titleLogin']!,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
                                 ),
                               ),
                             ),
-                            hint: Text(texts['selectTeamHint']!),
-                            items: _teams.map((team) {
-                              return DropdownMenuItem(
-                                value: team,
-                                child: Text(team),
-                              );
-                            }).toList(),
-                            onChanged: (newValue) {
+                          ),
+                          SizedBox(height: 8),
+                          TextButton(
+                            onPressed: () {
                               setState(() {
-                                _selectedTeam = newValue;
+                                _isRegister = !_isRegister;
+                                _errorMessage = "";
+                                _usernameController.clear();
+                                _passwordController.clear();
+                                _emailController.clear();
+                                _selectedTeam = null;
+                                _teamPasswordController.clear();
                               });
                             },
-                          )
-,
-                          SizedBox(height: 16),
-                          TextField(
-                            controller: _teamPasswordController,
-                            decoration: InputDecoration(
-                              labelText: texts['teamPassword'],
-                              prefixIcon: Icon(Icons.lock_outline),
-                              suffixIcon: Builder(
-                                builder: (context) => Tooltip(
-                                  message: texts['teamPasswordTooltip']!,
-                                  waitDuration: Duration(milliseconds: 500),
-                                  child: Icon(Icons.help_outline, size: 20, color: Colors.blueAccent),
-                                ),
-                              ),
-                            ),
-                            obscureText: true,
-                          ),
-                          SizedBox(height: 16),
-                        ],
-                        if (_errorMessage.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8.0),
                             child: Text(
-                              _errorMessage,
+                              _isRegister ? texts['alreadyHaveAccount']! : texts['dontHaveAccount']!,
                               style: TextStyle(
-                                color: Colors.red,
-                                fontWeight: FontWeight.bold,
+                                color: Colors.green,
+                                fontSize: 16,
                               ),
                               textAlign: TextAlign.center,
                             ),
                           ),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: _isLoading
-                                ? null
-                                : _isRegister
-                                ? _handleRegister
-                                : _handleLogin,
-                            style: ElevatedButton.styleFrom(
-                              padding: EdgeInsets.symmetric(vertical: 16.0),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8.0),
-                              ),
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
-                            ),
-                            child: _isLoading
-                                ? SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                strokeWidth: 2.0,
-                              ),
-                            )
-                                : Text(
-                              _isRegister ? texts['titleRegister']! : texts['titleLogin']!,
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        TextButton(
-                          onPressed: () {
-                            setState(() {
-                              _isRegister = !_isRegister;
-                              _errorMessage = "";
-                              _usernameController.clear();
-                              _passwordController.clear();
-                              _emailController.clear();
-                              _selectedTeam =  null;
-                              _teamPasswordController.clear();
-                            });
-                          },
-                          child: Text(
-                            _isRegister
-                                ? texts['alreadyHaveAccount']!
-                                : texts['dontHaveAccount']!,
-                            style: TextStyle(
-                              color: Colors.green,
-                              fontSize: 16,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Text('English',
-                                    style: TextStyle(
-                                        color: Colors.green, fontWeight: FontWeight.bold)),
-                                Switch(
-                                  value: _isHebrew,
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _isHebrew = value;
-                                    });
-                                    _updateLanguagePreference(value);
-                                  },
-                                  activeColor: Colors.green,
-                                ),
-                                Text('עברית',
-                                    style: TextStyle(
-                                        color: Colors.green, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                            TextButton.icon(
-                              onPressed: _openCreateTeamDialog,
-                              icon: Icon(Icons.add_circle_outline, color: Colors.green),
-                              label: Text(
-                                texts['createNewTeam']!,
-                                style: TextStyle(
-                                  color: Colors.green,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
