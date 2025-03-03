@@ -19,13 +19,15 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _emailController = TextEditingController();
 
   // בקרי טקסט עבור פרטי הקבוצה בתהליך הרישום
-  final TextEditingController _teamNameController = TextEditingController();
   final TextEditingController _teamPasswordController = TextEditingController();
 
-  // בקרי טקסט עבור דיאלוג יצירת קבוצה
+  // בקרי טקסט עבור דיאלוג יצירת קבוצה (ללא controller לסוג קבוצה)
   final TextEditingController _createTeamNameController = TextEditingController();
   final TextEditingController _createTeamPasswordController = TextEditingController();
-  final TextEditingController _createTeamTypeController = TextEditingController();
+  // הסרנו: final TextEditingController _createTeamTypeController = TextEditingController();
+
+  // משתנה לבחירת סוג קבוצה: "fb" עבור כדורגל, "bb" עבור כדורסל
+  String? _selectedTeamType;
 
   // משתני סטייט נוספים
   bool _isRegister = false;
@@ -49,8 +51,8 @@ class _LoginPageState extends State<LoginPage> {
     'alreadyHaveAccount': 'כבר יש לך חשבון? התחבר',
     'dontHaveAccount': 'אין לך חשבון? הירשם',
     'fillAllFields': 'אנא מלא את כל השדות הנדרשים.',
-    'fillTeamCredentials':
-    'אנא מלא את פרטי הקבוצה (שם קבוצה וסיסמה).',
+    'fillTeamCredentials': 'אנא מלא את פרטי הקבוצה (שם קבוצה וסיסמה).',
+    'fillTeamType': 'אנא בחר סוג קבוצה.',
     'teamCreatedSuccessfully': 'הקבוצה נוצרה בהצלחה!',
     'teamCreationFailed': 'יצירת הקבוצה נכשלה',
   }
@@ -68,16 +70,36 @@ class _LoginPageState extends State<LoginPage> {
     'alreadyHaveAccount': 'Already have an account? Login',
     'dontHaveAccount': 'Don\'t have an account? Register',
     'fillAllFields': 'Please fill in all required fields.',
-    'fillTeamCredentials':
-    'Please fill in team credentials (Team Name & Team Password).',
+    'fillTeamCredentials': 'Please fill in team credentials (Team Name & Team Password).',
+    'fillTeamType': 'Please select a team type.',
     'teamCreatedSuccessfully': 'Team created successfully!',
     'teamCreationFailed': 'Team creation failed',
   };
+  List<String> _teams = [];
+  String? _selectedTeam;
+
+  Future<void> _fetchTeams() async {
+    try {
+      final data = await _apiService.get('teams');
+      if (data['success']) {
+        setState(() {
+          _teams = List<String>.from(data['teams'].map((team) => team['team_name']));
+          _teams.sort((a, b) => a.compareTo(b));
+          if (_teams.isNotEmpty) {
+            _selectedTeam = _teams[0];
+          }
+        });
+      }
+    } catch (error) {
+      print('Error fetching teams: $error');
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     _loadLanguagePreference();
+    _fetchTeams();
   }
 
   // קריאה לבחירת השפה ששמרנו ב-shared preferences
@@ -99,11 +121,10 @@ class _LoginPageState extends State<LoginPage> {
     _usernameController.dispose();
     _passwordController.dispose();
     _emailController.dispose();
-    _teamNameController.dispose();
     _teamPasswordController.dispose();
     _createTeamNameController.dispose();
     _createTeamPasswordController.dispose();
-    _createTeamTypeController.dispose();
+    // הסרנו: _createTeamTypeController.dispose();
     super.dispose();
   }
 
@@ -118,7 +139,8 @@ class _LoginPageState extends State<LoginPage> {
       return false;
     }
     if (_isRegister &&
-        (_teamNameController.text.isEmpty ||
+        (_selectedTeam == null ||
+            _selectedTeam!.isEmpty ||
             _teamPasswordController.text.isEmpty)) {
       setState(() {
         _errorMessage = texts['fillTeamCredentials']!;
@@ -140,7 +162,7 @@ class _LoginPageState extends State<LoginPage> {
         'username': _usernameController.text,
         'password': _passwordController.text,
         'email': _emailController.text,
-        'teamName': _teamNameController.text,
+        'teamName': _selectedTeam,
         'teamPassword': _teamPasswordController.text,
       });
 
@@ -202,11 +224,11 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // טיפול בדיאלוג יצירת קבוצה
+  // טיפול בדיאלוג יצירת קבוצה עם בחירת סוג קבוצה באמצעות כפתורים
   Future<void> _handleCreateTeam() async {
     if (_createTeamNameController.text.isEmpty ||
         _createTeamPasswordController.text.isEmpty ||
-        _createTeamTypeController.text.isEmpty) {
+        _selectedTeamType == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(texts['fillAllFields']!)),
       );
@@ -221,7 +243,7 @@ class _LoginPageState extends State<LoginPage> {
       final data = await _apiService.post('create-team', {
         'team_name': _createTeamNameController.text,
         'team_password': _createTeamPasswordController.text,
-        'team_type': _createTeamTypeController.text,
+        'team_type': _selectedTeamType, // "fb" עבור כדורגל, "bb" עבור כדורסל
       });
 
       if (data['success']) {
@@ -243,62 +265,107 @@ class _LoginPageState extends State<LoginPage> {
       });
       _createTeamNameController.clear();
       _createTeamPasswordController.clear();
-      _createTeamTypeController.clear();
+      _selectedTeamType = null;
     }
   }
 
-  // מתודה לפתיחת דיאלוג יצירת קבוצה
+  // מתודה לפתיחת דיאלוג יצירת קבוצה עם בחירת סוג קבוצה באמצעות כפתורים
   void _openCreateTeamDialog() {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(texts['createNewTeam']!),
-          content: SingleChildScrollView(
-            child: Column(
-              children: [
-                TextField(
-                  controller: _createTeamNameController,
-                  decoration: InputDecoration(
-                    labelText: texts['teamName'],
-                    icon: Icon(Icons.group),
-                  ),
+        // עטיפת הדיאלוג ב-StatefulBuilder כדי לאפשר עדכון מיידי של הבחירה בתוך הדיאלוג
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: Center(
+                child: Text(
+                  texts['createNewTeam']!,
+                  textAlign: TextAlign.center,
                 ),
-                SizedBox(height: 10),
-                TextField(
-                  controller: _createTeamPasswordController,
-                  decoration: InputDecoration(
-                    labelText: texts['teamPassword'],
-                    icon: Icon(Icons.lock),
-                  ),
-                  obscureText: true,
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _createTeamNameController,
+                      decoration: InputDecoration(
+                        labelText: texts['teamName'],
+                        icon: Icon(Icons.group),
+                      ),
+                    ),
+                    SizedBox(height: 10),
+                    TextField(
+                      controller: _createTeamPasswordController,
+                      decoration: InputDecoration(
+                        labelText: texts['teamPassword'],
+                        icon: Icon(Icons.lock),
+                      ),
+                      obscureText: true,
+                    ),
+                    SizedBox(height: 10),
+                    Text(
+                      _isHebrew ? ":בחר סוג קבוצה" : "Select Team Type:",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center, // מרכז את הכפתורים
+                      children: [
+                        ElevatedButton(
+                          onPressed: () {
+                            setStateDialog(() {
+                              _selectedTeamType = "fb";
+                            });
+                          },
+                          child: Text(
+                            _isHebrew ? "⚽ כדורגל" : "Soccer ⚽",
+                            style: TextStyle(fontSize: 16),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                            backgroundColor: _selectedTeamType == "fb" ? Colors.green : Colors.grey,
+                          ),
+                        ),
+                        SizedBox(width: 5),
+                        ElevatedButton(
+                          onPressed: () {
+                            setStateDialog(() {
+                              _selectedTeamType = "bb";
+                            });
+                          },
+                          child: Text(
+                            _isHebrew ? "🏀 כדורסל" : "Basketball 🏀",
+                            style: TextStyle(fontSize: 16),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                            backgroundColor: _selectedTeamType == "bb" ? Colors.green : Colors.grey,
+                          ),
+                        ),
+                      ],
+                    )
+,
+                  ],
                 ),
-                SizedBox(height: 10),
-                TextField(
-                  controller: _createTeamTypeController,
-                  decoration: InputDecoration(
-                    labelText: 'Team Type', // ניתן להוסיף מחרוזת גם כאן אם רוצים
-                    icon: Icon(Icons.category),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: Text(texts['cancel']!, style: TextStyle(color: Colors.red)),
+                ),
+                ElevatedButton(
+                  onPressed: _handleCreateTeam,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
                   ),
+                  child: Text(texts['create']!),
                 ),
               ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text(texts['cancel']!, style: TextStyle(color: Colors.red)),
-            ),
-            ElevatedButton(
-              onPressed: _handleCreateTeam,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-              ),
-              child: Text(texts['create']!),
-            ),
-          ],
+            );
+          },
         );
       },
     );
@@ -370,12 +437,23 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ),
                           SizedBox(height: 16),
-                          TextField(
-                            controller: _teamNameController,
+                          DropdownButtonFormField<String>(
+                            value: _selectedTeam,
                             decoration: InputDecoration(
                               labelText: texts['teamName'],
                               prefixIcon: Icon(Icons.info_outline),
                             ),
+                            items: _teams.map((team) {
+                              return DropdownMenuItem(
+                                value: team,
+                                child: Text(team),
+                              );
+                            }).toList(),
+                            onChanged: (newValue) {
+                              setState(() {
+                                _selectedTeam = newValue;
+                              });
+                            },
                           ),
                           SizedBox(height: 16),
                           TextField(
@@ -444,7 +522,7 @@ class _LoginPageState extends State<LoginPage> {
                               _usernameController.clear();
                               _passwordController.clear();
                               _emailController.clear();
-                              _teamNameController.clear();
+                              _selectedTeam = _teams.isNotEmpty ? _teams[0] : null;
                               _teamPasswordController.clear();
                             });
                           },
