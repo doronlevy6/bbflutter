@@ -127,8 +127,7 @@ class _LoginPageState extends State<LoginPage> {
     _teamPasswordController.dispose();
     _createTeamNameController.dispose();
     _createTeamPasswordController.dispose();
-    // הסרנו: _createTeamTypeController.dispose();
-    super.dispose();
+     super.dispose();
   }
 
   // בדיקת תקינות הקלט (לכניסה ולרישום)
@@ -204,6 +203,9 @@ class _LoginPageState extends State<LoginPage> {
         SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', data['token']);
         await prefs.setString('user', data['user']['username']);
+        if (data['user']['team_type'] != null) {
+          await prefs.setString('team_type', data['user']['team_type']);
+        }
 
         String username = data['user']['username'];
         await RankingsService.fetchAndCachePlayerRankingsForUser(username);
