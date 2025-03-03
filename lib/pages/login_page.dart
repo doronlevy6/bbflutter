@@ -55,6 +55,9 @@ class _LoginPageState extends State<LoginPage> {
     'fillTeamType': 'אנא בחר סוג קבוצה.',
     'teamCreatedSuccessfully': 'הקבוצה נוצרה בהצלחה!',
     'teamCreationFailed': 'יצירת הקבוצה נכשלה',
+    'teamTooltip': 'אם אינך יודע את שם הקבוצה , שאל את מנהל הקבוצה.',
+    'teamPasswordTooltip': ' אם אינך יודע את סיסמת הקבוצה , שאל את מנהל הקבוצה.',
+    'selectTeamHint': 'גלול ובחר את שם הקבוצה שלך',
   }
       : {
     'titleLogin': 'Login',
@@ -74,6 +77,9 @@ class _LoginPageState extends State<LoginPage> {
     'fillTeamType': 'Please select a team type.',
     'teamCreatedSuccessfully': 'Team created successfully!',
     'teamCreationFailed': 'Team creation failed',
+    'teamTooltip': 'If you don\'t know your team name, ask your team manager.',
+    'teamPasswordTooltip': ' If you don\'t know Your team password, ask your team manager.',
+    'selectTeamHint': 'Scroll and select your team name',
   };
   List<String> _teams = [];
   String? _selectedTeam;
@@ -85,9 +91,9 @@ class _LoginPageState extends State<LoginPage> {
         setState(() {
           _teams = List<String>.from(data['teams'].map((team) => team['team_name']));
           _teams.sort((a, b) => a.compareTo(b));
-          if (_teams.isNotEmpty) {
-            _selectedTeam = _teams[0];
-          }
+          // if (_teams.isNotEmpty) {
+          //   _selectedTeam = _teams[0];
+          // }
         });
       }
     } catch (error) {
@@ -437,12 +443,22 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ),
                           SizedBox(height: 16),
+
+
                           DropdownButtonFormField<String>(
-                            value: _selectedTeam,
+                            value: _selectedTeam, // וודאו שערך זה הוא null אם המשתמש עוד לא בחר קבוצה
                             decoration: InputDecoration(
                               labelText: texts['teamName'],
-                              prefixIcon: Icon(Icons.info_outline),
+                              prefixIcon: Icon(Icons.group), // אייקון שמייצג קבוצה
+                              suffixIcon: Builder(
+                                builder: (context) => Tooltip(
+                                  message: texts['teamTooltip']!,
+                                  waitDuration: Duration(milliseconds: 500), // השהיה להצגת הטול-טיפ
+                                  child: Icon(Icons.help_outline, size: 20, color: Colors.blueAccent),
+                                ),
+                              ),
                             ),
+                            hint: Text(texts['selectTeamHint']!),
                             items: _teams.map((team) {
                               return DropdownMenuItem(
                                 value: team,
@@ -454,13 +470,21 @@ class _LoginPageState extends State<LoginPage> {
                                 _selectedTeam = newValue;
                               });
                             },
-                          ),
+                          )
+,
                           SizedBox(height: 16),
                           TextField(
                             controller: _teamPasswordController,
                             decoration: InputDecoration(
                               labelText: texts['teamPassword'],
                               prefixIcon: Icon(Icons.lock_outline),
+                              suffixIcon: Builder(
+                                builder: (context) => Tooltip(
+                                  message: texts['teamPasswordTooltip']!,
+                                  waitDuration: Duration(milliseconds: 500),
+                                  child: Icon(Icons.help_outline, size: 20, color: Colors.blueAccent),
+                                ),
+                              ),
                             ),
                             obscureText: true,
                           ),
@@ -522,7 +546,7 @@ class _LoginPageState extends State<LoginPage> {
                               _usernameController.clear();
                               _passwordController.clear();
                               _emailController.clear();
-                              _selectedTeam = _teams.isNotEmpty ? _teams[0] : null;
+                              _selectedTeam =  null;
                               _teamPasswordController.clear();
                             });
                           },
