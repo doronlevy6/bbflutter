@@ -315,59 +315,79 @@ class _LoginPageState extends State<LoginPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            setStateDialog(() {
-                              _selectedTeamType = "fb";
-                            });
-                          },
-                          icon: Container(
-                            width: 33,
-                            height: 33,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              image: DecorationImage(
-                                image: AssetImage('assets/images/fb.png'),
-                                fit: BoxFit.cover,
+                        Flexible(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              setStateDialog(() {
+                                _selectedTeamType = "fb";
+                              });
+                            },
+                            icon: Container(
+                              width: 24,
+                              height: 24,
+                              child: Transform.scale(
+                                scale: 1.3, // הגדלה של 20% לתמונה בלבד
+                                child: ClipOval(
+                                  child: Image.asset(
+                                    'assets/images/fb.png',
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-                          label: Text(
-                            _isHebrew ? "כדורגל" : "Soccer",
-                            style: TextStyle(fontSize: 14),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            fixedSize: Size(130, 45),
-                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                            backgroundColor: _selectedTeamType == "fb" ? Colors.green[400] : Colors.green[100],
+                            label: Text(
+                              _isHebrew ? "כדורגל" : "Soccer",
+                              style: TextStyle(
+                                fontSize: MediaQuery.of(context).size.width < 400 ? 10 : 14,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              minimumSize: Size(100, 40),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: MediaQuery.of(context).size.width < 350 ? 4 : 8,
+                                vertical: 10,
+                              ),
+                              backgroundColor: _selectedTeamType == "fb"
+                                  ? Colors.green[400]
+                                  : Colors.green[100],
+                            ),
                           ),
                         ),
                         SizedBox(width: 5),
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            setStateDialog(() {
-                              _selectedTeamType = "bk";
-                            });
-                          },
-                          icon: Container(
-                            width: 24,
-                            height: 24,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              image: DecorationImage(
-                                image: AssetImage('assets/images/basketball.png'),
-                                fit: BoxFit.cover,
+                        Flexible(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              setStateDialog(() {
+                                _selectedTeamType = "bk";
+                              });
+                            },
+                            icon: Container(
+                              width: 24,
+                              height: 24,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                image: DecorationImage(
+                                  image: AssetImage('assets/images/basketball.png'),
+                                  fit: BoxFit.cover,
+                                ),
                               ),
                             ),
-                          ),
-                          label: Text(
-                            _isHebrew ? "כדורסל" : "Basketball",
-                            style: TextStyle(fontSize: 14),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            fixedSize: Size(130, 45),
-                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                            backgroundColor: _selectedTeamType == "bk" ? Colors.green[400] : Colors.green[100],
+                            label: Text(
+                              _isHebrew ? "כדורסל" : "Basketball",
+                              style: TextStyle(
+                                fontSize: MediaQuery.of(context).size.width < 400 ? 10 : 14,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              minimumSize: Size(100, 40),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: MediaQuery.of(context).size.width < 350 ? 4 : 8,
+                                vertical: 10,
+                              ),
+                              backgroundColor: _selectedTeamType == "bk"
+                                  ? Colors.green[400]
+                                  : Colors.green[100],
+                            ),
                           ),
                         ),
                       ],
