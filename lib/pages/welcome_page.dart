@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../managers/asset_manager.dart';
 import '/model/player.dart'; // Adjust the path accordingly
 import 'legend_page.dart';
 import '../services/api_service.dart';
@@ -31,6 +32,8 @@ class _WelcomePageState extends State<WelcomePage> {
   bool _isHebrew = false;
   late IO.Socket socket;
 
+  String _teamImagePath = 'assets/images/basketball.png';
+
   @override
   void initState() {
     super.initState();
@@ -38,6 +41,8 @@ class _WelcomePageState extends State<WelcomePage> {
     _loadLanguage();
     _setupSocketListener();
     _loadRankingsData();
+    _loadTeamImage();
+
   }
 
   @override
@@ -46,8 +51,15 @@ class _WelcomePageState extends State<WelcomePage> {
     super.dispose();
   }
 
+  Future<void> _loadTeamImage() async {
+    String imagePath = await AssetManager.getTeamImageFromCache();
+    setState(() {
+      _teamImagePath = imagePath;
+    });
+  }
   // Load the language setting from SharedPreferences using key 'isHebrew'
   Future<void> _loadLanguage() async {
+    String imagePath = await AssetManager.getTeamImageFromCache();
     SharedPreferences prefs = await SharedPreferences.getInstance();
     bool isHebrew = prefs.getBool('isHebrew') ?? false;
     setState(() {
@@ -239,6 +251,7 @@ class _WelcomePageState extends State<WelcomePage> {
                                 EnlistButton(
                                   onPressed: _enlistForGame,
                                   buttonText: playNextGameText,
+                                  imagePath: _teamImagePath,
                                 ),
                                 SizedBox(height: 10),
                                 Text(
@@ -349,8 +362,9 @@ class _WelcomePageState extends State<WelcomePage> {
 class EnlistButton extends StatelessWidget {
   final VoidCallback onPressed;
   final String buttonText;
+  final String imagePath;
 
-  EnlistButton({required this.onPressed, required this.buttonText});
+  EnlistButton({required this.onPressed, required this.buttonText,required this.imagePath,});
 
   @override
   Widget build(BuildContext context) {
@@ -358,7 +372,7 @@ class EnlistButton extends StatelessWidget {
       onPressed: onPressed,
       icon: CircleAvatar(
         radius: 20,
-        backgroundImage: AssetImage('assets/images/basketball.jpeg'),
+        backgroundImage: AssetImage(imagePath),
         backgroundColor: Colors.transparent,
       ),
       label: Text(

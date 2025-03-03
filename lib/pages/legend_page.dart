@@ -12,7 +12,7 @@ class Legend extends StatefulWidget {
 
 class _LegendState extends State<Legend> {
   bool _isHebrew = false;
-  String _sport = 'basketball'; // ערך ברירת מחדל
+  String _sport = 'bb'; // ערך ברירת מחדל
 
   @override
   void initState() {
@@ -25,7 +25,7 @@ class _LegendState extends State<Legend> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       _isHebrew = prefs.getBool('isHebrew') ?? false;
-      _sport = prefs.getString('sport') ?? 'basketball';
+      _sport = prefs.getString('team_type') ?? 'bb';
     });
   }
 

@@ -5,6 +5,8 @@ import '../../services/api_service.dart';
 import 'legend_page.dart';
 import '../services/rankings_service.dart';
 import '../config/legend_config.dart';
+import '../managers/asset_manager.dart';
+
 
 class GradePage extends StatefulWidget {
   @override
@@ -27,16 +29,18 @@ class _GradePageState extends State<GradePage> {
 
   // Variable to track sorting order
   bool _isAscending = false; // Initial sorting is descending
-  String _sport = 'basketball'; // Default value
+  String _sport = 'bb'; // Default value
 
   // Language flag
   bool _isHebrew = false;
 
+  String _teamImagePath = 'assets/images/basketball.png';
   @override
   void initState() {
     super.initState();
     _loadLanguage();
     fetchInitialData();
+    _loadTeamImage();
   }
 
   @override
@@ -53,11 +57,17 @@ class _GradePageState extends State<GradePage> {
       _isHebrew = isHebrew;
     });
   }
+  Future<void> _loadTeamImage() async {
+    String imagePath = await AssetManager.getTeamImageFromCache();
+    setState(() {
+      _teamImagePath = imagePath;
+    });
+  }
 
   Future<void> fetchInitialData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     user = prefs.getString('user');
-    _sport = prefs.getString('sport') ?? 'basketball';
+    _sport = prefs.getString('team_type') ?? 'bb';
 
     if (user == null) {
       // Navigate to login page if user is not logged in
@@ -431,6 +441,7 @@ class _GradePageState extends State<GradePage> {
       icon: iconData,
       isSelected: isSelected,
       isRowSelected: isRowSelected,
+      imagePath: _teamImagePath,
       onIncrement: () {
         setState(() {
           int index = grading.indexWhere((p) => p['username'] == username);
@@ -872,6 +883,7 @@ class GradeButton extends StatelessWidget {
   final VoidCallback onIncrement;
   final VoidCallback onDecrement;
   final Function(Offset position) onTap;
+  final String imagePath;
 
   GradeButton({
     required this.grade,
@@ -881,6 +893,7 @@ class GradeButton extends StatelessWidget {
     required this.onIncrement,
     required this.onDecrement,
     required this.onTap,
+    required this.imagePath,
   });
 
   @override
@@ -922,7 +935,7 @@ class GradeButton extends StatelessWidget {
             )
                 : CircleAvatar(
               radius: 10,
-              backgroundImage: AssetImage('assets/images/basketball.jpeg'),
+              backgroundImage: AssetImage(imagePath),
               backgroundColor: Colors.transparent,
             ),
           ],

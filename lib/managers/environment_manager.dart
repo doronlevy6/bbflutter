@@ -28,8 +28,9 @@ class EnvironmentManager {
     switch (_currentEnvironment) {
       case Environment.LOCAL:
         return dotenv.env['LOCAL_API_URL'] ?? 'http://localhost:9090';
+
       case Environment.DEVICE_LOCAL:
-        return dotenv.env['DEVICE_LOCAL_API_URL'] ?? 'http://192.168.1.10:9090';
+        return dotenv.env['DEVICE_LOCAL_API_URL'] ?? 'http://192.168.1.12:9090';//ipconfig->IPv4 Address. . . . : 192.168.1.12
       case Environment.PROD:
       default:
         return dotenv.env['PROD_API_URL'] ?? 'https://renderbbserver.onrender.com';

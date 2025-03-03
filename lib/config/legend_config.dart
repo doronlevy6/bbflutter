@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 
 Map<String, Map<String, dynamic>> getLegendDefinitions(String sport) {
-  if (sport.toLowerCase() == 'football') {
+  if (sport.toLowerCase() == 'fb') {
     return {
       'param1': {
         'icon': Icons.sports_soccer,

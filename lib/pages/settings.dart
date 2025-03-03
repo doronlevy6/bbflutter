@@ -9,7 +9,7 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  String _selectedSport = 'basketball';
+  String _selectedSport = 'bb';
   bool _isHebrew = false;
 
   @override
@@ -21,14 +21,14 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _loadSettings() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      _selectedSport = prefs.getString('sport') ?? 'basketball';
+      _selectedSport = prefs.getString('team_type') ?? 'bb';
       _isHebrew = prefs.getBool('isHebrew') ?? false;
     });
   }
 
   Future<void> _saveSettings() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString('sport', _selectedSport);
+    await prefs.setString('team_type', _selectedSport);
     await prefs.setBool('isHebrew', _isHebrew);
   }
 
@@ -45,7 +45,7 @@ class _SettingsPageState extends State<SettingsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Sport:',
+              'team_type:',
               style: TextStyle(fontSize: 18),
             ),
             DropdownButton<String>(
@@ -53,11 +53,11 @@ class _SettingsPageState extends State<SettingsPage> {
               items: [
                 DropdownMenuItem(
                   child: Text('Basketball'),
-                  value: 'basketball',
+                  value: 'bb',
                 ),
                 DropdownMenuItem(
                   child: Text('Football'),
-                  value: 'football',
+                  value: 'fb',
                 ),
               ],
               onChanged: (value) {

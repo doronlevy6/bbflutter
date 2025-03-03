@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import '../config/legend_config.dart';
+import '../managers/asset_manager.dart';
 import '../widgets/icon_butten_with_label.dart';
 import '../model/player.dart'; // Adjust the path according to your project structure.
 import 'legend_page.dart'; // Assuming you have a Legend widget similar to WelcomePage
 import 'package:responsive_builder/responsive_builder.dart';
+
 
 // Define keys for SharedPreferences
 const String kEnlistedPlayersKey = 'enlistedPlayers';
@@ -38,11 +41,13 @@ class _PlayGroundState extends State<PlayGround> {
   // Language flag
   bool _isHebrew = false;
 
+  String _teamImagePath = 'assets/images/default.png';
   @override
   void initState() {
     super.initState();
     _loadLanguage();
     _loadPlayersFromLocalStorage();
+    _loadTeamImage();
   }
 
   // Load language setting from SharedPreferences using key 'isHebrew'
@@ -54,6 +59,12 @@ class _PlayGroundState extends State<PlayGround> {
     });
   }
 
+  Future<void> _loadTeamImage() async {
+    String imagePath = await AssetManager.getTeamImageFromCache();
+    setState(() {
+      _teamImagePath = imagePath;
+    });
+  }
   // Load both user-specific and overall player rankings
   Future<void> _loadPlayersFromLocalStorage() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -530,13 +541,13 @@ class _PlayGroundState extends State<PlayGround> {
                                 children: [
                                   PlayGroundTeamMethodButton(
                                     label: parameterText,
-                                    imagePath: 'assets/images/basketball.jpeg',
+                                    imagePath: _teamImagePath,
                                     onPressed: () => _createBalancedTeams(isAttributeBased: true),
                                   ),
                                   SizedBox(width: 16),
                                   PlayGroundTeamMethodButton(
                                     label: totalText,
-                                    imagePath: 'assets/images/basketball.jpeg',
+                                    imagePath: _teamImagePath,
                                     onPressed: () => _createBalancedTeams(isAttributeBased: false),
                                   ),
                                   if (_isDoron) ...[
@@ -764,55 +775,63 @@ class PlayGroundTeamMethodButton extends StatelessWidget {
 }
 
 // Custom PlayGroundTeamCard Widget
+// Updated PlayGroundTeamCard Widget with teamType parameter
 class PlayGroundTeamCard extends StatelessWidget {
   final String teamName;
   final List<String> players;
   final Map<String, double> averages;
   final double totalAverages;
+  // הפרמטר החדש: סוג הקבוצה
+  final String teamType;
 
   PlayGroundTeamCard({
     required this.teamName,
     required this.players,
     required this.averages,
     required this.totalAverages,
+    this.teamType = 'fb', // אם אין הגדרה, ברירת מחדל 'fb'
   });
 
   @override
   Widget build(BuildContext context) {
+    // קריאה להגדרות לפי סוג הקבוצה
+    final legend = getLegendDefinitions(teamType);
+
+    // בניית רשימת הפרמטרים עם האייקונים והטקסטים המתאימים
     final parameters = [
       {
-        'icon': Icons.handshake,
-        'label': 'Param1',
+        'icon': legend['param1']!['icon'],
+        'label': legend['param1']![_isHebrew(context) ? 'label_he' : 'label_en'],
         'value': averages['param1']!.toStringAsFixed(2)
       },
       {
-        'icon': Icons.score,
-        'label': 'Param2',
+        'icon': legend['param2']!['icon'],
+        'label': legend['param2']![_isHebrew(context) ? 'label_he' : 'label_en'],
         'value': averages['param2']!.toStringAsFixed(2)
       },
       {
-        'icon': Icons.shield,
-        'label': 'Param3',
+        'icon': legend['param3']!['icon'],
+        'label': legend['param3']![_isHebrew(context) ? 'label_he' : 'label_en'],
         'value': averages['param3']!.toStringAsFixed(2)
       },
       {
-        'icon': Icons.speed,
-        'label': 'Param4',
+        'icon': legend['param4']!['icon'],
+        'label': legend['param4']![_isHebrew(context) ? 'label_he' : 'label_en'],
         'value': averages['param4']!.toStringAsFixed(2)
       },
       {
-        'icon': Icons.sports_basketball,
-        'label': 'Param5',
+        'icon': legend['param5']!['icon'],
+        'label': legend['param5']![_isHebrew(context) ? 'label_he' : 'label_en'],
         'value': averages['param5']!.toStringAsFixed(2)
       },
       {
-        'icon': Icons.grain,
-        'label': 'Param6',
+        'icon': legend['param6']!['icon'],
+        'label': legend['param6']![_isHebrew(context) ? 'label_he' : 'label_en'],
         'value': averages['param6']!.toStringAsFixed(2)
       },
       {
-        'icon': Icons.calculate,
-        'label': 'Team Average',
+        'icon': legend['teamAverage']!['icon'],
+        'label': legend['teamAverage']![_isHebrew(context) ? 'label_he' : 'label_en'],
         'value': (totalAverages / 6).toStringAsFixed(2)
       },
     ];
@@ -829,7 +848,7 @@ class PlayGroundTeamCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Left Column: Team Name and Players
+            // עמודה שמאלית: שם הקבוצה ושמות השחקנים
             Expanded(
               flex: 7,
               child: Column(
@@ -872,16 +891,16 @@ class PlayGroundTeamCard extends StatelessWidget {
               ),
             ),
             SizedBox(width: 12),
-            // Right Column: Averages
+            // עמודה ימנית: ממוצעים עם האייקונים והטקסטים לפי סוג הקבוצה
             Expanded(
               flex: 3,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   ...parameters.asMap().entries.map((entry) {
-                    int idx = entry.key;
                     var param = entry.value;
-                    if (param['label'] == 'Team Average') {
+                    // בדיקה האם מדובר ב'Team Average' לפי ההגדרות
+                    if (param['label'] == legend['teamAverage']![_isHebrew(context) ? 'label_he' : 'label_en']) {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -918,6 +937,11 @@ class PlayGroundTeamCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // מתודה עזר לזיהוי אם הטקסט הוא בעברית
+  bool _isHebrew(BuildContext context) {
+    return Directionality.of(context) == TextDirection.rtl;
   }
 }
 
