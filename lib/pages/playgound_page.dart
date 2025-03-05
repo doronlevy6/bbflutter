@@ -859,7 +859,7 @@ class PlayGroundTeamCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // עמודה שמאלית: שם הקבוצה ושמות השחקנים
-            Expanded(
+            Flexible(
               flex: 7,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -884,7 +884,7 @@ class PlayGroundTeamCard extends StatelessWidget {
                           size: 14,
                         ),
                         SizedBox(width: 4),
-                        Expanded(
+                        Flexible(
                           child: Text(
                             player,
                             style: TextStyle(
@@ -892,6 +892,7 @@ class PlayGroundTeamCard extends StatelessWidget {
                               fontSize: 12,
                             ),
                             overflow: TextOverflow.ellipsis,
+                            softWrap: true,
                           ),
                         ),
                       ],
@@ -901,15 +902,14 @@ class PlayGroundTeamCard extends StatelessWidget {
               ),
             ),
             SizedBox(width: 12),
-            // עמודה ימנית: ממוצעים עם האייקונים והטקסטים לפי סוג הקבוצה
-            Expanded(
+            // עמודה ימנית: הציונים עם האייקונים והטקסטים
+            Flexible(
               flex: 3,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   ...parameters.asMap().entries.map((entry) {
                     var param = entry.value;
-                    // בדיקה האם מדובר ב'Team Average' לפי ההגדרות
                     if (param['label'] == legend['teamAverage']![_isHebrew(context) ? 'label_he' : 'label_en']) {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -917,10 +917,11 @@ class PlayGroundTeamCard extends StatelessWidget {
                           SizedBox(height: 4),
                           Row(
                             children: [
-                              Container(
-                                width: 50,
-                                height: 1,
-                                color: Colors.green[700],
+                              Expanded(
+                                child: Container(
+                                  height: 1,
+                                  color: Colors.green[700],
+                                ),
                               ),
                             ],
                           ),
@@ -947,6 +948,7 @@ class PlayGroundTeamCard extends StatelessWidget {
         ),
       ),
     );
+
   }
 
   // מתודה עזר לזיהוי אם הטקסט הוא בעברית
