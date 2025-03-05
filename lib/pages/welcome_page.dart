@@ -219,140 +219,149 @@ class _WelcomePageState extends State<WelcomePage> {
 
     return Directionality(
       textDirection: _isHebrew ? TextDirection.rtl : TextDirection.ltr,
-      child: Scaffold(
-        body: Padding(
-          padding: EdgeInsets.all(12.0),
-          child: Column(
-            children: [
-              Expanded(
-                child: ResponsiveBuilder(
-                  builder: (context, sizingInformation) {
-                    int playerFlex;
-                    int greetingFlex;
-                    if (sizingInformation.deviceScreenType == DeviceScreenType.mobile) {
-                      playerFlex = 4;
-                      greetingFlex = 6;
-                    } else if (sizingInformation.deviceScreenType == DeviceScreenType.tablet) {
-                      playerFlex = 3;
-                      greetingFlex = 7;
-                    } else {
-                      playerFlex = 3;
-                      greetingFlex = 7;
-                    }
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          flex: playerFlex,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (!widget.showOnlyTeams) ...[
-                                EnlistButton(
-                                  onPressed: _enlistForGame,
-                                  buttonText: playNextGameText,
-                                  imagePath: _teamImagePath,
-                                ),
-                                SizedBox(height: 10),
-                                Text(
-                                  '$totalEnlistedText${enlistedPlayers.length}',
-                                  style: TextStyle(
-                                      color: Colors.green[800],
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14),
-                                ),
-                                SizedBox(height: 8),
-                                Expanded(
-                                  child: enlistedPlayers.isNotEmpty
-                                      ? ListView.builder(
-                                    itemCount: enlistedPlayers.length,
-                                    itemBuilder: (context, index) {
-                                      return Card(
-                                        elevation: 1,
-                                        margin: EdgeInsets.symmetric(vertical: 1),
-                                        child: ListTile(
-                                          contentPadding: EdgeInsets.symmetric(horizontal: 4.0), // יותר ריווח כללי
-                                          visualDensity: VisualDensity(horizontal: -4, vertical: -4), // מצמצם גובה
-                                          minVerticalPadding: 0,
-                                          dense: true,
-
-                                          leading: Padding(
-                                            padding: EdgeInsets.only(left: 2.0), // מרחיק את האייקון מהקצה
-                                            child: Icon(
-                                              Icons.person,
-                                              color: Colors.green[700],
-                                              size: 16,
-                                            ),
-                                          ),
-
-                                          horizontalTitleGap: 5.0, // מקרב את הטקסט לאייקון
-
-                                          title: Text(
-                                            enlistedPlayers[index],
-                                            style: TextStyle(
-                                              color: Colors.green[700],
-                                              fontSize: 14,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      );
-
-
-                                    },
-                                  )
-                                      : Center(
-                                    child: Text(
-                                      noPlayersText,
+      child: Stack(
+        children: [
+          // רקע עם תמונת ball-logo.png שקופה
+          Opacity(
+            opacity: 0.2,
+            child: Image.asset(
+              'assets/images/reka.webp',
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+            ),
+          ),
+          Scaffold(
+            backgroundColor: Colors.transparent,
+            body: Padding(
+              padding: EdgeInsets.all(12.0),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: ResponsiveBuilder(
+                      builder: (context, sizingInformation) {
+                        int playerFlex;
+                        int greetingFlex;
+                        if (sizingInformation.deviceScreenType == DeviceScreenType.mobile) {
+                          playerFlex = 4;
+                          greetingFlex = 6;
+                        } else if (sizingInformation.deviceScreenType == DeviceScreenType.tablet) {
+                          playerFlex = 3;
+                          greetingFlex = 7;
+                        } else {
+                          playerFlex = 3;
+                          greetingFlex = 7;
+                        }
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              flex: playerFlex,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (!widget.showOnlyTeams) ...[
+                                    EnlistButton(
+                                      onPressed: _enlistForGame,
+                                      buttonText: playNextGameText,
+                                      imagePath: _teamImagePath,
+                                    ),
+                                    SizedBox(height: 10),
+                                    Text(
+                                      '$totalEnlistedText${enlistedPlayers.length}',
                                       style: TextStyle(
-                                          color: Colors.green[700],
+                                          color: Colors.green[800],
+                                          fontWeight: FontWeight.bold,
                                           fontSize: 14),
                                     ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        SizedBox(width: 12),
-                        Expanded(
-                          flex: greetingFlex,
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  greetingMessage,
-                                  style: TextStyle(
-                                    color: Colors.green[800],
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                                SizedBox(height: 20),
-                                Text(
-                                  ratingMessage,
-                                  style: TextStyle(
-                                    color: Colors.green[800],
-                                    fontSize: 18,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
+                                    SizedBox(height: 8),
+                                    Expanded(
+                                      child: enlistedPlayers.isNotEmpty
+                                          ? ListView.builder(
+                                        itemCount: enlistedPlayers.length,
+                                        itemBuilder: (context, index) {
+                                          return Card(
+                                            elevation: 1,
+                                            margin: EdgeInsets.symmetric(vertical: 1),
+                                            child: ListTile(
+                                              contentPadding: EdgeInsets.symmetric(horizontal: 4.0),
+                                              visualDensity: VisualDensity(horizontal: -4, vertical: -4),
+                                              minVerticalPadding: 0,
+                                              dense: true,
+                                              leading: Padding(
+                                                padding: EdgeInsets.only(left: 2.0),
+                                                child: Icon(
+                                                  Icons.person,
+                                                  color: Colors.green[700],
+                                                  size: 16,
+                                                ),
+                                              ),
+                                              horizontalTitleGap: 5.0,
+                                              title: Text(
+                                                enlistedPlayers[index],
+                                                style: TextStyle(
+                                                  color: Colors.green[700],
+                                                  fontSize: 14,
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      )
+                                          : Center(
+                                        child: Text(
+                                          noPlayersText,
+                                          style: TextStyle(
+                                              color: Colors.green[700],
+                                              fontSize: 14),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
+                            SizedBox(width: 12),
+                            Expanded(
+                              flex: greetingFlex,
+                              child: Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      greetingMessage,
+                                      style: TextStyle(
+                                        color: Colors.green[800],
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    SizedBox(height: 20),
+                                    Text(
+                                      ratingMessage,
+                                      style: TextStyle(
+                                        color: Colors.green[800],
+                                        fontSize: 18,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                  SizedBox(height: 12),
+                ],
               ),
-              SizedBox(height: 12),
-
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

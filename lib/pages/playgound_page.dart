@@ -447,191 +447,201 @@ class _PlayGroundState extends State<PlayGround> {
     return Directionality(
       textDirection: _isHebrew ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
-        body: Padding(
-          padding: EdgeInsets.all(12.0),
-          child: Column(
-            children: [
-              Expanded(
-                child: ResponsiveBuilder(
-                  builder: (context, sizingInformation) {
-                    int playerFlex;
-                    int teamFlex;
-                    if (sizingInformation.deviceScreenType == DeviceScreenType.mobile) {
-                      playerFlex = 4;
-                      teamFlex = 6;
-                    } else if (sizingInformation.deviceScreenType == DeviceScreenType.tablet) {
-                      playerFlex = 3;
-                      teamFlex = 7;
-                    } else {
-                      playerFlex = 3;
-                      teamFlex = 7;
-                    }
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Left Column: Player Selection
-                        Expanded(
-                          flex: playerFlex,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              SizedBox(height: 10),
-                              Text(
-                                '$selectedPlayersText${_selectedPlayers.length}',
-                                style: TextStyle(
-                                  color: Colors.green[800],
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              Row(
-                                children: [
-                                  IconButtonWithLabel(
-                                    icon: Icons.refresh,
-                                    label: clearText,
-                                    onPressed: _clearSelection,
-                                  ),
-                                  SizedBox(width: 16),
-                                  IconButtonWithLabel(
-                                    icon: Icons.confirmation_number_outlined,
-                                    label: enlistedText,
-                                    onPressed: _selectAllEnlistedPlayers,
-                                  ),
-                                  SizedBox(width: 16),
-                                  // Optionally render toggle only for Doron
-                                ],
-                              ),
-                              SizedBox(height: 12),
-                              Expanded(
-                                child: sortedPlayers.isNotEmpty
-                                    ? ListView.builder(
-                                  itemCount: sortedPlayers.length,
-                                  itemBuilder: (context, index) {
-                                    Player player = sortedPlayers[index];
-                                    bool isSelected = _selectedPlayers.contains(player);
-                                    return PlayGroundPlayerListTile(
-                                      player: player,
-                                      isSelected: isSelected,
-                                      onTap: () => _togglePlayerSelection(player),
-                                    );
-                                  },
-                                )
-                                    : Center(
-                                  child: Text(
-                                    noPlayersText,
-                                    style: TextStyle(
-                                      color: Colors.green[700],
-                                      fontSize: 14,
-                                    ),
+        body: Container(
+          decoration: BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('assets/images/reka.webp'),
+              fit: BoxFit.cover,
+              colorFilter: ColorFilter.mode(
+                Colors.white.withOpacity(0.2),
+                BlendMode.dstATop,
+              ),
+            ),
+          ),
+          child: Padding(
+            padding: EdgeInsets.all(12.0),
+            child: Column(
+              children: [
+                Expanded(
+                  child: ResponsiveBuilder(
+                    builder: (context, sizingInformation) {
+                      int playerFlex;
+                      int teamFlex;
+                      if (sizingInformation.deviceScreenType == DeviceScreenType.mobile) {
+                        playerFlex = 4;
+                        teamFlex = 6;
+                      } else if (sizingInformation.deviceScreenType == DeviceScreenType.tablet) {
+                        playerFlex = 3;
+                        teamFlex = 7;
+                      } else {
+                        playerFlex = 3;
+                        teamFlex = 7;
+                      }
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Left Column: Player Selection
+                          Expanded(
+                            flex: playerFlex,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SizedBox(height: 10),
+                                Text(
+                                  '$selectedPlayersText${_selectedPlayers.length}',
+                                  style: TextStyle(
+                                    color: Colors.green[800],
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        SizedBox(width: 12),
-                        // Right Column: Teams Display
-                        Expanded(
-                          flex: teamFlex,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                children: [
-                                  PlayGroundTeamMethodButton(
-                                    label: parameterText,
-                                    imagePath: _teamImagePath,
-                                    onPressed: () => _createBalancedTeams(isAttributeBased: true),
-                                  ),
-                                  SizedBox(width: 16),
-                                  PlayGroundTeamMethodButton(
-                                    label: totalText,
-                                    imagePath: _teamImagePath,
-                                    onPressed: () => _createBalancedTeams(isAttributeBased: false),
-                                  ),
-                                  if (_isDoron) ...[
-                                    SizedBox(width: 5),
-                                    Icon(
-                                      Icons.group,
-                                      color: Colors.green[800],
-                                      size: 20,
+                                Row(
+                                  children: [
+                                    IconButtonWithLabel(
+                                      icon: Icons.refresh,
+                                      label: clearText,
+                                      onPressed: _clearSelection,
                                     ),
-                                    Transform.scale(
-                                      scale: 0.7,
-                                      child: Switch(
-                                        value: _useUserRankings,
-                                        onChanged: _toggleRankings,
-                                        activeColor: Colors.green,
-                                        inactiveThumbColor: Colors.grey,
-                                        inactiveTrackColor: Colors.grey[300],
-                                      ),
-                                    ),
-                                    Icon(
-                                      Icons.person,
-                                      color: Colors.green[800],
-                                      size: 20,
+                                    SizedBox(width: 16),
+                                    IconButtonWithLabel(
+                                      icon: Icons.confirmation_number_outlined,
+                                      label: enlistedText,
+                                      onPressed: _selectAllEnlistedPlayers,
                                     ),
                                   ],
-                                ],
-                              ),
-                              SizedBox(height: 12),
-                              Expanded(
-                                child: _teams.isNotEmpty
-                                    ? ListView.builder(
-                                  itemCount: _teams.length,
-                                  itemBuilder: (context, teamIndex) {
-                                    List<Player> team = _teams[teamIndex];
-                                    Map<String, double> averages = {
-                                      'param1': 0.0,
-                                      'param2': 0.0,
-                                      'param3': 0.0,
-                                      'param4': 0.0,
-                                      'param5': 0.0,
-                                      'param6': 0.0,
-                                    };
-                                    for (var player in team) {
-                                      averages['param1'] = averages['param1']! + player.param1;
-                                      averages['param2'] = averages['param2']! + player.param2;
-                                      averages['param3'] = averages['param3']! + player.param3;
-                                      averages['param4'] = averages['param4']! + player.param4;
-                                      averages['param5'] = averages['param5']! + player.param5;
-                                      averages['param6'] = averages['param6']! + player.param6;
-                                    }
-                                    averages.updateAll((key, value) => value / team.length);
-                                    double totalAverages = averages.values.reduce((a, b) => a + b);
-                                    String teamName = _isHebrew
-                                        ? 'קבוצה ${teamIndex + 1}'
-                                        : 'Team ${teamIndex + 1}';
-                                    return PlayGroundTeamCard(
-                                      teamName: teamName,
-                                      players: team.map((p) => p.username).toList(),
-                                      averages: averages,
-                                      totalAverages: totalAverages,
-                                    );
-                                  },
-                                )
-                                    : Center(
-                                  child: Text(
-                                    _selectedMethod.isNotEmpty ? noTeamsText : selectPlayersText,
-                                    style: TextStyle(
-                                      color: Colors.green[700],
-                                      fontSize: 14,
+                                ),
+                                SizedBox(height: 12),
+                                Expanded(
+                                  child: sortedPlayers.isNotEmpty
+                                      ? ListView.builder(
+                                    itemCount: sortedPlayers.length,
+                                    itemBuilder: (context, index) {
+                                      Player player = sortedPlayers[index];
+                                      bool isSelected = _selectedPlayers.contains(player);
+                                      return PlayGroundPlayerListTile(
+                                        player: player,
+                                        isSelected: isSelected,
+                                        onTap: () => _togglePlayerSelection(player),
+                                      );
+                                    },
+                                  )
+                                      : Center(
+                                    child: Text(
+                                      noPlayersText,
+                                      style: TextStyle(
+                                        color: Colors.green[700],
+                                        fontSize: 14,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
-                    );
-                  },
+                          SizedBox(width: 12),
+                          // Right Column: Teams Display
+                          Expanded(
+                            flex: teamFlex,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.start,
+                                  children: [
+                                    PlayGroundTeamMethodButton(
+                                      label: parameterText,
+                                      imagePath: _teamImagePath,
+                                      onPressed: () => _createBalancedTeams(isAttributeBased: true),
+                                    ),
+                                    SizedBox(width: 16),
+                                    PlayGroundTeamMethodButton(
+                                      label: totalText,
+                                      imagePath: _teamImagePath,
+                                      onPressed: () => _createBalancedTeams(isAttributeBased: false),
+                                    ),
+                                    if (false) ...[
+                                      SizedBox(width: 5),
+                                      Icon(
+                                        Icons.group,
+                                        color: Colors.green[800],
+                                        size: 20,
+                                      ),
+                                      Transform.scale(
+                                        scale: 0.7,
+                                        child: Switch(
+                                          value: _useUserRankings,
+                                          onChanged: _toggleRankings,
+                                          activeColor: Colors.green,
+                                          inactiveThumbColor: Colors.grey,
+                                          inactiveTrackColor: Colors.grey[300],
+                                        ),
+                                      ),
+                                      Icon(
+                                        Icons.person,
+                                        color: Colors.green[800],
+                                        size: 20,
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                SizedBox(height: 12),
+                                Expanded(
+                                  child: _teams.isNotEmpty
+                                      ? ListView.builder(
+                                    itemCount: _teams.length,
+                                    itemBuilder: (context, teamIndex) {
+                                      List<Player> team = _teams[teamIndex];
+                                      Map<String, double> averages = {
+                                        'param1': 0.0,
+                                        'param2': 0.0,
+                                        'param3': 0.0,
+                                        'param4': 0.0,
+                                        'param5': 0.0,
+                                        'param6': 0.0,
+                                      };
+                                      for (var player in team) {
+                                        averages['param1'] = averages['param1']! + player.param1;
+                                        averages['param2'] = averages['param2']! + player.param2;
+                                        averages['param3'] = averages['param3']! + player.param3;
+                                        averages['param4'] = averages['param4']! + player.param4;
+                                        averages['param5'] = averages['param5']! + player.param5;
+                                        averages['param6'] = averages['param6']! + player.param6;
+                                      }
+                                      averages.updateAll((key, value) => value / team.length);
+                                      double totalAverages = averages.values.reduce((a, b) => a + b);
+                                      String teamName = _isHebrew
+                                          ? 'קבוצה ${teamIndex + 1}'
+                                          : 'Team ${teamIndex + 1}';
+                                      return PlayGroundTeamCard(
+                                        teamName: teamName,
+                                        players: team.map((p) => p.username).toList(),
+                                        averages: averages,
+                                        totalAverages: totalAverages,
+                                      );
+                                    },
+                                  )
+                                      : Center(
+                                    child: Text(
+                                      _selectedMethod.isNotEmpty ? noTeamsText : selectPlayersText,
+                                      style: TextStyle(
+                                        color: Colors.green[700],
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
                 ),
-              ),
-              SizedBox(height: 12),
-              Legend(),
-            ],
+                SizedBox(height: 12),
+                Legend(),
+              ],
+            ),
           ),
         ),
       ),

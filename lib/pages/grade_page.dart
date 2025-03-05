@@ -735,115 +735,126 @@ class _GradePageState extends State<GradePage> {
     });
 
     return Directionality(
-      textDirection: _isHebrew ? TextDirection.rtl : TextDirection.ltr,
-      child: Scaffold(
-        body: Stack(
-          children: [
-            Column(
-              children: [
-                SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Legend(showTeamAverage: false),
-                ),
-                SizedBox(height: 10),
-                _buildFrozenRowOrInstruction(),
-                SizedBox(height: 10),
-                Container(
-                  color: Colors.grey[200],
-                  padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.person,
-                              color: Colors.green[700],
-                              size: 22,
-                              semanticLabel: _isHebrew ? 'שם משתמש' : 'Username',
-                            ),
-                            SizedBox(width: 6),
-                            TextButton.icon(
-                              onPressed: () {
-                                setState(() {
-                                  _isAscending = !_isAscending;
-                                  _sortGradingList();
-                                });
-                              },
-                              icon: Icon(
-                                Icons.swap_vert,
-                                color: Colors.green[700],
-                                size: 24,
-                              ),
-                              label: Text(
-                                sortText,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.green[700],
-                                ),
-                              ),
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: Size(0, 0),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                alignment: Alignment.centerLeft,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      ...['param1', 'param2', 'param3', 'param4', 'param5', 'param6']
-                          .map((param) => Expanded(
-                        child: Tooltip(
-                          message: _isHebrew
-                              ? getLegendDefinitions(_sport)[param]!['label_he']
-                              : getLegendDefinitions(_sport)[param]!['label_en'],
-                          child: Icon(
-                            getLegendDefinitions(_sport)[param]!['icon'],
-                            color: Colors.green[700],
-                            size: 24,
-                          ),
-                        ),
-                      ))
-                          .toList(),
-                    ],
-                  ),
-                ),
-                SizedBox(height: 10),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: grading.length,
-                    itemBuilder: (context, index) {
-                      Map<String, dynamic> player = grading[index];
-                      return buildPlayerRow(player);
-                    },
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: ElevatedButton(
-                    onPressed: submitGrading,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green[200],
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                    ),
-                    child: Text(
-                      submitText,
-                      style: TextStyle(
-                        color: Colors.green[700],
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-                SizedBox(height: 10),
+        textDirection: _isHebrew ? TextDirection.rtl : TextDirection.ltr,
+        child: Scaffold(
+        body: Container(
+        decoration: BoxDecoration(
+        image: DecorationImage(
+        image: AssetImage('assets/images/reka.webp'),
+    fit: BoxFit.cover,
+    colorFilter: ColorFilter.mode(
+    Colors.white.withOpacity(0.1),
+    BlendMode.dstATop,
+    ),
+    ),
+    ),
+    child: Stack(
+    children: [
+    Column(
+    children: [
+    SizedBox(height: 10),
+    Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+    child: Legend(showTeamAverage: false),
+    ),
+    SizedBox(height: 10),
+    _buildFrozenRowOrInstruction(),
+    SizedBox(height: 10),
+    Container(
+    color: Colors.grey[200],
+    padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
+    child: Row(
+    children: [
+    Expanded(
+    flex: 2,
+    child: Row(
+    children: [
+    Icon(
+    Icons.person,
+    color: Colors.green[700],
+    size: 22,
+    semanticLabel: _isHebrew ? 'שם משתמש' : 'Username',
+    ),
+    SizedBox(width: 6),
+    TextButton.icon(
+    onPressed: () {
+    setState(() {
+    _isAscending = !_isAscending;
+    _sortGradingList();
+    });
+    },
+    icon: Icon(
+    Icons.swap_vert,
+    color: Colors.green[700],
+    size: 24,
+    ),
+    label: Text(
+    sortText,
+    style: TextStyle(
+    fontSize: 12,
+    color: Colors.green[700],
+    ),
+    ),
+    style: TextButton.styleFrom(
+    padding: EdgeInsets.zero,
+    minimumSize: Size(0, 0),
+    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    alignment: Alignment.centerLeft,
+    ),
+    ),
+    ],
+    ),
+    ),
+    ...['param1', 'param2', 'param3', 'param4', 'param5', 'param6']
+        .map((param) => Expanded(
+    child: Tooltip(
+    message: _isHebrew
+    ? getLegendDefinitions(_sport)[param]!['label_he']
+        : getLegendDefinitions(_sport)[param]!['label_en'],
+    child: Icon(
+    getLegendDefinitions(_sport)[param]!['icon'],
+    color: Colors.green[700],
+    size: 24,
+    ),
+    ),
+    ))
+        .toList(),
+    ],
+    ),
+    ),
+    SizedBox(height: 10),
+    Expanded(
+    child: ListView.builder(
+    itemCount: grading.length,
+    itemBuilder: (context, index) {
+    Map<String, dynamic> player = grading[index];
+    return buildPlayerRow(player);
+    },
+    ),
+    ),
+    Padding(
+    padding: const EdgeInsets.all(8.0),
+    child: ElevatedButton(
+    onPressed: submitGrading,
+    style: ElevatedButton.styleFrom(
+    backgroundColor: Colors.green[200],
+    shape: RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(30),
+    ),
+    padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+    ),
+    child: Text(
+    submitText,
+    style: TextStyle(
+    color: Colors.green[700],
+    fontWeight: FontWeight.bold,
+    fontSize: 16,
+    ),
+    textAlign: TextAlign.center,
+    ),
+    ),
+    ),
+    SizedBox(height: 10)
               ],
             ),
             // Positioned(
@@ -871,6 +882,7 @@ class _GradePageState extends State<GradePage> {
           ],
         ),
       ),
+    )
     );
   }
 }

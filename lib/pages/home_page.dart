@@ -44,7 +44,7 @@ class _HomePageState extends State<HomePage> {
     String? email = prefs.getString('email');
     return {
       'username': username ?? 'Guest',
-      'email': email ?? 'guest@example.com',
+      'email': email ?? 'doron@gmail.com',//?
     };
   }
 
@@ -154,7 +154,7 @@ class _HomePageState extends State<HomePage> {
                     return Center(child: CircularProgressIndicator());
                   }
                   String username = snapshot.data?['username'] ?? 'Guest';
-                  String email = snapshot.data?['email'] ?? 'guest@example.com';
+                  String email = snapshot.data?['email'] ?? 'doron@gmail.com';
 
                   // Define localized text based on _isHebrew flag
                   final loginTitle = _isHebrew ? 'התחברות/רישום' : 'Login';

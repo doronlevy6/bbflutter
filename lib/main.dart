@@ -30,7 +30,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'BB App',
+      title: 'Ball',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: kColorScheme,
         textTheme: GoogleFonts.poppinsTextTheme(
