@@ -31,6 +31,8 @@ class _PlayGroundState extends State<PlayGround> {
   List<Player> _selectedPlayers = [];
   List<List<Player>> _teams = [];
   String _selectedMethod = '';
+  String _teamType ='bb';
+
 
   // Variable to track which rankings to use
   bool _useUserRankings = true; // Default to user rankings
@@ -48,6 +50,15 @@ class _PlayGroundState extends State<PlayGround> {
     _loadLanguage();
     _loadPlayersFromLocalStorage();
     _loadTeamImage();
+    _loadTeamType();
+  }
+
+  Future<void> _loadTeamType() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String cachedTeamType = prefs.getString('team_type') ?? 'bb';
+    setState(() {
+      _teamType = cachedTeamType;
+    });
   }
 
   // Load language setting from SharedPreferences using key 'isHebrew'
@@ -617,6 +628,7 @@ class _PlayGroundState extends State<PlayGround> {
                                         players: team.map((p) => p.username).toList(),
                                         averages: averages,
                                         totalAverages: totalAverages,
+                                        teamType: _teamType,
                                       );
                                     },
                                   )
@@ -799,7 +811,7 @@ class PlayGroundTeamCard extends StatelessWidget {
     required this.players,
     required this.averages,
     required this.totalAverages,
-    this.teamType = 'fb', // אם אין הגדרה, ברירת מחדל 'fb'
+    this.teamType = 'bb', // אם אין הגדרה, ברירת מחדל 'fb'
   });
 
   @override
