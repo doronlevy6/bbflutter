@@ -559,7 +559,7 @@ class _PlayGroundState extends State<PlayGround> {
                                       imagePath: _teamImagePath,
                                       onPressed: () => _createBalancedTeams(isAttributeBased: false),
                                     ),
-                                    if (false) ...[
+                                    if (_isDoron) ...[
                                       SizedBox(width: 5),
                                       Icon(
                                         Icons.group,
@@ -917,14 +917,21 @@ class PlayGroundTeamCard extends StatelessWidget {
                           SizedBox(height: 4),
                           Row(
                             children: [
-                              Expanded(
-                                child: Container(
-                                  height: 1,
-                                  color: Colors.green[700],
+                              Flexible(
+                                child: LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    final width = constraints.maxWidth > 50 ? 50.0 : constraints.maxWidth;
+                                    return Container(
+                                      width: width,
+                                      height: 1,
+                                      color: Colors.green[700],
+                                    );
+                                  },
                                 ),
                               ),
                             ],
                           ),
+
                           PlayGroundParameterRow(
                             icon: param['icon'] as IconData,
                             tooltip: param['label'] as String,
