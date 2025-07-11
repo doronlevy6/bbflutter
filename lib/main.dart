@@ -8,7 +8,7 @@ import 'pages/login_page.dart';
 import 'pages/manager_page.dart';
 import 'pages/grade_page.dart';
 // import 'pages/get_score_page.dart';
-import 'pages/playgound_page.dart';
+import 'pages/playground_page.dart';
 import 'pages/home_page.dart';
 import 'pages/welcome_page.dart';
 

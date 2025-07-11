@@ -5,7 +5,7 @@ import 'login_page.dart';
 import 'manager_page.dart';
 import 'grade_page.dart';
 import 'settings.dart';
-import 'playgound_page.dart';
+import 'playground_page.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:responsive_builder/responsive_builder.dart';
 

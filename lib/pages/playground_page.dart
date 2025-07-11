@@ -7,6 +7,7 @@ import '../widgets/icon_butten_with_label.dart';
 import '../model/player.dart'; // Adjust the path according to your project structure.
 import 'legend_page.dart'; // Assuming you have a Legend widget similar to WelcomePage
 import 'package:responsive_builder/responsive_builder.dart';
+import '../utils/calc.dart';
 
 
 // Define keys for SharedPreferences
@@ -276,6 +277,29 @@ class _PlayGroundState extends State<PlayGround> {
         _teams = distributePlayersTier(playersToUse, numTeams: numTeams);
         _selectedMethod = _isHebrew ? 'חלוקת דירוג כולל' : 'Total Average Ranking Distribution';
       }
+    });
+  }
+
+  // --- הוספת הפונקציה המבוקשת ---
+  Future<void> _createSmartBalancedTeams() async {
+    if (_selectedPlayers.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_isHebrew
+              ? 'אנא בחר שחקנים ליצירת קבוצות.'
+              : 'Please select players to create teams.'),
+        ),
+      );
+      return;
+    }
+
+    List<Player> playersToUse = _selectedPlayers.length > 12
+        ? _selectedPlayers.take(12).toList()
+        : _selectedPlayers;
+
+    setState(() {
+      _teams = distributePlayersSmart(playersToUse, numTeams: 3);
+      _selectedMethod = _isHebrew ? 'איזון חכם' : 'Smart Balance';
     });
   }
 
@@ -569,6 +593,12 @@ class _PlayGroundState extends State<PlayGround> {
                                       label: totalText,
                                       imagePath: _teamImagePath,
                                       onPressed: () => _createBalancedTeams(isAttributeBased: false),
+                                    ),
+                                    SizedBox(width: 16),
+                                    PlayGroundTeamMethodButton(
+                                      label: _isHebrew ? 'איזון חכם' : 'Smart Balance',
+                                      imagePath: _teamImagePath,
+                                      onPressed: _createSmartBalancedTeams,
                                     ),
                                     if (_isDoron) ...[
                                       SizedBox(width: 5),
