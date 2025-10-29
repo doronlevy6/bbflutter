@@ -8,6 +8,7 @@ import '../model/player.dart'; // Adjust the path according to your project stru
 import 'legend_page.dart'; // Assuming you have a Legend widget similar to WelcomePage
 import 'package:responsive_builder/responsive_builder.dart';
 import '../utils/calc.dart';
+import 'moshe_team_calculator.dart';
 
 
 // Define keys for SharedPreferences
@@ -303,6 +304,89 @@ class _PlayGroundState extends State<PlayGround> {
     });
   }
 
+  Future<void> _createMosheTeams() async {
+    if (_selectedPlayers.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_isHebrew
+              ? 'אנא בחר שחקנים ליצירת קבוצות.'
+              : 'Please select players to create teams.'),
+        ),
+      );
+      return;
+    }
+
+    List<Player> playersToUse = List<Player>.from(_selectedPlayers);
+    int selectedCount = playersToUse.length;
+
+    if (selectedCount > 12) {
+      playersToUse = playersToUse.take(12).toList();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_isHebrew
+              ? 'נעשה שימוש ב-12 השחקנים הראשונים ליצירת קבוצות.'
+              : 'Only the first 12 selected players will be used for team creation.'),
+        ),
+      );
+    } else if (selectedCount >= 9 && selectedCount < 12) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_isHebrew
+              ? 'נבחרים $selectedCount שחקנים ליצירת הקבוצות.'
+              : 'Selecting the first $selectedCount players for team creation.'),
+        ),
+      );
+    }
+
+    if (playersToUse.isEmpty) {
+      return;
+    }
+
+    int numTeams;
+    if (playersToUse.length >= 9) {
+      numTeams = 3;
+    } else if (playersToUse.length > 4) {
+      numTeams = 2;
+    } else {
+      numTeams = 1;
+    }
+
+    try {
+      final teams = await MosheTeamCalculator.generateTeams(
+        playersToUse,
+        desiredTeamCount: numTeams,
+      );
+      if (!mounted) {
+        return;
+      }
+      if (teams.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_isHebrew
+                ? 'לא ניתן היה ליצור קבוצות באמצעות משה.'
+                : 'Moshe could not generate teams.'),
+          ),
+        );
+        return;
+      }
+      setState(() {
+        _teams = teams;
+        _selectedMethod = _isHebrew ? 'משה' : 'Moshe';
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_isHebrew
+              ? 'אירעה שגיאה בעת יצירת הקבוצות: $error'
+              : 'Failed to generate teams: $error'),
+        ),
+      );
+    }
+  }
+
   double computeTotalRanking(Player player) {
     return player.param1 +
         player.param2 +
@@ -460,6 +544,7 @@ class _PlayGroundState extends State<PlayGround> {
     String enlistedText = _isHebrew ? 'נרשמים' : 'Enlisted';
     String parameterText = _isHebrew ? 'לפי עמדה' : 'By Position';
     String totalText = _isHebrew ? 'לפי ממוצע' : 'By Avg';
+    String mosheText = _isHebrew ? 'משה' : 'Moshe';
     String noTeamsText = _isHebrew ? 'לא נוצרו קבוצות.' : 'No teams created.';
     String selectPlayersText = _isHebrew
         ? 'בחר שחקנים וצור קבוצות מאוזנות.'
@@ -599,6 +684,12 @@ class _PlayGroundState extends State<PlayGround> {
                                       label: _isHebrew ? 'איזון חכם' : 'Smart Balance',
                                       imagePath: _teamImagePath,
                                       onPressed: _createSmartBalancedTeams,
+                                    ),
+                                    SizedBox(width: 16),
+                                    PlayGroundTeamMethodButton(
+                                      label: mosheText,
+                                      imagePath: _teamImagePath,
+                                      onPressed: _createMosheTeams,
                                     ),
                                     if (_isDoron) ...[
                                       SizedBox(width: 5),
