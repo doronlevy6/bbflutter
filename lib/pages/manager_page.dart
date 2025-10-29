@@ -26,6 +26,7 @@ class _ManagementPageState extends State<ManagementPage> {
   bool isTierMethod = false;
   String? user;
   bool accessDenied = false;
+  bool _isAscending = true;
 
   // List to track the order of selected usernames
   List<String> selectedUsernames = [];
@@ -91,6 +92,7 @@ class _ManagementPageState extends State<ManagementPage> {
 
         setState(() {
           usernameSelections = selections;
+          _sortSelections();
         });
       } else {
         // Handle error
@@ -118,6 +120,22 @@ class _ManagementPageState extends State<ManagementPage> {
 
   int currentPlayingCount() {
     return selectedUsernames.length;
+  }
+
+  void _sortSelections() {
+    usernameSelections.sort((a, b) {
+      final first = a.username.toLowerCase();
+      final second = b.username.toLowerCase();
+      return _isAscending ? first.compareTo(second) : second.compareTo(first);
+    });
+  }
+
+  void _updateSortOrder(bool ascending) {
+    if (_isAscending == ascending) return;
+    setState(() {
+      _isAscending = ascending;
+      _sortSelections();
+    });
   }
 
   Future<void> handleEnlistUsers() async {
@@ -277,6 +295,32 @@ class _ManagementPageState extends State<ManagementPage> {
                     ),
                   ),
                   child: Text('Update Players'),
+                ),
+                SizedBox(height: 16.0),
+                Wrap(
+                  spacing: 12,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    Text(
+                      'Sort:',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    ChoiceChip(
+                      label: Text('A → Z'),
+                      selected: _isAscending,
+                      onSelected: (_) {
+                        _updateSortOrder(true);
+                      },
+                    ),
+                    ChoiceChip(
+                      label: Text('Z → A'),
+                      selected: !_isAscending,
+                      onSelected: (_) {
+                        _updateSortOrder(false);
+                      },
+                    ),
+                  ],
                 ),
                 SizedBox(height: 16.0),
                 // List of Users with Customized Checkboxes in Multiple Columns
