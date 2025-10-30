@@ -308,6 +308,37 @@ Map<String, double> _extractRawAttributes(Player player) {
   };
 }
 
+String inferPositionFromParams({
+  required double playmaking,
+  required double scoring,
+  required double defense,
+  required double speed,
+  required double threePt,
+  required double rebound,
+}) {
+  final pgScore = playmaking + speed;
+  final sgScore = scoring + threePt;
+  final cScore = rebound + defense;
+  final sfScore = scoring + defense + speed;
+
+  double best = pgScore;
+  String pos = 'point guard';
+
+  if (sgScore > best || (sgScore == best && pos != 'point guard')) {
+    best = sgScore;
+    pos = 'shooter';
+  }
+  if (cScore > best || (cScore == best && pos == 'winger')) {
+    best = cScore;
+    pos = 'center';
+  }
+  if (sfScore > best) {
+    best = sfScore;
+    pos = 'winger';
+  }
+  return pos;
+}
+
 List<_PlayerMetric> _buildMetrics(List<Player> players) {
   final rawAttributeList = players.map(_extractRawAttributes).toList();
   final minValues = <String, double>{};
@@ -331,11 +362,23 @@ List<_PlayerMetric> _buildMetrics(List<Player> players) {
     _applySpecialityBonuses(normalized, player.speciality);
     final power = _computeWeightedPower(normalized);
 
+    String? chosenPosition = player.position;
+    if (chosenPosition == null || chosenPosition.trim().isEmpty) {
+      chosenPosition = inferPositionFromParams(
+        playmaking: player.param1,
+        scoring: player.param2,
+        defense: player.param3,
+        speed: player.param4,
+        threePt: player.param5,
+        rebound: player.param6,
+      );
+    }
+
     metrics.add(
       _PlayerMetric(
         player: player,
         power: power,
-        position: player.position,
+        position: chosenPosition,
       ),
     );
   }
