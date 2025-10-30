@@ -26,21 +26,35 @@ class _ManagementPageState extends State<ManagementPage> {
   bool isTierMethod = false;
   String? user;
   bool accessDenied = false;
+  bool _isAscending = true;
 
   // List to track the order of selected usernames
   List<String> selectedUsernames = [];
+
+  final TextEditingController _newUsernameController = TextEditingController();
+  final TextEditingController _newPasswordController = TextEditingController();
+  final TextEditingController _newEmailController = TextEditingController();
+  final TextEditingController _newTeamPasswordController =
+      TextEditingController();
+
+  List<String> _teams = [];
+  String? _selectedTeamForNewPlayer;
+  bool _isSubmittingNewPlayer = false;
+  String? _newPlayerError;
+  bool _isLoadingTeams = false;
 
   @override
   void initState() {
     super.initState();
     fetchUserAndData();
+    _fetchTeams();
   }
 
   void fetchUserAndData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     user = prefs.getString(kUserKey);
 
-    if (user != 'doron'&& user!='dor') {
+    if (user != 'doron' && user != 'dor') {
       setState(() {
         accessDenied = true;
       });
@@ -76,6 +90,230 @@ class _ManagementPageState extends State<ManagementPage> {
     });
   }
 
+  Future<void> _fetchTeams() async {
+    setState(() {
+      _isLoadingTeams = true;
+    });
+
+    List<String> fetchedTeams = [];
+    bool shouldUpdateTeams = false;
+
+    try {
+      ApiService apiService = ApiService();
+      final teamsResponse = await apiService.get('teams');
+
+      if (teamsResponse['success'] == true && teamsResponse['teams'] is List) {
+        fetchedTeams = List<String>.from(
+          (teamsResponse['teams'] as List).map((team) {
+            if (team is Map<String, dynamic> && team['team_name'] != null) {
+              return team['team_name'].toString();
+            }
+            return team.toString();
+          }),
+        );
+        fetchedTeams.sort((a, b) => a.compareTo(b));
+        shouldUpdateTeams = true;
+      }
+    } catch (e) {
+      print('Error fetching teams: $e');
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingTeams = false;
+        if (shouldUpdateTeams) {
+          _teams = fetchedTeams;
+          if (_teams.isNotEmpty && _selectedTeamForNewPlayer == null) {
+            _selectedTeamForNewPlayer = _teams.first;
+          }
+        }
+      });
+    }
+  }
+
+  void _resetNewPlayerForm() {
+    _newUsernameController.clear();
+    _newPasswordController.clear();
+    _newEmailController.clear();
+    _newTeamPasswordController.clear();
+    _newPlayerError = null;
+    if (_teams.isNotEmpty) {
+      _selectedTeamForNewPlayer = _teams.first;
+    } else {
+      _selectedTeamForNewPlayer = null;
+    }
+  }
+
+  void _openAddPlayerDialog() {
+    _resetNewPlayerForm();
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text('Add New Player'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: _newUsernameController,
+                  decoration: InputDecoration(
+                    labelText: 'Username',
+                    icon: Icon(Icons.person),
+                  ),
+                ),
+                SizedBox(height: 12),
+                TextField(
+                  controller: _newPasswordController,
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    icon: Icon(Icons.lock),
+                  ),
+                  obscureText: true,
+                ),
+                SizedBox(height: 12),
+                TextField(
+                  controller: _newEmailController,
+                  decoration: InputDecoration(
+                    labelText: 'Email',
+                    icon: Icon(Icons.email),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                ),
+                SizedBox(height: 12),
+                _isLoadingTeams
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: CircularProgressIndicator(),
+                      )
+                    : _teams.isEmpty
+                        ? Padding(
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 8.0),
+                            child: Text('No teams available'),
+                          )
+                        : DropdownButtonFormField<String>(
+                            value: _selectedTeamForNewPlayer,
+                            decoration: InputDecoration(
+                              labelText: 'Team',
+                              icon: Icon(Icons.group),
+                            ),
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedTeamForNewPlayer = value;
+                              });
+                            },
+                            items: _teams
+                                .map(
+                                  (team) => DropdownMenuItem<String>(
+                                    value: team,
+                                    child: Text(team),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                SizedBox(height: 12),
+                TextField(
+                  controller: _newTeamPasswordController,
+                  decoration: InputDecoration(
+                    labelText: 'Team Password',
+                    icon: Icon(Icons.security),
+                  ),
+                  obscureText: true,
+                ),
+                if (_newPlayerError != null) ...[
+                  SizedBox(height: 12),
+                  Text(
+                    _newPlayerError!,
+                    style: TextStyle(color: Colors.red),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+              child: Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: _isSubmittingNewPlayer
+                  ? null
+                  : () => _submitNewPlayer(dialogContext),
+              child: _isSubmittingNewPlayer
+                  ? SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text('Add Player'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _submitNewPlayer(BuildContext dialogContext) async {
+    if (_newUsernameController.text.trim().isEmpty ||
+        _newPasswordController.text.isEmpty ||
+        _newEmailController.text.trim().isEmpty ||
+        _newTeamPasswordController.text.isEmpty) {
+      setState(() {
+        _newPlayerError = 'Please fill in all fields.';
+      });
+      return;
+    }
+
+    if (_selectedTeamForNewPlayer == null) {
+      setState(() {
+        _newPlayerError = 'Please select a team.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isSubmittingNewPlayer = true;
+      _newPlayerError = null;
+    });
+
+    try {
+      ApiService apiService = ApiService();
+      final response = await apiService.post('register', {
+        'username': _newUsernameController.text.trim(),
+        'password': _newPasswordController.text,
+        'email': _newEmailController.text.trim(),
+        'teamName': _selectedTeamForNewPlayer,
+        'teamPassword': _newTeamPasswordController.text,
+      });
+
+      if (response['success'] == true) {
+        Navigator.of(dialogContext).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Player added successfully!')),
+        );
+        await fetchData();
+        _resetNewPlayerForm();
+      } else {
+        setState(() {
+          _newPlayerError =
+              response['message'] ?? 'Failed to add player. Please try again.';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _newPlayerError = 'Error adding player: $e';
+      });
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _isSubmittingNewPlayer = false;
+      });
+    }
+  }
+
   Future<void> fetchData() async {
     try {
       ApiService apiService = ApiService();
@@ -91,6 +329,7 @@ class _ManagementPageState extends State<ManagementPage> {
 
         setState(() {
           usernameSelections = selections;
+          _sortSelections();
         });
       } else {
         // Handle error
@@ -99,6 +338,15 @@ class _ManagementPageState extends State<ManagementPage> {
     } catch (e) {
       print('Error fetching data: $e');
     }
+  }
+
+  @override
+  void dispose() {
+    _newUsernameController.dispose();
+    _newPasswordController.dispose();
+    _newEmailController.dispose();
+    _newTeamPasswordController.dispose();
+    super.dispose();
   }
 
   // Helper function to split the list into chunks of specified size
@@ -118,6 +366,22 @@ class _ManagementPageState extends State<ManagementPage> {
 
   int currentPlayingCount() {
     return selectedUsernames.length;
+  }
+
+  void _sortSelections() {
+    usernameSelections.sort((a, b) {
+      final first = a.username.toLowerCase();
+      final second = b.username.toLowerCase();
+      return _isAscending ? first.compareTo(second) : second.compareTo(first);
+    });
+  }
+
+  void _updateSortOrder(bool ascending) {
+    if (_isAscending == ascending) return;
+    setState(() {
+      _isAscending = ascending;
+      _sortSelections();
+    });
   }
 
   Future<void> handleEnlistUsers() async {
@@ -260,6 +524,25 @@ class _ManagementPageState extends State<ManagementPage> {
                   ),
                 ),
                 SizedBox(height: 16.0),
+                ElevatedButton.icon(
+                  onPressed:
+                      _isLoadingTeams && _teams.isEmpty ? null : _openAddPlayerDialog,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueAccent,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
+                    textStyle: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  icon: Icon(Icons.person_add),
+                  label: Text('Add New Player'),
+                ),
+                SizedBox(height: 16.0),
                 // Update Players Button
                 ElevatedButton(
                   onPressed: handleEnlistUsers,
@@ -277,6 +560,32 @@ class _ManagementPageState extends State<ManagementPage> {
                     ),
                   ),
                   child: Text('Update Players'),
+                ),
+                SizedBox(height: 16.0),
+                Wrap(
+                  spacing: 12,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    Text(
+                      'Sort:',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    ChoiceChip(
+                      label: Text('A → Z'),
+                      selected: _isAscending,
+                      onSelected: (_) {
+                        _updateSortOrder(true);
+                      },
+                    ),
+                    ChoiceChip(
+                      label: Text('Z → A'),
+                      selected: !_isAscending,
+                      onSelected: (_) {
+                        _updateSortOrder(false);
+                      },
+                    ),
+                  ],
                 ),
                 SizedBox(height: 16.0),
                 // List of Users with Customized Checkboxes in Multiple Columns
