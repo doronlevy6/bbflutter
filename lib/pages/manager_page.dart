@@ -207,118 +207,131 @@ class _ManagementPageState extends State<ManagementPage> {
     showDialog(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          title: Text('Add New Player'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.blueGrey.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.group,
-                        color: Colors.blueGrey[700],
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text('Add New Player'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.blueGrey.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _managedTeamName ?? '',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.group,
+                            color: Colors.blueGrey[700],
                           ),
-                        ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _managedTeamName ?? '',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    TextField(
+                      controller: _newUsernameController,
+                      decoration: InputDecoration(
+                        labelText: 'Username',
+                        icon: Icon(Icons.person),
+                      ),
+                    ),
+                    SizedBox(height: 12),
+                    TextField(
+                      controller: _newPasswordController,
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        icon: Icon(Icons.lock),
+                      ),
+                      obscureText: true,
+                    ),
+                    SizedBox(height: 12),
+                    TextField(
+                      controller: _newEmailController,
+                      decoration: InputDecoration(
+                        labelText: 'Email',
+                        icon: Icon(Icons.email),
+                      ),
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                    SizedBox(height: 12),
+                    if (_newPlayerError != null) ...[
+                      SizedBox(height: 12),
+                      Text(
+                        _newPlayerError!,
+                        style: TextStyle(color: Colors.red),
                       ),
                     ],
-                  ),
+                  ],
                 ),
-                SizedBox(height: 16),
-                TextField(
-                  controller: _newUsernameController,
-                  decoration: InputDecoration(
-                    labelText: 'Username',
-                    icon: Icon(Icons.person),
-                  ),
-                ),
-                SizedBox(height: 12),
-                TextField(
-                  controller: _newPasswordController,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    icon: Icon(Icons.lock),
-                  ),
-                  obscureText: true,
-                ),
-                SizedBox(height: 12),
-                TextField(
-                  controller: _newEmailController,
-                  decoration: InputDecoration(
-                    labelText: 'Email',
-                    icon: Icon(Icons.email),
-                  ),
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                SizedBox(height: 12),
-                if (_newPlayerError != null) ...[
-                  SizedBox(height: 12),
-                  Text(
-                    _newPlayerError!,
-                    style: TextStyle(color: Colors.red),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
-              child: Text('Cancel'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.lightGreen,
-                foregroundColor: Colors.white,
               ),
-              onPressed: _isSubmittingNewPlayer
-                  ? null
-                  : () => _submitNewPlayer(dialogContext),
-              child: _isSubmittingNewPlayer
-                  ? Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                        SizedBox(width: 8),
-                        Text('Adding...'),
-                      ],
-                    )
-                  : Text('Add Player'),
-            ),
-          ],
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop();
+                  },
+                  child: Text('Cancel'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.lightGreen,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: _isSubmittingNewPlayer
+                      ? null
+                      : () => _submitNewPlayer(
+                            dialogContext,
+                            setDialogState,
+                          ),
+                  child: _isSubmittingNewPlayer
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 18,
+                              height: 18,
+                              child:
+                                  CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                            SizedBox(width: 8),
+                            Text('Adding...'),
+                          ],
+                        )
+                      : Text('Add Player'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
   }
 
-  Future<void> _submitNewPlayer(BuildContext dialogContext) async {
+  Future<void> _submitNewPlayer(
+    BuildContext dialogContext,
+    void Function(VoidCallback) dialogSetState,
+  ) async {
     if (_newUsernameController.text.trim().isEmpty ||
         _newPasswordController.text.isEmpty ||
         _newEmailController.text.trim().isEmpty) {
       setState(() {
         _newPlayerError = 'Please fill in all fields.';
       });
+      dialogSetState(() {});
       return;
     }
 
@@ -326,6 +339,7 @@ class _ManagementPageState extends State<ManagementPage> {
       setState(() {
         _newPlayerError = 'Unable to resolve the managed team.';
       });
+      dialogSetState(() {});
       return;
     }
 
@@ -333,6 +347,9 @@ class _ManagementPageState extends State<ManagementPage> {
       _isSubmittingNewPlayer = true;
       _newPlayerError = null;
     });
+    dialogSetState(() {});
+
+    bool dialogClosed = false;
 
     try {
       ApiService apiService = ApiService();
@@ -354,6 +371,7 @@ class _ManagementPageState extends State<ManagementPage> {
 
       if (response['success'] == true) {
         Navigator.of(dialogContext).pop();
+        dialogClosed = true;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Player added successfully!')),
         );
@@ -364,16 +382,23 @@ class _ManagementPageState extends State<ManagementPage> {
           _newPlayerError =
               response['message'] ?? 'Failed to add player. Please try again.';
         });
+        dialogSetState(() {});
       }
     } catch (e) {
       setState(() {
         _newPlayerError = 'Error adding player: $e';
       });
+      if (!dialogClosed) {
+        dialogSetState(() {});
+      }
     } finally {
       if (!mounted) return;
       setState(() {
         _isSubmittingNewPlayer = false;
       });
+      if (!dialogClosed) {
+        dialogSetState(() {});
+      }
     }
   }
 
