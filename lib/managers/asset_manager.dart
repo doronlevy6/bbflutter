@@ -12,6 +12,6 @@ class AssetManager {
       return 'assets/images/fb.png';
     }
     // תמונה ברירת מחדל במקרה שה-team type אינו תואם
-    return 'assets/images/default.png';
+    return 'assets/images/basketball.png';
   }
 }

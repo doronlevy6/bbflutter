@@ -45,7 +45,7 @@ class _PlayGroundState extends State<PlayGround> {
   // Language flag
   bool _isHebrew = false;
 
-  String _teamImagePath = 'assets/images/default.png';
+  String _teamImagePath = 'assets/images/basketball.png';
   @override
   void initState() {
     super.initState();

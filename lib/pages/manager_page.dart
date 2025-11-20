@@ -230,7 +230,7 @@ class _ManagementPageState extends State<ManagementPage> {
         // Background image
         decoration: BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/images/bb3d.png'), // Ensure the image exists
+            image: AssetImage('assets/images/reka.webp'), // Ensure the image exists
             fit: BoxFit.cover,
             colorFilter: ColorFilter.mode(
               Colors.black.withOpacity(0.6),
