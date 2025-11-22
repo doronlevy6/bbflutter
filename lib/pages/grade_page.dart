@@ -8,6 +8,9 @@ import '../config/legend_config.dart';
 import '../managers/asset_manager.dart';
 
 
+import 'dart:async';
+import 'package:flutter/services.dart';
+
 class GradePage extends StatefulWidget {
   @override
   _GradePageState createState() => _GradePageState();
@@ -26,6 +29,10 @@ class _GradePageState extends State<GradePage> {
 
   String? _selectedGradeButtonUsername;
   String? _selectedGradeButtonField;
+  
+  // Focus node for keyboard events
+  final FocusNode _focusNode = FocusNode();
+  Timer? _inputTimer;
 
   // Variable to track sorting order
   bool _isAscending = false; // Initial sorting is descending
@@ -45,8 +52,32 @@ class _GradePageState extends State<GradePage> {
 
   @override
   void dispose() {
+    _focusNode.dispose();
+    _inputTimer?.cancel();
     _removeFloatingButtons(resetSelection: false); // Prevent setState() during dispose
     super.dispose();
+  }
+
+  void _handleKeyEvent(RawKeyEvent event) {
+    if (event is RawKeyDownEvent) {
+      if (_selectedGradeButtonUsername == null || _selectedGradeButtonField == null) return;
+
+      int? digit;
+      if (event.logicalKey == LogicalKeyboardKey.digit0 || event.logicalKey == LogicalKeyboardKey.numpad0) digit = 0;
+      else if (event.logicalKey == LogicalKeyboardKey.digit1 || event.logicalKey == LogicalKeyboardKey.numpad1) digit = 1;
+      else if (event.logicalKey == LogicalKeyboardKey.digit2 || event.logicalKey == LogicalKeyboardKey.numpad2) digit = 2;
+      else if (event.logicalKey == LogicalKeyboardKey.digit3 || event.logicalKey == LogicalKeyboardKey.numpad3) digit = 3;
+      else if (event.logicalKey == LogicalKeyboardKey.digit4 || event.logicalKey == LogicalKeyboardKey.numpad4) digit = 4;
+      else if (event.logicalKey == LogicalKeyboardKey.digit5 || event.logicalKey == LogicalKeyboardKey.numpad5) digit = 5;
+      else if (event.logicalKey == LogicalKeyboardKey.digit6 || event.logicalKey == LogicalKeyboardKey.numpad6) digit = 6;
+      else if (event.logicalKey == LogicalKeyboardKey.digit7 || event.logicalKey == LogicalKeyboardKey.numpad7) digit = 7;
+      else if (event.logicalKey == LogicalKeyboardKey.digit8 || event.logicalKey == LogicalKeyboardKey.numpad8) digit = 8;
+      else if (event.logicalKey == LogicalKeyboardKey.digit9 || event.logicalKey == LogicalKeyboardKey.numpad9) digit = 9;
+
+      if (digit != null) {
+        _processDigitInput(digit);
+      }
+    }
   }
 
   // Load language setting from SharedPreferences using key 'isHebrew'
@@ -169,6 +200,98 @@ class _GradePageState extends State<GradePage> {
                 : 'Error fetching data. Please try again later.'),
           ),
         );
+      }
+    }
+  }
+
+  void _processDigitInput(int digit) {
+    if (_selectedGradeButtonUsername == null || _selectedGradeButtonField == null) return;
+
+    // Hide floating buttons immediately when typing
+    _removeFloatingButtons(resetSelection: false);
+
+    if (_inputTimer != null && _inputTimer!.isActive) {
+      _inputTimer!.cancel();
+      if (digit == 0) {
+        // Previous was 1, now 0 -> Grade 10
+        _setGradeOnly(10);
+        _moveToNextField();
+      } else {
+        // Previous was 1, now something else (e.g. 5).
+        // The '1' is confirmed for current field. Move to next and process '5'.
+        _moveToNextField();
+        
+        // Process the new digit for the NEXT field
+        Future.delayed(Duration(milliseconds: 50), () {
+          if (mounted) _processDigitInput(digit);
+        });
+      }
+      return;
+    }
+
+    if (digit == 1) {
+      // Set 1 immediately for visual indication
+      _setGradeOnly(1);
+      
+      // Wait to see if next is 0
+      _inputTimer = Timer(Duration(milliseconds: 400), () {
+        if (mounted) _moveToNextField();
+      });
+    } else if (digit >= 2 && digit <= 9) {
+      _setGradeOnly(digit);
+      _moveToNextField();
+    }
+  }
+
+  void _setGradeOnly(int grade) {
+    setState(() {
+      int index = grading.indexWhere((p) => p['username'] == _selectedGradeButtonUsername);
+      if (index != -1) {
+        grading[index][_selectedGradeButtonField!] = grade;
+        _updatePlayerAverage(grading[index]);
+      }
+    });
+  }
+
+  // Deprecated: Use _setGradeOnly + _moveToNextField instead
+  void _setGradeAndMove(int grade) {
+    _setGradeOnly(grade);
+    _moveToNextField();
+  }
+
+  void _moveToNextField() {
+    List<String> fields = ['param1', 'param2', 'param3', 'param4', 'param5', 'param6'];
+    int currentFieldIndex = fields.indexOf(_selectedGradeButtonField!);
+    
+    if (currentFieldIndex < fields.length - 1) {
+      // Move to next field of same player
+      setState(() {
+        _selectedGradeButtonField = fields[currentFieldIndex + 1];
+      });
+    } else {
+      // Move to first field of next player
+      // We need to find the next player in the current sorted list 'grading'
+      // But 'grading' might be sorted differently than display if we used _sortGradingList
+      // Wait, 'grading' IS the list used for display.
+      
+      int currentPlayerIndex = grading.indexWhere((p) => p['username'] == _selectedGradeButtonUsername);
+      if (currentPlayerIndex < grading.length - 1) {
+        setState(() {
+          _selectedGradeButtonUsername = grading[currentPlayerIndex + 1]['username'];
+          _selectedGradeButtonField = fields[0];
+          // Also freeze the new player row
+          _frozenPlayerUsername = _selectedGradeButtonUsername;
+        });
+      } else {
+        // End of list
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_isHebrew ? 'סיימת את כל השחקנים!' : 'Finished all players!')),
+        );
+        setState(() {
+          _selectedGradeButtonUsername = null;
+          _selectedGradeButtonField = null;
+          _frozenPlayerUsername = null;
+        });
       }
     }
   }
@@ -302,79 +425,102 @@ class _GradePageState extends State<GradePage> {
     }
   }
 
-  void _showFloatingButtons(Offset position, String username, String field) {
+  void _showFloatingButtons(LayerLink link, String username, String field) {
     _removeFloatingButtons(resetSelection: false);
     final overlay = Overlay.of(context)!;
+    
+    const double fabSize = 56.0;
+    const double gap = 55.0; // Space for the grade button (40px) + padding
+    const double totalHeight = fabSize * 2 + gap;
+    const double totalWidth = fabSize;
+
+    // Calculate offset to center the overlay on the button (40x40)
+    const double buttonSize = 40.0;
+    final double offsetX = (buttonSize - totalWidth) / 2;
+    final double offsetY = (buttonSize - totalHeight) / 2;
+
     _floatingButtonsOverlay = OverlayEntry(
       builder: (context) => Stack(
         children: [
-          Positioned(
-            left: position.dx - 30,
-            top: position.dy - 90,
-            child: Column(
-              children: [
-                AnimatedOpacity(
-                  opacity: 0.8,
-                  duration: Duration(milliseconds: 300),
-                  child: FloatingActionButton(
-                    mini: false,
-                    backgroundColor: Colors.green[200],
-                    onPressed: () {
-                      setState(() {
-                        int index = grading.indexWhere((p) => p['username'] == username);
-                        if (index != -1) {
-                          if (grading[index][field] == null || grading[index][field] == 0) {
-                            grading[index][field] = 1;
-                          } else if (grading[index][field] < 10) {
-                            grading[index][field]++;
-                          }
-                          _updatePlayerAverage(grading[index]);
-                        }
-                      });
-                    },
-                    child: Text(
-                      '+',
-                      style: TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.green,
+          CompositedTransformFollower(
+            link: link,
+            offset: Offset(offsetX, offsetY),
+            child: Container(
+              width: totalWidth,
+              height: totalHeight,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  AnimatedOpacity(
+                    opacity: 0.8,
+                    duration: Duration(milliseconds: 300),
+                    child: SizedBox(
+                      width: fabSize,
+                      height: fabSize,
+                      child: FloatingActionButton(
+                        mini: false,
+                        backgroundColor: Colors.green[200],
+                        onPressed: () {
+                          setState(() {
+                            int index = grading.indexWhere((p) => p['username'] == username);
+                            if (index != -1) {
+                              if (grading[index][field] == null || grading[index][field] == 0) {
+                                grading[index][field] = 1;
+                              } else if (grading[index][field] < 10) {
+                                grading[index][field]++;
+                              }
+                              _updatePlayerAverage(grading[index]);
+                            }
+                          });
+                        },
+                        child: Text(
+                          '+',
+                          style: TextStyle(
+                            fontSize: 30,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.green,
+                          ),
+                        ),
+                        tooltip: _isHebrew ? 'העלה ציון' : 'Increase Grade',
                       ),
                     ),
-                    tooltip: _isHebrew ? 'העלה ציון' : 'Increase Grade',
                   ),
-                ),
-                SizedBox(height: 70),
-                AnimatedOpacity(
-                  opacity: 0.8,
-                  duration: Duration(milliseconds: 300),
-                  child: FloatingActionButton(
-                    mini: false,
-                    backgroundColor: Colors.red[200],
-                    onPressed: () {
-                      setState(() {
-                        int index = grading.indexWhere((p) => p['username'] == username);
-                        if (index != -1) {
-                          if (grading[index][field] == null || grading[index][field] == 0) {
-                            grading[index][field] =1;
-                          } else if (grading[index][field] > 1) {
-                            grading[index][field]--;
-                          }
-                          _updatePlayerAverage(grading[index]);
-                        }
-                      });
-                    },
-                    child: Text(
-                      '-',
-                      style: TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.red,
+                  AnimatedOpacity(
+                    opacity: 0.8,
+                    duration: Duration(milliseconds: 300),
+                    child: SizedBox(
+                      width: fabSize,
+                      height: fabSize,
+                      child: FloatingActionButton(
+                        mini: false,
+                        backgroundColor: Colors.red[200],
+                        onPressed: () {
+                          setState(() {
+                            int index = grading.indexWhere((p) => p['username'] == username);
+                            if (index != -1) {
+                              if (grading[index][field] == null || grading[index][field] == 0) {
+                                grading[index][field] =1;
+                              } else if (grading[index][field] > 1) {
+                                grading[index][field]--;
+                              }
+                              _updatePlayerAverage(grading[index]);
+                            }
+                          });
+                        },
+                        child: Text(
+                          '-',
+                          style: TextStyle(
+                            fontSize: 30,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red,
+                          ),
+                        ),
+                        tooltip: _isHebrew ? 'הורד ציון' : 'Decrease Grade',
                       ),
                     ),
-                    tooltip: _isHebrew ? 'הורד ציון' : 'Decrease Grade',
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
@@ -468,13 +614,16 @@ class _GradePageState extends State<GradePage> {
           }
         });
       },
-      onTap: (position) {
+      onTap: (link) {
+        // Request focus for keyboard input
+        _focusNode.requestFocus();
+        
         setState(() {
           _selectedGradeButtonUsername = username;
           _selectedGradeButtonField = field;
           _frozenPlayerUsername = username;
         });
-        _showFloatingButtons(position, username, field);
+        _showFloatingButtons(link, username, field);
       },
     );
   }
@@ -734,20 +883,29 @@ class _GradePageState extends State<GradePage> {
       return a['username'].toLowerCase().compareTo(b['username'].toLowerCase());
     });
 
-    return Directionality(
+    return RawKeyboardListener(
+      focusNode: _focusNode,
+      autofocus: true,
+      onKey: _handleKeyEvent,
+      child: Directionality(
         textDirection: _isHebrew ? TextDirection.rtl : TextDirection.ltr,
         child: Scaffold(
-        body: Container(
-        decoration: BoxDecoration(
-        image: DecorationImage(
-        image: AssetImage('assets/images/reka.webp'),
-    fit: BoxFit.cover,
-    colorFilter: ColorFilter.mode(
-    Colors.white.withOpacity(0.1),
-    BlendMode.dstATop,
-    ),
-    ),
-    ),
+        body: GestureDetector(
+          onTap: () {
+             // Hide floating buttons and clear selection when clicking background
+             _removeFloatingButtons(resetSelection: true);
+          },
+          child: Container(
+          decoration: BoxDecoration(
+          image: DecorationImage(
+          image: AssetImage('assets/images/reka.webp'),
+      fit: BoxFit.cover,
+      colorFilter: ColorFilter.mode(
+      Colors.white.withOpacity(0.1),
+      BlendMode.dstATop,
+      ),
+      ),
+      ),
     child: Stack(
     children: [
     Column(
@@ -882,19 +1040,20 @@ class _GradePageState extends State<GradePage> {
           ],
         ),
       ),
+    ),
     )
-    );
+    ));
   }
 }
 
-class GradeButton extends StatelessWidget {
+class GradeButton extends StatefulWidget {
   final int? grade;
   final IconData? icon;
   final bool isSelected;
   final bool isRowSelected;
   final VoidCallback onIncrement;
   final VoidCallback onDecrement;
-  final Function(Offset position) onTap;
+  final Function(LayerLink link) onTap; // Changed to accept LayerLink
   final String imagePath;
 
   GradeButton({
@@ -909,48 +1068,57 @@ class GradeButton extends StatelessWidget {
   });
 
   @override
+  _GradeButtonState createState() => _GradeButtonState();
+}
+
+class _GradeButtonState extends State<GradeButton> {
+  final LayerLink _layerLink = LayerLink();
+
+  @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      behavior: HitTestBehavior.translucent, // Ensure the whole cell is tappable
       onTap: () {
-        RenderBox renderBox = context.findRenderObject() as RenderBox;
-        Offset position = renderBox.localToGlobal(Offset.zero);
-        Size size = renderBox.size;
-        Offset center = position + Offset(size.width / 2, size.height / 2);
-        onTap(center);
+        widget.onTap(_layerLink);
       },
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: isSelected
-              ? Colors.green[100]
-              : (isRowSelected
-              ? Colors.green[50]
-              : (grade != null && grade! > 0)
-              ? Colors.white
-              : Colors.white),
-        ),
-        alignment: Alignment.center,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            grade != null && grade! > 0
-                ? Text(
-              '$grade',
-              style: TextStyle(
-                color: Colors.green,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-              textAlign: TextAlign.center,
-            )
-                : CircleAvatar(
-              radius: 10,
-              backgroundImage: AssetImage(imagePath),
-              backgroundColor: Colors.transparent,
+      child: Center(
+        child: CompositedTransformTarget(
+          link: _layerLink,
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: widget.isSelected
+                  ? Colors.green[100]
+                  : (widget.isRowSelected
+                  ? Colors.green[50]
+                  : (widget.grade != null && widget.grade! > 0)
+                  ? Colors.white
+                  : Colors.white),
             ),
-          ],
+            alignment: Alignment.center,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                widget.grade != null && widget.grade! > 0
+                    ? Text(
+                  '${widget.grade}',
+                  style: TextStyle(
+                    color: Colors.green,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                  textAlign: TextAlign.center,
+                )
+                    : CircleAvatar(
+                  radius: 10,
+                  backgroundImage: AssetImage(widget.imagePath),
+                  backgroundColor: Colors.transparent,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
