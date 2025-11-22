@@ -9,6 +9,7 @@ import 'legend_page.dart'; // Assuming you have a Legend widget similar to Welco
 import 'package:responsive_builder/responsive_builder.dart';
 import '../utils/calc.dart';
 import 'moshe_team_calculator.dart';
+import '../services/rankings_service.dart';
 
 
 // Define keys for SharedPreferences
@@ -50,9 +51,24 @@ class _PlayGroundState extends State<PlayGround> {
   void initState() {
     super.initState();
     _loadLanguage();
-    _loadPlayersFromLocalStorage();
+    _refreshData();
     _loadTeamImage();
     _loadTeamType();
+  }
+
+  Future<void> _refreshData() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    _userName = prefs.getString('user');
+    
+    // Fetch latest data from server
+    await RankingsService.fetchAndCacheOverallPlayerRankings();
+    if (_userName != null && (_userName!.toLowerCase() == 'doron' || _userName!.toLowerCase() == 'dor')) {
+      await RankingsService.fetchAndCachePlayerRankingsForUser(_userName!);
+    }
+    await RankingsService.getEnlisted();
+
+    // Then load from local storage
+    await _loadPlayersFromLocalStorage();
   }
 
   Future<void> _loadTeamType() async {
@@ -206,6 +222,8 @@ class _PlayGroundState extends State<PlayGround> {
 
   // Select all enlisted players
   Future<void> _selectAllEnlistedPlayers() async {
+    // Fetch latest enlisted players from server
+    await RankingsService.getEnlisted();
     await _loadEnlistedPlayers();
   }
 

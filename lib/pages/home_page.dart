@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'welcome_page.dart';
 import 'login_page.dart';
-import 'manager_page.dart';
-import 'player_management_page.dart'; // New Player Management Page
+import 'player_management_page.dart';
 import 'grade_page.dart';
 import 'settings.dart';
 import 'playground_page.dart';
@@ -224,16 +223,7 @@ class _HomePageState extends State<HomePage> {
                               page: GradePage(),
                               title: gradeTitle,
                             ),
-                            // Conditionally display management option for user 'doron'
-                            if (username.toLowerCase() == 'doron' || username.toLowerCase() == 'dor')
-                              _buildDrawerIcon(
-                                context,
-                                icon: Icons.admin_panel_settings,
-                                color: Colors.red[300],
-                                tooltip: managementTitle,
-                                page: ManagementPage(),
-                                title: managementTitle,
-                              ),
+                            // Player Management option for user 'doron' or 'dor'
                             if (username.toLowerCase() == 'doron' || username.toLowerCase() == 'dor')
                               _buildDrawerIcon(
                                 context,

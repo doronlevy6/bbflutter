@@ -15,6 +15,14 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
   String? user;
   bool accessDenied = false;
   static const String kUserKey = 'user';
+  static const String kEnlistedPlayersKey = 'enlistedPlayers';
+
+  // For game enlistment
+  List<String> selectedUsernames = [];
+  Map<String, bool> initialSelections = {};
+  
+  // For sorting
+  bool _isAscending = true;
 
   @override
   void initState() {
@@ -32,8 +40,27 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
         isLoading = false;
       });
     } else {
-      fetchPlayers();
+      await fetchPlayers();
+      await _loadEnlistedPlayers();
     }
+  }
+
+  Future<void> _saveEnlistedPlayers(List<String> players) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(kEnlistedPlayersKey, players);
+  }
+
+  Future<void> _loadEnlistedPlayers() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String> savedPlayers = prefs.getStringList(kEnlistedPlayersKey) ?? [];
+    setState(() {
+      selectedUsernames = savedPlayers;
+      // Initialize initialSelections
+      initialSelections = {
+        for (var player in players)
+          player['username']: savedPlayers.contains(player['username'])
+      };
+    });
   }
 
   Future<void> fetchPlayers() async {
@@ -73,6 +100,73 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.green),
     );
+  }
+
+  Future<void> handleEnlistUsers() async {
+    try {
+      List<String> usernamesToEnlist = [];
+      List<String> usernamesToUnenlist = [];
+
+      // Determine which users to enlist and unenlist based on changes
+      for (var player in players) {
+        String username = player['username'];
+        bool initial = initialSelections[username] ?? false;
+        bool current = selectedUsernames.contains(username);
+        if (current != initial) {
+          if (current) {
+            usernamesToEnlist.add(username);
+          } else {
+            usernamesToUnenlist.add(username);
+          }
+        }
+      }
+
+      // Reorder usernamesToEnlist based on selectedUsernames to preserve selection order
+      usernamesToEnlist.sort((a, b) => selectedUsernames.indexOf(a).compareTo(selectedUsernames.indexOf(b)));
+
+      if (usernamesToEnlist.isNotEmpty || usernamesToUnenlist.isNotEmpty) {
+        if (usernamesToEnlist.isNotEmpty) {
+          await apiService.post('enlist-users', {
+            'usernames': usernamesToEnlist,
+            'isTierMethod': false,
+          });
+        }
+
+        if (usernamesToUnenlist.isNotEmpty) {
+          await apiService.post('delete-enlist', {
+            'usernames': usernamesToUnenlist,
+            'isTierMethod': false,
+          });
+        }
+      }
+
+      _showSuccess('Players enlistment updated successfully!');
+
+      // Update initialSelections to reflect current state
+      setState(() {
+        for (var username in usernamesToEnlist) {
+          initialSelections[username] = true;
+        }
+        for (var username in usernamesToUnenlist) {
+          initialSelections[username] = false;
+        }
+      });
+
+      // Save the updated enlisted players to SharedPreferences
+      await _saveEnlistedPlayers(selectedUsernames);
+    } catch (e) {
+      _showError('Error updating players enlistment: $e');
+    }
+  }
+
+  void _sortPlayers() {
+    setState(() {
+      players.sort((a, b) {
+        final first = a['username'].toString().toLowerCase();
+        final second = b['username'].toString().toLowerCase();
+        return _isAscending ? first.compareTo(second) : second.compareTo(first);
+      });
+    });
   }
 
   Future<void> _addPlayer() async {
@@ -186,6 +280,7 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
   Future<void> _editPlayer(Map<String, dynamic> player) async {
     final usernameController = TextEditingController(text: player['username']);
     final emailController = TextEditingController(text: player['email']);
+    final passwordController = TextEditingController(text: player['password'] ?? '');
 
     await showDialog(
       context: context,
@@ -237,6 +332,20 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                   ),
                 ),
               ),
+              SizedBox(height: 16),
+              TextField(
+                controller: passwordController,
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  prefixIcon: Icon(Icons.lock, color: Colors.blue[700]),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.blue, width: 2),
+                  ),
+                ),
+                obscureText: false,
+              ),
             ],
           ),
         ),
@@ -254,10 +363,17 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
             onPressed: () async {
               Navigator.pop(context);
               try {
-                final response = await apiService.put('update-player/${player['username']}', {
+                final updateData = {
                   'newUsername': usernameController.text,
                   'newEmail': emailController.text,
-                });
+                };
+                
+                // Add password only if it's not empty
+                if (passwordController.text.isNotEmpty) {
+                  updateData['newPassword'] = passwordController.text;
+                }
+                
+                final response = await apiService.put('update-player/${player['username']}', updateData);
                 if (response['success']) {
                   _showSuccess('Player updated successfully');
                   fetchPlayers();
@@ -484,10 +600,6 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
   Widget build(BuildContext context) {
     if (accessDenied) {
       return Scaffold(
-        appBar: AppBar(
-          title: Text('Access Denied'),
-          backgroundColor: Colors.red,
-        ),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -506,17 +618,6 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Player Management',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-        ),
-        backgroundColor: Colors.green[700],
-        elevation: 0,
-      ),
       body: Container(
         decoration: BoxDecoration(
           image: DecorationImage(
@@ -530,105 +631,210 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
         ),
         width: double.infinity,
         height: double.infinity,
-        child: isLoading
-            ? Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              )
-            : players.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+        child: Column(
+          children: [
+            // Top bar with playing count and update button
+            Container(
+              padding: EdgeInsets.all(16),
+              color: Colors.green[700]?.withOpacity(0.9),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
                       children: [
-                        Icon(
-                          Icons.people_outline,
-                          size: 80,
-                          color: Colors.white.withOpacity(0.7),
-                        ),
-                        SizedBox(height: 16),
+                        Icon(Icons.sports_basketball, color: Colors.green[700]),
+                        SizedBox(width: 8),
                         Text(
-                          'No players yet',
+                          'Playing: ${selectedUsernames.length}',
                           style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Tap the + button to add your first player',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.8),
-                            fontSize: 14,
+                            color: Colors.green[700],
                           ),
                         ),
                       ],
                     ),
-                  )
-                : ListView.builder(
-                    padding: EdgeInsets.all(16),
-                    itemCount: players.length,
-                    itemBuilder: (context, index) {
-                      final player = players[index];
-                      return Card(
-                        color: Colors.white.withOpacity(0.9),
-                        margin: EdgeInsets.symmetric(vertical: 8),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        child: ListTile(
-                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          leading: CircleAvatar(
-                            backgroundColor: Colors.green[700],
-                            child: Text(
-                              player['username'][0].toUpperCase(),
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 20,
-                              ),
-                            ),
-                          ),
-                          title: Text(
-                            player['username'],
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
-                          ),
-                          subtitle: Row(
+                  ),
+                  TextButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _isAscending = !_isAscending;
+                        _sortPlayers();
+                      });
+                    },
+                    icon: Icon(
+                      Icons.swap_vert,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                    label: Text(
+                      'Sort',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: handleEnlistUsers,
+                    icon: Icon(Icons.save),
+                    label: Text('Update Players'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.green[700],
+                      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Players list
+            Expanded(
+              child: isLoading
+                  ? Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : players.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.email, size: 14, color: Colors.grey[600]),
-                              SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  player['email'] ?? 'No email',
-                                  style: TextStyle(fontSize: 14),
-                                  overflow: TextOverflow.ellipsis,
+                              Icon(
+                                Icons.people_outline,
+                                size: 80,
+                                color: Colors.white.withOpacity(0.7),
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                'No players yet',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                'Tap the + button to add your first player',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.8),
+                                  fontSize: 14,
                                 ),
                               ),
                             ],
                           ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: Icon(Icons.edit, color: Colors.blue),
-                                onPressed: () => _editPlayer(player),
-                                tooltip: 'Edit Player',
+                        )
+                      : ListView.builder(
+                          padding: EdgeInsets.all(16),
+                          itemCount: players.length,
+                          itemBuilder: (context, index) {
+                            final player = players[index];
+                            final isEnlisted = selectedUsernames.contains(player['username']);
+                            
+                            return Card(
+                              color: Colors.white.withOpacity(0.9),
+                              margin: EdgeInsets.symmetric(vertical: 8),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15),
                               ),
-                              IconButton(
-                                icon: Icon(Icons.delete, color: Colors.red),
-                                onPressed: () => _deletePlayer(player['username']),
-                                tooltip: 'Delete Player',
+                              child: ListTile(
+                                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                leading: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Transform.scale(
+                                      scale: 1.3,
+                                      child: Checkbox(
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(50),
+                                        ),
+                                        value: isEnlisted,
+                                        checkColor: Colors.white,
+                                        activeColor: Colors.lightGreen,
+                                        onChanged: (bool? value) {
+                                          setState(() {
+                                            if (value == true) {
+                                              if (!selectedUsernames.contains(player['username'])) {
+                                                selectedUsernames.add(player['username']);
+                                              }
+                                            } else {
+                                              selectedUsernames.remove(player['username']);
+                                            }
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                    SizedBox(width: 8),
+                                    CircleAvatar(
+                                      backgroundColor: Colors.green[700],
+                                      child: Text(
+                                        player['username'][0].toUpperCase(),
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 20,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                title: Text(
+                                  player['username'],
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                  ),
+                                ),
+                                subtitle: Row(
+                                  children: [
+                                    Icon(Icons.email, size: 14, color: Colors.grey[600]),
+                                    SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        player['email'] ?? 'No email',
+                                        style: TextStyle(fontSize: 14),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: Icon(Icons.edit, color: Colors.blue),
+                                      onPressed: () => _editPlayer(player),
+                                      tooltip: 'Edit Player',
+                                    ),
+                                    IconButton(
+                                      icon: Icon(Icons.delete, color: Colors.red),
+                                      onPressed: () => _deletePlayer(player['username']),
+                                      tooltip: 'Delete Player',
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ],
-                          ),
+                            );
+                          },
                         ),
-                      );
-                    },
-                  ),
+            ),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _addPlayer,

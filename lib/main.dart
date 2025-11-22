@@ -5,9 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 // Import the pages
 import 'pages/login_page.dart';
-import 'pages/manager_page.dart';
 import 'pages/grade_page.dart';
-// import 'pages/get_score_page.dart';
 import 'pages/playground_page.dart';
 import 'pages/home_page.dart';
 import 'pages/welcome_page.dart';
@@ -67,10 +65,8 @@ class MyApp extends StatelessWidget {
       home: AuthCheck(),
       routes: {
         '/login': (context) => LoginPage(),
-        '/manager': (context) => ManagementPage(),
         '/grade': (context) => GradePage(),
         '/welcome': (context) => WelcomePage(),
-        // '/get_score': (context) => GetScorePage(),
         '/teams': (context) => PlayGround(),
         '/home': (context) => HomePage(),
       },
