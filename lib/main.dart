@@ -15,7 +15,12 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Load environment variables from the .env file
-  await dotenv.load(fileName: "assets/.env");
+  try {
+    await dotenv.load(fileName: "assets/.env");
+  } catch (e) {
+    debugPrint("Warning: Failed to load .env file: $e");
+    // On Web, this might fail if not configured correctly, but we have fallbacks in EnvironmentManager
+  }
 
   runApp(MyApp());
 }
