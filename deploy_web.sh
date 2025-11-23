@@ -28,6 +28,9 @@ find "$WEB_REPO_DIR" -mindepth 1 -maxdepth 1 ! -name '.git' ! -name 'README.md' 
 echo "📂 Copying build files to $WEB_REPO_DIR..."
 cp -r "$FLUTTER_PROJECT_DIR/build/web/"* "$WEB_REPO_DIR/"
 
+# Create .nojekyll file to prevent GitHub Pages from ignoring files starting with underscore
+touch "$WEB_REPO_DIR/.nojekyll"
+
 echo "✅ Files copied successfully."
 
 # 4. Git commands (Optional - Uncomment to auto-push)
