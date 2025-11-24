@@ -26,7 +26,8 @@ class EnvironmentManager {
   // Method to get the current API URL based on the environment
   String get apiUrl {
     // If running on web, always use the production URL or a specific web URL
-    if (kIsWeb) {
+    if (kIsWeb && kReleaseMode) {
+      // In release (deployed) web builds we always use the remote server.
       return dotenv.env['PROD_API_URL'] ?? 'https://renderbbserver.onrender.com';
     }
 
