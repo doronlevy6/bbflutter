@@ -440,13 +440,6 @@ class _LoginPageState extends State<LoginPage> {
                                       decoration: InputDecoration(
                                         labelText: texts['teamPassword'],
                                         prefixIcon: Icon(Icons.lock_outline),
-                                        suffixIcon: Builder(
-                                          builder: (context) => Tooltip(
-                                            message: texts['teamPasswordTooltip']!,
-                                            waitDuration: Duration(milliseconds: 500),
-                                            child: Icon(Icons.help_outline, size: 20, color: Colors.blueAccent),
-                                          ),
-                                        ),
                                       ),
                                       obscureText: true,
                                     ),
@@ -556,13 +549,6 @@ class _LoginPageState extends State<LoginPage> {
                                       decoration: InputDecoration(
                                         labelText: texts['teamPassword'],
                                         prefixIcon: Icon(Icons.lock_outline),
-                                        suffixIcon: Builder(
-                                          builder: (context) => Tooltip(
-                                            message: texts['teamPasswordTooltip']!,
-                                            waitDuration: Duration(milliseconds: 500),
-                                            child: Icon(Icons.help_outline, size: 20, color: Colors.blueAccent),
-                                          ),
-                                        ),
                                       ),
                                       obscureText: true,
                                     ),
