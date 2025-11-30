@@ -33,8 +33,14 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
   Future<void> _checkAccess() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     user = prefs.getString(kUserKey);
+    bool isAdmin = prefs.getBool('is_admin') ?? false;
 
-    if (user != 'doron' && user != 'dor') {
+    print('=== PlayerManagementPage Access Check ===');
+    print('User: $user');
+    print('Is Admin: $isAdmin');
+    print('========================================');
+
+    if (!isAdmin) {
       setState(() {
         accessDenied = true;
         isLoading = false;
@@ -640,26 +646,52 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.sports_basketball, color: Colors.green[700]),
-                        SizedBox(width: 8),
-                        Text(
-                          'Playing: ${selectedUsernames.length}',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green[700],
-                          ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
                         ),
-                      ],
-                    ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.sports_basketball, color: Colors.green[700]),
+                            SizedBox(width: 8),
+                            Text(
+                              'Playing: ${selectedUsernames.length}',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green[700],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.amber[600],
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.admin_panel_settings, color: Colors.white, size: 18),
+                            SizedBox(width: 6),
+                            Text(
+                              'Manager',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                   TextButton.icon(
                     onPressed: () {

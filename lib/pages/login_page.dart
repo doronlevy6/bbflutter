@@ -31,6 +31,7 @@ class _LoginPageState extends State<LoginPage> {
 
   // משתני סטייט נוספים
   bool _isRegister = false;
+  bool _isCreatingTeam = false; // New flag for "Create Team" mode
   String _errorMessage = "";
   bool _isLoading = false;
   final ApiService _apiService = ApiService();
@@ -140,14 +141,26 @@ class _LoginPageState extends State<LoginPage> {
       });
       return false;
     }
-    if (_isRegister &&
-        (_selectedTeam == null ||
+    if (_isRegister) {
+      if (_isCreatingTeam) {
+        if (_createTeamNameController.text.isEmpty ||
+            _teamPasswordController.text.isEmpty ||
+            _selectedTeamType == null) {
+          setState(() {
+            _errorMessage = texts['fillAllFields']!;
+          });
+          return false;
+        }
+      } else {
+        if (_selectedTeam == null ||
             _selectedTeam!.isEmpty ||
-            _teamPasswordController.text.isEmpty)) {
-      setState(() {
-        _errorMessage = texts['fillTeamCredentials']!;
-      });
-      return false;
+            _teamPasswordController.text.isEmpty) {
+          setState(() {
+            _errorMessage = texts['fillTeamCredentials']!;
+          });
+          return false;
+        }
+      }
     }
     return true;
   }
@@ -159,13 +172,18 @@ class _LoginPageState extends State<LoginPage> {
       _isLoading = true;
       _errorMessage = "";
     });
+
     try {
+      // Send all data to register endpoint. 
+      // If _isCreatingTeam is true, we send team_type.
+      // The backend will handle atomic creation.
       final data = await _apiService.post('register', {
         'username': _usernameController.text,
         'password': _passwordController.text,
         'email': _emailController.text,
-        'teamName': _selectedTeam,
+        'teamName': _isCreatingTeam ? _createTeamNameController.text : _selectedTeam,
         'teamPassword': _teamPasswordController.text,
+        'teamType': _isCreatingTeam ? _selectedTeamType : null, // Send teamType only if creating
       });
 
       if (data['success']) {
@@ -205,6 +223,9 @@ class _LoginPageState extends State<LoginPage> {
         await prefs.setString('user', data['user']['username']);
         if (data['user']['team_type'] != null) {
           await prefs.setString('team_type', data['user']['team_type']);
+        }
+        if (data['is_admin'] != null) {
+          await prefs.setBool('is_admin', data['is_admin']);
         }
 
         String username = data['user']['username'];
@@ -276,148 +297,13 @@ class _LoginPageState extends State<LoginPage> {
 
   // מתודה לפתיחת דיאלוג יצירת קבוצה עם בחירת סוג קבוצה באמצעות כפתורים
   void _openCreateTeamDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        // עטיפת הדיאלוג ב-StatefulBuilder כדי לאפשר עדכון מיידי של הבחירה בתוך הדיאלוג
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return AlertDialog(
-              title: Center(
-                child: Text(
-                  texts['createNewTeam']!,
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    TextField(
-                      controller: _createTeamNameController,
-                      decoration: InputDecoration(
-                        labelText: texts['teamName'],
-                        icon: Icon(Icons.group),
-                      ),
-                    ),
-                    SizedBox(height: 10),
-                    TextField(
-                      controller: _createTeamPasswordController,
-                      decoration: InputDecoration(
-                        labelText: texts['teamPassword'],
-                        icon: Icon(Icons.lock),
-                      ),
-                      obscureText: true,
-                    ),
-                    SizedBox(height: 10),
-                    Text(
-                      _isHebrew ? ":בחר סוג קבוצה" : "Select Team Type:",
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Flexible(
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              setStateDialog(() {
-                                _selectedTeamType = "fb";
-                              });
-                            },
-                            icon: Container(
-                              width: 24,
-                              height: 24,
-                              child: Transform.scale(
-                                scale: 1.3, // הגדלה של 20% לתמונה בלבד
-                                child: ClipOval(
-                                  child: Image.asset(
-                                    'assets/images/fb.png',
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            label: Text(
-                              _isHebrew ? "כדורגל" : "Soccer",
-                              style: TextStyle(
-                                fontSize: MediaQuery.of(context).size.width < 400 ? 10 : 14,
-                              ),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              minimumSize: Size(100, 40),
-                              padding: EdgeInsets.symmetric(
-                                horizontal: MediaQuery.of(context).size.width < 350 ? 4 : 8,
-                                vertical: 10,
-                              ),
-                              backgroundColor: _selectedTeamType == "fb"
-                                  ? Colors.green[400]
-                                  : Colors.green[100],
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: 5),
-                        Flexible(
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              setStateDialog(() {
-                                _selectedTeamType = "bk";
-                              });
-                            },
-                            icon: Container(
-                              width: 24,
-                              height: 24,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                image: DecorationImage(
-                                  image: AssetImage('assets/images/basketball.png'),
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                            ),
-                            label: Text(
-                              _isHebrew ? "כדורסל" : "Basketball",
-                              style: TextStyle(
-                                fontSize: MediaQuery.of(context).size.width < 400 ? 10 : 14,
-                              ),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              minimumSize: Size(100, 40),
-                              padding: EdgeInsets.symmetric(
-                                horizontal: MediaQuery.of(context).size.width < 350 ? 4 : 8,
-                                vertical: 10,
-                              ),
-                              backgroundColor: _selectedTeamType == "bk"
-                                  ? Colors.green[400]
-                                  : Colors.green[100],
-                            ),
-                          ),
-                        ),
-                      ],
-                    )
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                  child: Text(texts['cancel']!, style: TextStyle(color: Colors.red)),
-                ),
-                ElevatedButton(
-                  onPressed: _handleCreateTeam,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                  ),
-                  child: Text(texts['create']!),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
+    setState(() {
+      _isRegister = true;
+      _isCreatingTeam = true;
+      _errorMessage = "";
+    });
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -540,49 +426,148 @@ class _LoginPageState extends State<LoginPage> {
                                     ),
                                   ),
                                   SizedBox(height: 16),
-                                  DropdownButtonFormField<String>(
-                                    value: _selectedTeam,
-                                    decoration: InputDecoration(
-                                      labelText: texts['teamName'],
-                                      prefixIcon: Icon(Icons.group),
-                                      suffixIcon: Builder(
-                                        builder: (context) => Tooltip(
-                                          message: texts['teamTooltip']!,
-                                          waitDuration: Duration(milliseconds: 500),
-                                          child: Icon(Icons.help_outline, size: 20, color: Colors.blueAccent),
-                                        ),
+                                  if (_isCreatingTeam) ...[
+                                    TextField(
+                                      controller: _createTeamNameController,
+                                      decoration: InputDecoration(
+                                        labelText: texts['teamName'],
+                                        prefixIcon: Icon(Icons.group),
                                       ),
                                     ),
-                                    hint: Text(texts['selectTeamHint']!),
-                                    items: _teams.map((team) {
-                                      return DropdownMenuItem(
-                                        value: team,
-                                        child: Text(team),
-                                      );
-                                    }).toList(),
-                                    onChanged: (newValue) {
-                                      setState(() {
-                                        _selectedTeam = newValue;
-                                      });
-                                    },
-                                  ),
-                                  SizedBox(height: 16),
-                                  TextField(
-                                    controller: _teamPasswordController,
-                                    decoration: InputDecoration(
-                                      labelText: texts['teamPassword'],
-                                      prefixIcon: Icon(Icons.lock_outline),
-                                      suffixIcon: Builder(
-                                        builder: (context) => Tooltip(
-                                          message: texts['teamPasswordTooltip']!,
-                                          waitDuration: Duration(milliseconds: 500),
-                                          child: Icon(Icons.help_outline, size: 20, color: Colors.blueAccent),
+                                    SizedBox(height: 16),
+                                    TextField(
+                                      controller: _teamPasswordController,
+                                      decoration: InputDecoration(
+                                        labelText: texts['teamPassword'],
+                                        prefixIcon: Icon(Icons.lock_outline),
+                                        suffixIcon: Builder(
+                                          builder: (context) => Tooltip(
+                                            message: texts['teamPasswordTooltip']!,
+                                            waitDuration: Duration(milliseconds: 500),
+                                            child: Icon(Icons.help_outline, size: 20, color: Colors.blueAccent),
+                                          ),
                                         ),
                                       ),
+                                      obscureText: true,
                                     ),
-                                    obscureText: true,
-                                  ),
-                                  SizedBox(height: 16),
+                                    SizedBox(height: 16),
+                                    Text(
+                                      _isHebrew ? ":בחר סוג קבוצה" : "Select Team Type:",
+                                      style: TextStyle(fontWeight: FontWeight.bold),
+                                    ),
+                                    SizedBox(height: 10),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Flexible(
+                                          child: ElevatedButton.icon(
+                                            onPressed: () {
+                                              setState(() {
+                                                _selectedTeamType = "fb";
+                                              });
+                                            },
+                                            icon: Container(
+                                              width: 24,
+                                              height: 24,
+                                              child: Transform.scale(
+                                                scale: 1.3,
+                                                child: ClipOval(
+                                                  child: Image.asset(
+                                                    'assets/images/fb.png',
+                                                    fit: BoxFit.cover,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            label: Text(
+                                              _isHebrew ? "כדורגל" : "Soccer",
+                                              style: TextStyle(fontSize: 12),
+                                            ),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: _selectedTeamType == "fb"
+                                                  ? Colors.green[400]
+                                                  : Colors.green[100],
+                                            ),
+                                          ),
+                                        ),
+                                        SizedBox(width: 5),
+                                        Flexible(
+                                          child: ElevatedButton.icon(
+                                            onPressed: () {
+                                              setState(() {
+                                                _selectedTeamType = "bk";
+                                              });
+                                            },
+                                            icon: Container(
+                                              width: 24,
+                                              height: 24,
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                image: DecorationImage(
+                                                  image: AssetImage('assets/images/basketball.png'),
+                                                  fit: BoxFit.cover,
+                                                ),
+                                              ),
+                                            ),
+                                            label: Text(
+                                              _isHebrew ? "כדורסל" : "Basketball",
+                                              style: TextStyle(fontSize: 12),
+                                            ),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: _selectedTeamType == "bk"
+                                                  ? Colors.green[400]
+                                                  : Colors.green[100],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    SizedBox(height: 16),
+                                  ] else ...[
+                                    DropdownButtonFormField<String>(
+                                      value: _selectedTeam,
+                                      decoration: InputDecoration(
+                                        labelText: texts['teamName'],
+                                        prefixIcon: Icon(Icons.group),
+                                        suffixIcon: Builder(
+                                          builder: (context) => Tooltip(
+                                            message: texts['teamTooltip']!,
+                                            waitDuration: Duration(milliseconds: 500),
+                                            child: Icon(Icons.help_outline, size: 20, color: Colors.blueAccent),
+                                          ),
+                                        ),
+                                      ),
+                                      hint: Text(texts['selectTeamHint']!),
+                                      items: _teams.map((team) {
+                                        return DropdownMenuItem(
+                                          value: team,
+                                          child: Text(team),
+                                        );
+                                      }).toList(),
+                                      onChanged: (newValue) {
+                                        setState(() {
+                                          _selectedTeam = newValue;
+                                        });
+                                      },
+                                    ),
+                                    SizedBox(height: 16),
+                                    TextField(
+                                      controller: _teamPasswordController,
+                                      decoration: InputDecoration(
+                                        labelText: texts['teamPassword'],
+                                        prefixIcon: Icon(Icons.lock_outline),
+                                        suffixIcon: Builder(
+                                          builder: (context) => Tooltip(
+                                            message: texts['teamPasswordTooltip']!,
+                                            waitDuration: Duration(milliseconds: 500),
+                                            child: Icon(Icons.help_outline, size: 20, color: Colors.blueAccent),
+                                          ),
+                                        ),
+                                      ),
+                                      obscureText: true,
+                                    ),
+                                    SizedBox(height: 16),
+                                  ],
                                 ],
                                 if (_errorMessage.isNotEmpty)
                                   Padding(
@@ -636,12 +621,15 @@ class _LoginPageState extends State<LoginPage> {
                                   onPressed: () {
                                     setState(() {
                                       _isRegister = !_isRegister;
+                                      _isCreatingTeam = false; // Reset create team mode when switching
                                       _errorMessage = "";
                                       _usernameController.clear();
                                       _passwordController.clear();
                                       _emailController.clear();
                                       _selectedTeam = null;
                                       _teamPasswordController.clear();
+                                      _createTeamNameController.clear();
+                                      _selectedTeamType = null;
                                     });
                                   },
                                   child: Text(

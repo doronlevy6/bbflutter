@@ -19,11 +19,13 @@ class _HomePageState extends State<HomePage> {
   Widget _currentPage = WelcomePage();
   String _appBarTitle = 'Teams and Averages';
   bool _isHebrew = false;
+  bool _isAdmin = false;
 
   @override
   void initState() {
     super.initState();
     _loadLanguage();
+    _loadAdminStatus();
   }
 
   // Load the language setting from SharedPreferences using key 'isHebrew'
@@ -34,6 +36,15 @@ class _HomePageState extends State<HomePage> {
       _isHebrew = isHebrew;
       // Update AppBar title based on the language
       _appBarTitle = _isHebrew ? 'רשימת נרשמים' : 'enlisted playres';
+    });
+  }
+
+  // Load admin status from SharedPreferences
+  void _loadAdminStatus() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    bool isAdmin = prefs.getBool('is_admin') ?? false;
+    setState(() {
+      _isAdmin = isAdmin;
     });
   }
 
@@ -223,8 +234,8 @@ class _HomePageState extends State<HomePage> {
                               page: GradePage(),
                               title: gradeTitle,
                             ),
-                            // Player Management option for user 'doron' or 'dor'
-                            if (username.toLowerCase() == 'doron' || username.toLowerCase() == 'dor')
+                            // Player Management option for managers
+                            if (_isAdmin)
                               _buildDrawerIcon(
                                 context,
                                 icon: Icons.manage_accounts,
