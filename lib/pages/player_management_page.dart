@@ -21,6 +21,10 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
   List<String> selectedUsernames = [];
   Map<String, bool> initialSelections = {};
   
+  // For role management (manager promotion)
+  Map<String, String> playerRoles = {}; // Current roles
+  Map<String, String> initialRoles = {}; // Original roles for change detection
+  
   // For sorting
   bool _isAscending = true;
 
@@ -80,6 +84,13 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
       if (response['success']) {
         setState(() {
           players = response['users'];
+          // Initialize role maps
+          for (var player in players) {
+            String username = player['username'];
+            String role = player['role'] ?? 'player';
+            playerRoles[username] = role;
+            initialRoles[username] = role;
+          }
           isLoading = false;
         });
       } else {
@@ -112,6 +123,7 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
     try {
       List<String> usernamesToEnlist = [];
       List<String> usernamesToUnenlist = [];
+      List<Map<String, String>> roleUpdates = [];
 
       // Determine which users to enlist and unenlist based on changes
       for (var player in players) {
@@ -124,6 +136,13 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
           } else {
             usernamesToUnenlist.add(username);
           }
+        }
+        
+        // Check for role changes
+        String initialRole = initialRoles[username] ?? 'player';
+        String currentRole = playerRoles[username] ?? 'player';
+        if (initialRole != currentRole) {
+          roleUpdates.add({'username': username, 'role': currentRole});
         }
       }
 
@@ -145,16 +164,26 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
           });
         }
       }
+      
+      // Update roles if there are changes
+      if (roleUpdates.isNotEmpty) {
+        await apiService.put('update-player-roles', {
+          'roleUpdates': roleUpdates,
+        });
+      }
 
-      _showSuccess('Players enlistment updated successfully!');
+      _showSuccess('Players enlistment and roles updated successfully!');
 
-      // Update initialSelections to reflect current state
+      // Update initialSelections and initialRoles to reflect current state
       setState(() {
         for (var username in usernamesToEnlist) {
           initialSelections[username] = true;
         }
         for (var username in usernamesToUnenlist) {
           initialSelections[username] = false;
+        }
+        for (var update in roleUpdates) {
+          initialRoles[update['username']!] = update['role']!;
         }
       });
 
@@ -848,6 +877,23 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
+                                    // Crown icon for manager promotion
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.emoji_events,
+                                        color: playerRoles[player['username']] == 'manager'
+                                          ? Colors.amber[700]
+                                          : Colors.grey[400],
+                                        size: 28,
+                                      ),
+                                      onPressed: () {
+                                        setState(() {
+                                          String currentRole = playerRoles[player['username']] ?? 'player';
+                                          playerRoles[player['username']] = currentRole == 'manager' ? 'player' : 'manager';
+                                        });
+                                      },
+                                      tooltip: playerRoles[player['username']] == 'manager' ? 'Demote from Manager' : 'Promote to Manager',
+                                    ),
                                     IconButton(
                                       icon: Icon(Icons.edit, color: Colors.blue),
                                       onPressed: () => _editPlayer(player),
