@@ -140,6 +140,7 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
        // Default to enlisted
        await _loadEnlistedPlayers();
      }
+     _sortPlayers(); // Sort after loading selection
   }
 
   Future<void> _saveSelection() async {
@@ -199,6 +200,7 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
         _selectedPlayerUsernames.add(player.username);
       }
       _saveSelection();
+      _sortPlayers(); // Re-sort to move selected players to top
     });
   }
 
@@ -207,6 +209,7 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
       _selectedPlayerUsernames.clear();
       _initializeTeams();
       _saveSelection();
+      _sortPlayers(); // Re-sort after clearing selection
     });
   }
 
@@ -266,6 +269,15 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
 
   void _sortPlayers() {
     _allPlayers.sort((a, b) {
+      // First, sort by selection status (selected players first)
+      bool aSelected = _selectedPlayerUsernames.contains(a.username);
+      bool bSelected = _selectedPlayerUsernames.contains(b.username);
+      
+      if (aSelected != bSelected) {
+        return aSelected ? -1 : 1; // Selected players come first
+      }
+      
+      // Within same selection status, sort alphabetically
       return _isAscending 
           ? a.username.compareTo(b.username) 
           : b.username.compareTo(a.username);
@@ -283,7 +295,7 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
         children: [
           // Left Column: Player Selection
           Expanded(
-            flex: 4,
+            flex: 3,
             child: Container(
               color: Colors.grey[100],
               child: Column(
@@ -374,7 +386,7 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
           
           // Right Column: Teams & Settings
           Expanded(
-            flex: 6,
+            flex: 7,
             child: Column(
               children: [
                 // Compact Settings Bar
@@ -424,17 +436,19 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
                   ),
                 ),
                 
-                // Teams Area
+                // Teams Area - 2 Column Grid
                 Expanded(
                   child: Container(
                     padding: EdgeInsets.all(8),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: List.generate(_numberOfTeams, (index) {
-                        return Expanded(
-                          child: _buildTeamColumn(index),
-                        );
-                      }),
+                    child: GridView.builder(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        childAspectRatio: 0.8,
+                        crossAxisSpacing: 8,
+                        mainAxisSpacing: 8,
+                      ),
+                      itemCount: _numberOfTeams,
+                      itemBuilder: (context, index) => _buildTeamColumn(index),
                     ),
                   ),
                 ),
@@ -484,7 +498,7 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
 
   Widget _buildPlayerListItem(Player player, bool isSelected, bool isInTeam) {
     Widget content = Container(
-      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         color: isSelected ? Colors.green[50] : Colors.white,
         border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
@@ -494,13 +508,14 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
           Icon(
             isSelected ? Icons.check_circle : Icons.circle_outlined,
             color: isSelected ? Colors.green : Colors.grey[400],
-            size: 20,
+            size: 16,
           ),
-          SizedBox(width: 8),
+          SizedBox(width: 4),
           Expanded(
             child: Text(
               player.username,
               style: TextStyle(
+                fontSize: 12,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 color: isInTeam ? Colors.grey : Colors.black,
                 decoration: isInTeam ? TextDecoration.lineThrough : null,
@@ -511,7 +526,7 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
           if (isSelected)
             Text(
               _getPlayerAverage(player).toStringAsFixed(1),
-              style: TextStyle(fontSize: 12, color: Colors.green[800], fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 10, color: Colors.green[800], fontWeight: FontWeight.bold),
             ),
         ],
       ),
