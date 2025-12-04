@@ -6,6 +6,7 @@ import 'player_management_page.dart';
 import 'grade_page.dart';
 import 'settings.dart';
 import 'playground_page.dart';
+import 'interactive_playground_page.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:responsive_builder/responsive_builder.dart';
 
@@ -251,6 +252,14 @@ class _HomePageState extends State<HomePage> {
                               tooltip: playgroundTitle,
                               page: PlayGround(),
                               title: playgroundTitle,
+                            ),
+                            _buildDrawerIcon(
+                              context,
+                              icon: Icons.drag_indicator,
+                              color: Colors.indigo[300],
+                              tooltip: _isHebrew ? 'בנייה אינטראקטיבית' : 'Interactive Builder',
+                              page: InteractivePlaygroundPage(),
+                              title: _isHebrew ? 'בנייה אינטראקטיבית' : 'Interactive Builder',
                             ),
                             if (username.toLowerCase() == 'doron')
                             _buildDrawerIcon(

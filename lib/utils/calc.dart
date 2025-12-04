@@ -80,3 +80,47 @@ List<List<Player>> distributePlayersSmart(List<Player> players,
 
   return teams;
 }
+
+/// מחלק את השחקנים הנותרים (pool) לקבוצות הקיימות (currentTeams)
+/// תוך ניסיון לאזן את הדירוג הכולל של הקבוצות.
+/// מכבד את המיקומים הקיימים של שחקנים שכבר נמצאים בקבוצות.
+List<List<Player>> distributePlayersWithConstraints(
+    List<List<Player>> currentTeams,
+    List<Player> pool,
+    int maxPerTeam) {
+  
+  // יצירת עותק עמוק של הקבוצות כדי לא לשנות את המקור ישירות אם לא נרצה
+  // אבל כאן אנחנו רוצים להחזיר רשימה חדשה
+  List<List<Player>> newTeams = currentTeams.map((team) => List<Player>.from(team)).toList();
+  
+  // מיון השחקנים הפנויים מהחזק לחלש
+  List<Player> sortedPool = List.from(pool)
+    ..sort((a, b) => computeTotalRanking(b).compareTo(computeTotalRanking(a)));
+
+  for (var player in sortedPool) {
+    // מציאת הקבוצה עם הניקוד הכולל הנמוך ביותר שיש בה מקום
+    int bestTeamIndex = -1;
+    double minTotalScore = double.infinity;
+
+    for (int i = 0; i < newTeams.length; i++) {
+      if (newTeams[i].length >= maxPerTeam) continue;
+
+      double currentScore = newTeams[i].fold(0.0, (sum, p) => sum + computeTotalRanking(p));
+      
+      // אנחנו רוצים להוסיף את השחקן החזק ביותר לקבוצה החלשה ביותר
+      if (currentScore < minTotalScore) {
+        minTotalScore = currentScore;
+        bestTeamIndex = i;
+      }
+    }
+
+    if (bestTeamIndex != -1) {
+      newTeams[bestTeamIndex].add(player);
+    } else {
+      // אין מקום באף קבוצה (לא אמור לקרות אם החישובים נכונים)
+      print('Warning: No space left for player ${player.username}');
+    }
+  }
+
+  return newTeams;
+}
