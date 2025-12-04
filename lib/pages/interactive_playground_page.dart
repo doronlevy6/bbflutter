@@ -277,10 +277,12 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
         return aSelected ? -1 : 1; // Selected players come first
       }
       
-      // Within same selection status, sort alphabetically
+      // Within same selection status, sort alphabetically (case-insensitive)
+      String aName = a.username.toLowerCase();
+      String bName = b.username.toLowerCase();
       return _isAscending 
-          ? a.username.compareTo(b.username) 
-          : b.username.compareTo(a.username);
+          ? aName.compareTo(bName) 
+          : bName.compareTo(aName);
     });
   }
 
