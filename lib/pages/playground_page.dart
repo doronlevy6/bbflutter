@@ -222,8 +222,7 @@ class _PlayGroundState extends State<PlayGround> {
 
   // Select all enlisted players
   Future<void> _selectAllEnlistedPlayers() async {
-    // Fetch latest enlisted players from server
-    await RankingsService.getEnlisted();
+    // Load from local storage only (as requested)
     await _loadEnlistedPlayers();
   }
 

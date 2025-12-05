@@ -154,9 +154,7 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
   Future<void> _loadEnlistedPlayers() async {
     // setState(() => _isLoading = true); // Handled by caller or separate button
     try {
-      // Fetch latest enlisted players from server
-      await RankingsService.getEnlisted();
-      
+      // Load from local storage only (as requested)
       SharedPreferences prefs = await SharedPreferences.getInstance();
       List<String> enlistedUsernames = prefs.getStringList('enlistedPlayers') ?? [];
       
@@ -166,6 +164,7 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
         _initializeTeams();
       });
       _saveSelection(); // Save this as the new selection
+      _sortPlayers(); // Sort after loading selection
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(_isHebrew ? 'נרשמים נטענו בהצלחה' : 'Enlisted players loaded')),
@@ -217,21 +216,40 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
     });
   }
 
-  void _clearTeamsSmartly() {
+  void _clearAutoPlayers() {
     setState(() {
-      bool hasAutoBalancedPlayers = _teams.any((team) => 
-        team.any((p) => !_manuallyPlacedPlayers.contains(p.username)));
-      
-      if (hasAutoBalancedPlayers) {
-        // First click: remove only auto-balanced players
-        for (int i = 0; i < _teams.length; i++) {
-          _teams[i].removeWhere((p) => !_manuallyPlacedPlayers.contains(p.username));
-        }
-      } else {
-        // Second click: clear everything including manual players
-        _initializeTeams();
-        _manuallyPlacedPlayers.clear();
+      // Remove only players that are NOT in the manually placed set
+      for (int i = 0; i < _teams.length; i++) {
+        _teams[i].removeWhere((p) => !_manuallyPlacedPlayers.contains(p.username));
       }
+      
+      // Feedback
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_isHebrew 
+            ? 'נמחקו שחקנים שנוספו אוטומטית' 
+            : 'Removed auto-balanced players'),
+          duration: Duration(milliseconds: 1000),
+        ),
+      );
+    });
+  }
+
+  void _clearAllTeams() {
+    setState(() {
+      // Explicitly create empty teams (don't use _initializeTeams as it preserves players)
+      _teams = List.generate(_numberOfTeams, (_) => []);
+      _manuallyPlacedPlayers.clear();
+      
+      // Feedback
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_isHebrew 
+            ? 'כל הקבוצות נוקו' 
+            : 'All teams cleared'),
+          duration: Duration(milliseconds: 1000),
+        ),
+      );
     });
   }
 
@@ -277,6 +295,10 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
       // Note: players added by smart balance are NOT marked as manually placed
     });
   }
+
+  // ... (existing code)
+
+
 
   double _getTeamAverage(List<Player> team) {
     if (team.isEmpty) return 0.0;
@@ -468,17 +490,29 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
                         icon: Icon(Icons.auto_fix_high, size: 16),
                         label: Text(_isHebrew ? 'מלא' : 'Fill', style: TextStyle(fontSize: 12)),
                       ),
-                      // Clear Teams Button
-                      ElevatedButton.icon(
-                        onPressed: _clearTeamsSmartly,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange[700],
-                          foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          minimumSize: Size(0, 36),
+                      // Clear Teams Button (Custom for Double Tap)
+                      Material(
+                        color: Colors.orange[700],
+                        borderRadius: BorderRadius.circular(20),
+                        elevation: 2,
+                        child: InkWell(
+                          onTap: _clearAutoPlayers,
+                          onDoubleTap: _clearAllTeams,
+                          onLongPress: _clearAllTeams, // Added Long Press support
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            constraints: BoxConstraints(minHeight: 36),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.cleaning_services, size: 16, color: Colors.white),
+                                SizedBox(width: 8),
+                                Text(_isHebrew ? 'נקה' : 'Clear', style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
                         ),
-                        icon: Icon(Icons.cleaning_services, size: 16),
-                        label: Text(_isHebrew ? 'נקה' : 'Clear', style: TextStyle(fontSize: 12)),
                       ),
                     ],
                   ),
