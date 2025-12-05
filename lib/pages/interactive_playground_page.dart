@@ -32,6 +32,9 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
   Set<String> _selectedPlayerUsernames = {};
   List<List<Player>> _teams = List.generate(3, (_) => []);
   
+  // Track manually placed players (via drag-and-drop)
+  Set<String> _manuallyPlacedPlayers = {};
+  
   // Loading state
   bool _isLoading = false;
 
@@ -208,8 +211,36 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
     setState(() {
       _selectedPlayerUsernames.clear();
       _initializeTeams();
+      _manuallyPlacedPlayers.clear();
       _saveSelection();
       _sortPlayers(); // Re-sort after clearing selection
+    });
+  }
+
+  void _clearTeamsSmartly() {
+    setState(() {
+      bool hasAutoBalancedPlayers = _teams.any((team) => 
+        team.any((p) => !_manuallyPlacedPlayers.contains(p.username)));
+      
+      if (hasAutoBalancedPlayers) {
+        // First click: remove only auto-balanced players
+        for (int i = 0; i < _teams.length; i++) {
+          _teams[i].removeWhere((p) => !_manuallyPlacedPlayers.contains(p.username));
+        }
+      } else {
+        // Second click: clear everything including manual players
+        _initializeTeams();
+        _manuallyPlacedPlayers.clear();
+      }
+    });
+  }
+
+  void _removePlayerFromTeam(Player player) {
+    setState(() {
+      for (var team in _teams) {
+        team.removeWhere((p) => p.username == player.username);
+      }
+      _manuallyPlacedPlayers.remove(player.username);
     });
   }
 
@@ -223,6 +254,7 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
       // Add to new team
       if (_teams[teamIndex].length < _playersPerTeam) {
         _teams[teamIndex].add(player);
+        _manuallyPlacedPlayers.add(player.username); // Track as manually placed
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(_isHebrew ? 'הקבוצה מלאה' : 'Team is full')),
@@ -242,6 +274,7 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
 
       // Distribute
       _teams = distributePlayersWithConstraints(_teams, pool, _playersPerTeam);
+      // Note: players added by smart balance are NOT marked as manually placed
     });
   }
 
@@ -424,7 +457,7 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
                         },
                       ),
                       // Smart Balance Button
-                      ElevatedButton(
+                      ElevatedButton.icon(
                         onPressed: _smartBalance,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.green[700],
@@ -432,7 +465,20 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
                           padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           minimumSize: Size(0, 36),
                         ),
-                        child: Icon(Icons.auto_fix_high, size: 20),
+                        icon: Icon(Icons.auto_fix_high, size: 16),
+                        label: Text(_isHebrew ? 'מלא' : 'Fill', style: TextStyle(fontSize: 12)),
+                      ),
+                      // Clear Teams Button
+                      ElevatedButton.icon(
+                        onPressed: _clearTeamsSmartly,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange[700],
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          minimumSize: Size(0, 36),
+                        ),
+                        icon: Icon(Icons.cleaning_services, size: 16),
+                        label: Text(_isHebrew ? 'נקה' : 'Clear', style: TextStyle(fontSize: 12)),
                       ),
                     ],
                   ),
@@ -472,26 +518,34 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+        Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green[900])),
         SizedBox(width: 4),
         InkWell(
           onTap: value > min ? () => onChanged(value - 1) : null,
           child: Container(
             padding: EdgeInsets.all(2),
-            decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(4)),
-            child: Icon(Icons.remove, size: 16),
+            decoration: BoxDecoration(
+              color: Colors.green[100],
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: Colors.green[300]!),
+            ),
+            child: Icon(Icons.remove, size: 16, color: Colors.green[700]),
           ),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 6.0),
-          child: Text('$value', style: TextStyle(fontWeight: FontWeight.bold)),
+          child: Text('$value', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green[900])),
         ),
         InkWell(
           onTap: value < max ? () => onChanged(value + 1) : null,
           child: Container(
             padding: EdgeInsets.all(2),
-            decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(4)),
-            child: Icon(Icons.add, size: 16),
+            decoration: BoxDecoration(
+              color: Colors.green[100],
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: Colors.green[300]!),
+            ),
+            child: Icon(Icons.add, size: 16, color: Colors.green[700]),
           ),
         ),
       ],
@@ -500,10 +554,15 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
 
   Widget _buildPlayerListItem(Player player, bool isSelected, bool isInTeam) {
     Widget content = Container(
+      margin: EdgeInsets.symmetric(horizontal: 4, vertical: 1),
       padding: EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         color: isSelected ? Colors.green[50] : Colors.white,
-        border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: isSelected ? Colors.green[200]! : Colors.grey[200]!,
+          width: 1,
+        ),
       ),
       child: Row(
         children: [
@@ -669,7 +728,10 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
         ),
       ),
       childWhenDragging: Opacity(opacity: 0.3, child: _teamPlayerContent(player)),
-      child: _teamPlayerContent(player),
+      child: InkWell(
+        onTap: () => _removePlayerFromTeam(player),
+        child: _teamPlayerContent(player),
+      ),
     );
   }
   
