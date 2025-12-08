@@ -794,10 +794,6 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          Text(
-            _getPlayerAverage(player).toStringAsFixed(1),
-            style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-          ),
         ],
       ),
     );
