@@ -33,11 +33,11 @@ touch "$WEB_REPO_DIR/.nojekyll"
 
 echo "✅ Files copied successfully."
 
-# 4. Git commands (Optional - Uncomment to auto-push)
-# cd "$WEB_REPO_DIR"
-# git add .
-# git commit -m "Deploy web build: $(date)"
-# git push origin main
+# 4. Git commands - Auto-push enabled
+cd "$WEB_REPO_DIR"
+git add .
+git commit -m "Deploy web build: $(date)"
+git push origin main
 
-echo "🎉 Deployment preparation complete!"
-echo "👉 Go to $WEB_REPO_DIR to review changes and push to GitHub."
+echo "🎉 Deployment complete!"
+echo "✅ Changes have been pushed to GitHub Pages."
