@@ -526,26 +526,50 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
                   ),
                 ),
                 
-                // Teams Area - Dynamic Height Grid
+                // Teams Area - Responsive & Uniform Height
                 Expanded(
-                  child: SingleChildScrollView(
-                    padding: EdgeInsets.all(8),
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: List.generate(_numberOfTeams, (index) {
-                        // Calculate dynamic height based on team size
-                        int teamSize = _teams.length > index ? _teams[index].length : 0;
-                        int displaySize = teamSize > 3 ? teamSize : 3; // Minimum 3 players height
-                        double cardHeight = 50 + (displaySize * 42) + 60; // header + (players * card) + footer
-                        
-                        return Container(
-                          width: (MediaQuery.of(context).size.width * 0.7 - 24) / 2, // Half width minus padding
-                          height: cardHeight,
-                          child: _buildTeamColumn(index),
-                        );
-                      }),
-                    ),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      // Calculate max players across all teams
+                      int maxPlayersInAnyTeam = 0;
+                      for (var team in _teams) {
+                        if (team.length > maxPlayersInAnyTeam) {
+                          maxPlayersInAnyTeam = team.length;
+                        }
+                      }
+                      int displaySize = maxPlayersInAnyTeam > 3 ? maxPlayersInAnyTeam : 3; // Minimum 3 players
+                      double uniformCardHeight = 50 + (displaySize * 42) + 60; // header + (players * card) + footer
+                      
+                       // Calculate responsive columns (1 or 2 based on available width)
+                      double availableWidth = constraints.maxWidth - 16; // minus padding
+                      // Narrower cards: minimum width for ~10 character name + padding + icons
+                      double minCardWidth = 140; // Reduced from 200 to fit content better
+                      double maxCardWidth = 180; // Cap the maximum width
+                      
+                      int columns = (availableWidth / minCardWidth).floor();
+                      if (columns < 1) columns = 1;
+                      if (columns > 2) columns = 2; // Maximum 2 columns
+                      
+                      // Calculate card width, but cap it at maxCardWidth
+                      double calculatedWidth = (availableWidth - (columns - 1) * 8) / columns;
+                      double cardWidth = calculatedWidth > maxCardWidth ? maxCardWidth : calculatedWidth;
+                      
+                      return SingleChildScrollView(
+                        padding: EdgeInsets.all(8),
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          alignment: WrapAlignment.start, // Align cards to start
+                          children: List.generate(_numberOfTeams, (index) {
+                            return Container(
+                              width: cardWidth,
+                              height: uniformCardHeight,
+                              child: _buildTeamColumn(index),
+                            );
+                          }),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],
@@ -567,34 +591,39 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green[900])),
-        SizedBox(width: 4),
-        InkWell(
-          onTap: value > min ? () => onChanged(value - 1) : null,
-          child: Container(
-            padding: EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              color: Colors.green[100],
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Colors.green[300]!),
-            ),
-            child: Icon(Icons.remove, size: 16, color: Colors.green[700]),
+        SizedBox(width: 6),
+        // Value display
+        Container(
+          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.green[50],
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: Colors.green[200]!),
           ),
+          child: Text('$value', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green[900], fontSize: 14)),
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6.0),
-          child: Text('$value', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green[900])),
-        ),
-        InkWell(
-          onTap: value < max ? () => onChanged(value + 1) : null,
-          child: Container(
-            padding: EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              color: Colors.green[100],
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Colors.green[300]!),
+        SizedBox(width: 2),
+        // Vertical arrows - minimal design
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            GestureDetector(
+              onTap: value < max ? () => onChanged(value + 1) : null,
+              child: Icon(
+                Icons.keyboard_arrow_up,
+                size: 16,
+                color: value < max ? Colors.green[700] : Colors.grey[400],
+              ),
             ),
-            child: Icon(Icons.add, size: 16, color: Colors.green[700]),
-          ),
+            GestureDetector(
+              onTap: value > min ? () => onChanged(value - 1) : null,
+              child: Icon(
+                Icons.keyboard_arrow_down,
+                size: 16,
+                color: value > min ? Colors.green[700] : Colors.grey[400],
+              ),
+            ),
+          ],
         ),
       ],
     );
