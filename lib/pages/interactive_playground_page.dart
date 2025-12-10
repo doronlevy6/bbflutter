@@ -478,38 +478,46 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
                           });
                         },
                       ),
-                      // Smart Balance Button
-                      ElevatedButton.icon(
-                        onPressed: _smartBalance,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green[700],
-                          foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          minimumSize: Size(0, 36),
+                      // Fill Button (Magic Wand - Icon Only)
+                      Tooltip(
+                        message: _isHebrew ? 'מלא אוטומטי' : 'Auto Fill',
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            gradient: LinearGradient(
+                              colors: [Colors.green[600]!, Colors.green[800]!],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.green.withOpacity(0.3),
+                                blurRadius: 4,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: IconButton(
+                            onPressed: _smartBalance,
+                            icon: Icon(Icons.auto_fix_high, size: 20),
+                            color: Colors.white,
+                            padding: EdgeInsets.all(8),
+                            constraints: BoxConstraints(minWidth: 36, minHeight: 36),
+                          ),
                         ),
-                        icon: Icon(Icons.auto_fix_high, size: 16),
-                        label: Text(_isHebrew ? 'מלא' : 'Fill', style: TextStyle(fontSize: 12)),
                       ),
-                      // Clear Teams Button (Custom for Double Tap)
-                      Material(
-                        color: Colors.orange[700],
-                        borderRadius: BorderRadius.circular(20),
-                        elevation: 2,
-                        child: InkWell(
+                      // Clear Teams Button (Icon Only - Orange Broom)
+                      Tooltip(
+                        message: _isHebrew ? 'נקה (לחץ פעמיים = נקה הכל)' : 'Clear (Double tap = Clear all)',
+                        child: GestureDetector(
                           onTap: _clearAutoPlayers,
                           onDoubleTap: _clearAllTeams,
-                          onLongPress: _clearAllTeams, // Added Long Press support
-                          borderRadius: BorderRadius.circular(20),
+                          onLongPress: _clearAllTeams,
                           child: Container(
-                            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            constraints: BoxConstraints(minHeight: 36),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.cleaning_services, size: 16, color: Colors.white),
-                                SizedBox(width: 8),
-                                Text(_isHebrew ? 'נקה' : 'Clear', style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold)),
-                              ],
+                            padding: EdgeInsets.all(8),
+                            constraints: BoxConstraints(minWidth: 36, minHeight: 36),
+                            child: Icon(
+                              Icons.cleaning_services, 
+                              size: 20,
+                              color: Colors.orange[700],
                             ),
                           ),
                         ),
@@ -518,19 +526,25 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
                   ),
                 ),
                 
-                // Teams Area - 2 Column Grid
+                // Teams Area - Dynamic Height Grid
                 Expanded(
-                  child: Container(
+                  child: SingleChildScrollView(
                     padding: EdgeInsets.all(8),
-                    child: GridView.builder(
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 0.8,
-                        crossAxisSpacing: 8,
-                        mainAxisSpacing: 8,
-                      ),
-                      itemCount: _numberOfTeams,
-                      itemBuilder: (context, index) => _buildTeamColumn(index),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: List.generate(_numberOfTeams, (index) {
+                        // Calculate dynamic height based on team size
+                        int teamSize = _teams.length > index ? _teams[index].length : 0;
+                        int displaySize = teamSize > 3 ? teamSize : 3; // Minimum 3 players height
+                        double cardHeight = 50 + (displaySize * 42) + 60; // header + (players * card) + footer
+                        
+                        return Container(
+                          width: (MediaQuery.of(context).size.width * 0.7 - 24) / 2, // Half width minus padding
+                          height: cardHeight,
+                          child: _buildTeamColumn(index),
+                        );
+                      }),
                     ),
                   ),
                 ),
@@ -589,7 +603,7 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
   Widget _buildPlayerListItem(Player player, bool isSelected, bool isInTeam) {
     Widget content = Container(
       margin: EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
         color: isSelected ? Colors.green[50] : Colors.white,
         borderRadius: BorderRadius.circular(6),
@@ -772,7 +786,7 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
   Widget _teamPlayerContent(Player player) {
     return Container(
       margin: EdgeInsets.symmetric(vertical: 2),
-      padding: EdgeInsets.all(4),
+      padding: EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(4),
