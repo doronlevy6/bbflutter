@@ -483,10 +483,12 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
                         message: _isHebrew ? 'מלא אוטומטי' : 'Auto Fill',
                         child: Container(
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(20),
                             gradient: LinearGradient(
-                              colors: [Colors.green[600]!, Colors.green[800]!],
+                              colors: [Colors.green[400]!, Colors.green[600]!],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
+                            shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.green.withOpacity(0.3),
@@ -579,6 +581,8 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
       ),
     );
   }
+
+
 
   Widget _buildCompactControl({
     required String label,

@@ -34,6 +34,10 @@ class _WelcomePageState extends State<WelcomePage> {
 
   String _teamImagePath = 'assets/images/basketball.png';
 
+  // Balance state
+  Map<String, dynamic>? _balanceData;
+  bool _loadingBalance = true;
+
   @override
   void initState() {
     super.initState();
@@ -42,6 +46,7 @@ class _WelcomePageState extends State<WelcomePage> {
     _setupSocketListener();
     _loadRankingsData();
     _loadTeamImage();
+    _fetchPlayerBalance();
 
   }
 
@@ -93,6 +98,28 @@ class _WelcomePageState extends State<WelcomePage> {
       user = prefs.getString(kUserKey) ?? '';
       enlistedPlayers = prefs.getStringList(kEnlistedPlayersKey) ?? [];
     });
+    if (user.isNotEmpty) {
+      _fetchPlayerBalance();
+    }
+  }
+
+  Future<void> _fetchPlayerBalance() async {
+    if (user.isEmpty) return;
+    
+    try {
+      final response = await _apiService.get('finance/player-balance/$user');
+      if (response['success']) {
+        setState(() {
+          _balanceData = response;
+          _loadingBalance = false;
+        });
+      }
+    } catch (error) {
+      print('Error fetching balance: $error');
+      setState(() {
+        _loadingBalance = false;
+      });
+    }
   }
 
   Future<void> _saveEnlistedPlayers(List<String> players) async {
@@ -329,6 +356,11 @@ class _WelcomePageState extends State<WelcomePage> {
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
+                                    // Balance Card
+                                    if (!_loadingBalance && _balanceData != null) ...[
+                                      _buildBalanceCard(),
+                                      SizedBox(height: 20),
+                                    ],
                                     Text(
                                       greetingMessage,
                                       style: TextStyle(
@@ -362,6 +394,63 @@ class _WelcomePageState extends State<WelcomePage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildBalanceCard() {
+    final balance = _balanceData!['balance'] ?? 0;
+    final gamesCredit = _balanceData!['gamesCredit'] ?? 0;
+    
+    bool isCredit = balance > 0;
+    bool isDebt = balance < 0;
+    
+    Color cardColor = isCredit ? Colors.green[50]! : (isDebt ? Colors.red[50]! : Colors.grey[100]!);
+    Color textColor = isCredit ? Colors.green[800]! : (isDebt ? Colors.red[800]! : Colors.grey[800]!);
+    IconData icon = isCredit ? Icons.account_balance_wallet : (isDebt ? Icons.warning_amber : Icons.balance);
+    
+    String balanceText = _isHebrew
+        ? (isCredit ? 'זכות' : (isDebt ? 'חוב' : 'מאזן'))
+        : (isCredit ? 'Credit' : (isDebt ? 'Debt' : 'Balance'));
+    
+    String gamesText = _isHebrew
+        ? '${gamesCredit.abs()} משחקים'
+        : '${gamesCredit.abs()} games';
+    
+    return Card(
+      elevation: 4,
+      color: cardColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: textColor, size: 32),
+            SizedBox(width: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$balanceText: ${balance.abs()} ₪',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  gamesText,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: textColor.withOpacity(0.8),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

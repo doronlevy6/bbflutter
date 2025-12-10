@@ -261,11 +261,11 @@ class _HomePageState extends State<HomePage> {
                               page: InteractivePlaygroundPage(),
                               title: _isHebrew ? 'בנייה אינטראקטיבית' : 'Interactive Builder',
                             ),
-                            if (username.toLowerCase() == 'doron')
+                            if (_isAdmin)
                             _buildDrawerIcon(
                               context,
                               icon: Icons.settings,
-                              color: Colors.grey[300],
+                              color: Colors.grey[600],
                               tooltip: settingsTitle,
                               page: SettingsPage(),
                               title: settingsTitle,

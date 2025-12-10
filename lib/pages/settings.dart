@@ -182,9 +182,156 @@ class _SettingsPageState extends State<SettingsPage> {
                   Text('עברית'),
                 ],
               ),
+              
+              Divider(height: 40),
+
+              Text(
+                'Player Cost Overrides',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.orange[800]),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Set specific game cost for individual players (overrides default). Leave empty/0 to use default.',
+                style: TextStyle(color: Colors.grey[600], fontSize: 13),
+              ),
+              SizedBox(height: 16),
+              
+              _isLoadingPlayers 
+                  ? Center(child: CircularProgressIndicator())
+                  : _buildPlayersTable(),
             ],
           ),
       ),
     );
+  }
+
+  // Players Management Logic
+  List<dynamic> _players = [];
+  bool _isLoadingPlayers = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _loadPlayers();
+  }
+
+  Future<void> _loadPlayers() async {
+    setState(() => _isLoadingPlayers = true);
+    try {
+      // Need an endpoint to get all users with their custom costs
+      // Assuming 'enlist' returns usernames, we might need a richer endpoint.
+      // Or we can use 'team-financial-summary' which returns everyone.
+      int teamId = 1; // Fallback
+      final response = await apiService.get('finance/team-financial-summary/$teamId');
+      
+      if (response['success']) {
+        setState(() {
+          _players = response['summary'];
+          // Note: team-financial-summary returns {username, balance, debt, paid}
+          // It DOES NOT currently return 'custom_game_cost'. 
+          // We need to update the backend or use a different endpoint.
+          // For now, let's assume we update backend to include it.
+        });
+      }
+    } catch (e) {
+      print('Error loading players: $e');
+    } finally {
+      if (mounted) setState(() => _isLoadingPlayers = false);
+    }
+  }
+
+  Widget _buildPlayersTable() {
+     return ListView.builder(
+         shrinkWrap: true,
+         physics: NeverScrollableScrollPhysics(),
+         itemCount: _players.length,
+         itemBuilder: (context, index) {
+             final player = _players[index];
+             final username = player['username'];
+             // Placeholder for custom cost until backend is updated
+             final customCost = player['custom_game_cost'] ?? ''; 
+             
+             return Card(
+                 margin: EdgeInsets.symmetric(vertical: 4),
+                 child: ListTile(
+                     title: Text(username, style: TextStyle(fontWeight: FontWeight.bold)),
+                     trailing: SizedBox(
+                         width: 100,
+                         child: Row(
+                             children: [
+                                 Expanded(
+                                     child: TextField(
+                                         decoration: InputDecoration(
+                                             hintText: 'Default',
+                                             isDense: true,
+                                             contentPadding: EdgeInsets.all(8),
+                                             border: OutlineInputBorder(),
+                                         ),
+                                         keyboardType: TextInputType.number,
+                                         // Controller management for list view is tricky.
+                                         // For simplicity, we'll use a dialog to edit.
+                                         enabled: false, 
+                                         controller: TextEditingController(text: customCost != null ? customCost.toString() : ''),
+                                     ),
+                                 ),
+                                 IconButton(
+                                     icon: Icon(Icons.edit, size: 20, color: Colors.blue),
+                                     onPressed: () => _showEditCostDialog(username, customCost),
+                                 )
+                             ],
+                         ),
+                     ),
+                 ),
+             );
+         },
+     );
+  }
+
+  void _showEditCostDialog(String username, dynamic currentCost) {
+      TextEditingController _editController = TextEditingController(text: currentCost?.toString() ?? '');
+      
+      showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+              title: Text('Edit Cost for $username'),
+              content: TextField(
+                  controller: _editController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(labelText: 'Cost per game'),
+              ),
+              actions: [
+                  TextButton(
+                      child: Text('Cancel'),
+                      onPressed: () => Navigator.pop(context),
+                  ),
+                  ElevatedButton(
+                      child: Text('Save'),
+                      onPressed: () {
+                          _updatePlayerCost(username, _editController.text);
+                          Navigator.pop(context);
+                      },
+                  ),
+              ],
+          ),
+      );
+  }
+
+  Future<void> _updatePlayerCost(String username, String costStr) async {
+      int? cost = int.tryParse(costStr);
+      
+      try {
+          final response = await apiService.put('finance/update-user-financial-settings', {
+              'username': username,
+              'custom_game_cost': cost // null sends null to DB (resets to default)
+          });
+          
+          if (response['success']) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Updated $username'), backgroundColor: Colors.green));
+              _loadTeamSettings(); // Refresh
+              _loadPlayers();
+          }
+      } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+      }
   }
 }

@@ -448,12 +448,24 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
 
     DateTime selectedDate = DateTime.now();
     TextEditingController notesController = TextEditingController();
+    TextEditingController costController = TextEditingController();
+    bool forceOverrideAll = false;
+    
+    // Map to store individual cost overrides: { 'username': custom_cost }
+    Map<String, int> individualCostOverrides = {};
 
     await showDialog(
       context: context,
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, setState) {
+            
+            String _formatDate(DateTime d) {
+                // Simple day name format
+                List<String> days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                return "${days[d.weekday - 1]}, ${d.day}/${d.month}/${d.year}";
+            }
+
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               title: Row(
@@ -463,46 +475,121 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                     Text('Save Game Record'),
                  ]
               ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Archive current Enlisted players as a played game.'),
-                  SizedBox(height: 16),
-                  Row(
+              content: Container(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Date:', style: TextStyle(fontWeight: FontWeight.bold)),
-                      SizedBox(width: 8),
-                      TextButton.icon(
-                        icon: Icon(Icons.calendar_today),
-                        label: Text("${selectedDate.toLocal()}".split(' ')[0]),
-                        onPressed: () async {
-                          final DateTime? picked = await showDatePicker(
-                            context: context,
-                            initialDate: selectedDate,
-                            firstDate: DateTime(2020),
-                            lastDate: DateTime(2030),
-                          );
-                          if (picked != null && picked != selectedDate) {
-                            setState(() {
-                              selectedDate = picked;
-                            });
-                          }
-                        },
+                      Text('Archive current Enlisted players as a played game.'),
+                      SizedBox(height: 16),
+                      // DATE PICKER
+                      Row(
+                        children: [
+                          Text('Date:', style: TextStyle(fontWeight: FontWeight.bold)),
+                          SizedBox(width: 8),
+                          TextButton.icon(
+                            icon: Icon(Icons.calendar_today),
+                            label: Text(_formatDate(selectedDate)), // Enhanced Date Format
+                            onPressed: () async {
+                              final DateTime? picked = await showDatePicker(
+                                context: context,
+                                initialDate: selectedDate,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime(2030),
+                              );
+                              if (picked != null && picked != selectedDate) {
+                                setState(() {
+                                  selectedDate = picked;
+                                });
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 8),
+                      // NOTES
+                      TextField(
+                        controller: notesController,
+                        decoration: InputDecoration(
+                          labelText: 'Notes (Optional)',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      SizedBox(height: 16),
+                      
+                      Divider(),
+                      Text('Cost Configuration', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green[800])),
+                      
+                      // GLOBAL GAME COST
+                      TextField(
+                          controller: costController, 
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                              labelText: 'Game Cost Override (For this game)', 
+                              helperText: 'Leave empty to use defaults',
+                              prefixIcon: Icon(Icons.attach_money),
+                          )
+                      ),
+                      
+                      // FORCE OVERRIDE CHECKBOX
+                      CheckboxListTile(
+                          title: Text('Force Override for ALL?'),
+                          subtitle: Text('Ignore individual student/custom discounts'),
+                          value: forceOverrideAll,
+                          onChanged: (val) => setState(() => forceOverrideAll = val!),
+                          controlAffinity: ListTileControlAffinity.leading,
+                          contentPadding: EdgeInsets.zero,
+                          activeColor: Colors.red, // Highlight this is a strong action
+                      ),
+                      
+                      SizedBox(height: 8),
+                      
+                      // INDIVIDUAL COSTS EXPANSION
+                      ExpansionTile(
+                          title: Text('Adjust Individual Costs (${selectedUsernames.length})'),
+                          leading: Icon(Icons.group),
+                          children: [
+                              Container(
+                                  height: 200, // Limit height
+                                  child: ListView.builder(
+                                      shrinkWrap: true,
+                                      itemCount: selectedUsernames.length,
+                                      itemBuilder: (ctx, idx) {
+                                          String username = selectedUsernames[idx];
+                                          return ListTile(
+                                              dense: true,
+                                              title: Text(username),
+                                              trailing: SizedBox(
+                                                  width: 80,
+                                                  child: TextField(
+                                                      decoration: InputDecoration(
+                                                          hintText: 'Auto',
+                                                          isDense: true,
+                                                          contentPadding: EdgeInsets.all(8),
+                                                          border: OutlineInputBorder(),
+                                                      ),
+                                                      keyboardType: TextInputType.number,
+                                                      onChanged: (val) {
+                                                          int? v = int.tryParse(val);
+                                                          if (v != null) {
+                                                              individualCostOverrides[username] = v;
+                                                          } else {
+                                                              individualCostOverrides.remove(username);
+                                                          }
+                                                      },
+                                                  ),
+                                              ),
+                                          );
+                                      },
+                                  ),
+                              )
+                          ],
                       ),
                     ],
                   ),
-                  SizedBox(height: 8),
-                  TextField(
-                    controller: notesController,
-                    decoration: InputDecoration(
-                      labelText: 'Notes (Optional)',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  Text('${selectedUsernames.length} Players enlisted.', style: TextStyle(fontStyle: FontStyle.italic)),
-                ],
+                ),
               ),
               actions: [
                 TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel')),
@@ -511,25 +598,20 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                     Navigator.pop(context);
                      // Call Backend
                      try {
-                         // Need team_id. Using 1 as default or getting from user
                          SharedPreferences prefs = await SharedPreferences.getInstance();
-                         String? token = prefs.getString('token'); // We might need to decode token for team_id if not stored locally.
-                         // But server uses verifyToken to get team_id from token if not sent?
-                         // The finance endpoint expects team_id in BODY, or we can rely on verifyToken extract.
-                         // My financeRoutes logic: `const { team_id, ... } = req.body;`.
-                         // AND: `const teamRes = await pool.query('SELECT default_game_cost FROM teams WHERE team_id = $1', [team_id]);`
-                         // So I MUST send team_id.
-                         // Where do we keep team_id? Login response has it.
-                         // Let's assume it's in shared prefs or we default to 1 for now (MVP).
+                         String? token = prefs.getString('token'); 
                          
                          int teamId = 1; // Fallback
-                         // Ideally we should store team_id in prefs on login.
+                         int? baseCost = int.tryParse(costController.text);
                          
                         final response = await apiService.post('finance/record-game', {
                            'team_id': teamId,
                            'date': selectedDate.toIso8601String(),
                            'enlistedPlayers': selectedUsernames,
                            'notes': notesController.text,
+                           'base_cost': baseCost,
+                           'force_base_cost': forceOverrideAll,
+                           'specific_player_costs': individualCostOverrides.isNotEmpty ? individualCostOverrides : null,
                          });
                          
                          if (response['success']) {
@@ -733,6 +815,9 @@ class __PlayerFinancialDialogState extends State<_PlayerFinancialDialog> {
     Map<String, dynamic>? data;
     String errorMessage = '';
     
+    // Filter State: 'all', 'games', 'payments'
+    String _filter = 'all';
+
     // For Adding Payment
     final amountController = TextEditingController();
     final notesController = TextEditingController();
@@ -780,107 +865,226 @@ class __PlayerFinancialDialogState extends State<_PlayerFinancialDialog> {
              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
         }
     }
+    
+    Future<void> _deleteInfo(String type, int id) async {
+        // Confirm
+        bool? confirm = await showDialog(context: context, builder: (ctx) => AlertDialog(
+            title: Text('Delete Record?'),
+            content: Text('Are you sure you want to delete this $type? This affects the balance.'),
+            actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancel')),
+                ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Delete'), style: ElevatedButton.styleFrom(backgroundColor: Colors.red))
+            ]
+        ));
+        
+        if (confirm != true) return;
+        
+        try {
+            String endpoint = type == 'payment' 
+                ? 'finance/delete-payment/$id' 
+                : 'finance/delete-attendance/$id';
+                
+            final response = await widget.apiService.delete(endpoint);
+            
+            if (response['success']) {
+                 _fetchData(); // Reload
+            } else {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(response['message'])));
+            }
+        } catch(e) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        }
+    }
+    
+    String _formatDate(String isoString) {
+        try {
+            DateTime d = DateTime.parse(isoString);
+            List<String> days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            return "${days[d.weekday - 1]}, ${d.day}/${d.month}/${d.year}";
+        } catch(e) {
+            return isoString;
+        }
+    }
 
     @override
     Widget build(BuildContext context) {
+        if (loading) return AlertDialog(content: SizedBox(height: 100, child: Center(child: CircularProgressIndicator())));
+        if (errorMessage.isNotEmpty) return AlertDialog(content: Text('Error: $errorMessage'), actions: [TextButton(onPressed: ()=>Navigator.pop(context), child: Text('Close'))]);
+
+        final financialData = data!;
+        final balance = financialData['balance'] ?? 0;
+        // history is an object { games: [...], payments: [...] }
+        final historyObj = financialData['history'] as Map<String, dynamic>? ?? {};
+        final history = historyObj['games'] as List<dynamic>? ?? [];
+        final payments = historyObj['payments'] as List<dynamic>? ?? [];
+
+        // Combine for 'all' or filtered
+        List<Map<String, dynamic>> displayedList = [];
+        
+        if (_filter == 'all' || _filter == 'games') {
+            for(var g in history) {
+                displayedList.add({
+                    'type': 'game',
+                    'date': g['date'],
+                    'amount': -1 * (g['applied_cost'] as num), // displayed as negative
+                    'desc': 'Game (${g['notes'] ?? ''})',
+                    'id': g['attendance_id'] // Ensure ID available
+                });
+            }
+        }
+        if (_filter == 'all' || _filter == 'payments') {
+            for(var p in payments) {
+                displayedList.add({
+                    'type': 'payment',
+                    'date': p['date'],
+                    'amount': p['amount'],
+                    'desc': 'Payment (${p['method']})',
+                    'id': p['payment_id']
+                });
+            }
+        }
+        
+        // Sort by date desc
+        displayedList.sort((a, b) => DateTime.parse(b['date']).compareTo(DateTime.parse(a['date'])));
+
         return AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: Text('${widget.username} - Financials'),
+            title: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                    Text('${widget.username} Wallet'),
+                    Container(
+                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                            color: balance >= 0 ? Colors.green[100] : Colors.red[100],
+                            borderRadius: BorderRadius.circular(20)
+                        ),
+                        child: Text(
+                            '${balance >= 0 ? '+' : ''}$balance ₪',
+                            style: TextStyle(
+                                color: balance >= 0 ? Colors.green[800] : Colors.red[800],
+                                fontWeight: FontWeight.bold
+                            )
+                        )
+                    )
+                ]
+            ),
             content: Container(
                 width: double.maxFinite,
-                height: 500, // Fixed height for scrolling
-                child: loading ? Center(child: CircularProgressIndicator()) : errorMessage.isNotEmpty ? Center(child: Text(errorMessage, style: TextStyle(color: Colors.red))) : Column(
+                child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                        // BALANCE SUMMARY
-                        Container(
-                            padding: EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                                color: (data?['balance'] ?? 0) >= 0 ? Colors.green[100] : Colors.red[100],
-                                borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                    Text('Balance:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                                    Text(
-                                        '${data?['balance'] ?? 0} ₪', 
-                                        style: TextStyle(
-                                            fontSize: 24, 
-                                            fontWeight: FontWeight.bold,
-                                            color: (data?['balance'] ?? 0) >= 0 ? Colors.green[800] : Colors.red[800],
-                                        )
-                                    ),
-                                ],
-                            ),
-                        ),
-                        SizedBox(height: 16),
-                        
-                        // TABS or SECTIONS? Let's just do an ExpansionTile for "Add Payment"
-                        ExpansionTile(
-                            title: Text('Add Payment', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue[800])),
+                        // FILTER BUTTONS
+                        Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                                Padding(
-                                    padding: EdgeInsets.symmetric(horizontal: 8),
-                                    child: Column(
-                                        children: [
-                                            Row(
-                                                children: [
-                                                    Expanded(
-                                                        child: TextField(
-                                                            controller: amountController,
-                                                            keyboardType: TextInputType.number,
-                                                            decoration: InputDecoration(labelText: 'Amount', prefixIcon: Icon(Icons.attach_money)),
-                                                        ),
-                                                    ),
-                                                    SizedBox(width: 8),
-                                                    DropdownButton<String>(
-                                                        value: paymentMethod,
-                                                        items: ['bit', 'paybox', 'cash', 'other'].map((m) => DropdownMenuItem(child: Text(m), value: m)).toList(),
-                                                        onChanged: (v) => setState(() => paymentMethod = v!),
-                                                    ),
-                                                ],
-                                            ),
-                                            TextField(controller: notesController, decoration: InputDecoration(labelText: 'Notes (Optional)')),
-                                            SizedBox(height: 8),
-                                            ElevatedButton(onPressed: _addPayment, child: Text('Submit Payment')),
-                                            SizedBox(height: 8),
-                                        ],
-                                    ),
-                                ),
+                                _buildFilterBtn('all', 'All'),
+                                SizedBox(width: 8),
+                                _buildFilterBtn('games', 'Games'),
+                                SizedBox(width: 8),
+                                _buildFilterBtn('payments', 'Payments'),
                             ],
                         ),
-
-                        Divider(),
-                        Text('History', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        SizedBox(height: 12),
+                        
+                        // HISTORY LIST
                         Expanded(
-                            child: ListView(
-                                children: [
-                                    // Combine games and payments? separate?
-                                    // Only showing payments for now based on typical need, but user asked for "how many games".
-                                    // data['history']['games'] and data['history']['payments']
-                                    if (data?['history']?['games'] != null)
-                                        ...List<Widget>.from(data!['history']['games'].map((g) => ListTile(
-                                            leading: Icon(Icons.sports_basketball, color: Colors.grey),
-                                            title: Text('Game: ${g['date'].toString().split('T')[0]}'),
-                                            subtitle: Text(g['notes'] ?? ''),
-                                            trailing: Text('-${g['applied_cost']} ₪', style: TextStyle(color: Colors.red)),
-                                        ))),
-                                    if (data?['history']?['payments'] != null)
-                                        ...List<Widget>.from(data!['history']['payments'].map((p) => ListTile(
-                                            leading: Icon(Icons.payment, color: Colors.green),
-                                            title: Text('Payment: ${p['method']}'),
-                                            subtitle: Text('${p['date'].toString().split('T')[0]} ${p['notes'] ?? ''}'),
-                                            trailing: Text('+${p['amount']} ₪', style: TextStyle(color: Colors.green)),
-                                        ))),
-                                ],
-                            ),
+                            child: displayedList.isEmpty 
+                                ? Center(child: Text('No history found', style: TextStyle(color: Colors.grey)))
+                                : ListView.builder(
+                                    itemCount: displayedList.length,
+                                    itemBuilder: (ctx, idx) {
+                                        final item = displayedList[idx];
+                                        bool isPayment = item['type'] == 'payment';
+                                        return Card(
+                                            margin: EdgeInsets.symmetric(vertical: 4),
+                                            child: ListTile(
+                                                dense: true,
+                                                leading: Icon(
+                                                    isPayment ? Icons.payment : Icons.sports_basketball,
+                                                    color: isPayment ? Colors.blue : Colors.orange,
+                                                ),
+                                                title: Text(item['desc']),
+                                                subtitle: Text(_formatDate(item['date'])),
+                                                trailing: Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                        Text(
+                                                            '${item['amount'] > 0 ? '+' : ''}${item['amount']}',
+                                                            style: TextStyle(
+                                                                color: item['amount'] >= 0 ? Colors.green : Colors.red,
+                                                                fontWeight: FontWeight.bold,
+                                                                fontSize: 16
+                                                            )
+                                                        ),
+                                                        SizedBox(width: 8),
+                                                        // DELETE BUTTON
+                                                        IconButton(
+                                                            icon: Icon(Icons.delete_outline, size: 20, color: Colors.grey),
+                                                            onPressed: () => _deleteInfo(item['type'], item['id']),
+                                                        )
+                                                    ],
+                                                ),
+                                            ),
+                                        );
+                                    }
+                                )
                         ),
+                        
+                        Divider(),
+                        
+                        // ADD PAYMENT
+                        ExpansionTile(
+                            title: Text('Add Payment', style: TextStyle(color: Colors.blue[800], fontWeight: FontWeight.bold)),
+                            children: [
+                                Padding(
+                                    padding: EdgeInsets.all(8),
+                                    child: Column(
+                                        children: [
+                                            Row(children: [
+                                                Expanded(child: TextField(controller: amountController, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'Amount', prefixIcon: Icon(Icons.attach_money)))),
+                                                SizedBox(width: 8),
+                                                DropdownButton<String>(
+                                                    value: paymentMethod,
+                                                    items: ['bit', 'cash', 'paybox', 'other'].map((e)=>DropdownMenuItem(value: e, child: Text(e.toUpperCase()))).toList(),
+                                                    onChanged: (v)=>setState(()=>paymentMethod=v!)
+                                                )
+                                            ]),
+                                            TextField(controller: notesController, decoration: InputDecoration(labelText: 'Notes (Optional)')),
+                                            SizedBox(height: 8),
+                                            ElevatedButton(
+                                                onPressed: _addPayment, 
+                                                child: Text('Submit Payment'),
+                                                style: ElevatedButton.styleFrom(backgroundColor: Colors.blue[800])
+                                            )
+                                        ],
+                                    ),
+                                )
+                            ],
+                        )
                     ],
                 ),
             ),
             actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: Text('Close')),
+                TextButton(onPressed: () => Navigator.pop(context), child: Text('Close'))
             ],
         );
     }
+    
+    Widget _buildFilterBtn(String mode, String label) {
+        bool active = _filter == mode;
+        return InkWell(
+            onTap: () => setState(() => _filter = mode),
+            child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                    color: active ? Colors.blue[100] : Colors.grey[200],
+                    borderRadius: BorderRadius.circular(15),
+                    border: active ? Border.all(color: Colors.blue) : null
+                ),
+                child: Text(label, style: TextStyle(color: active ? Colors.blue[800] : Colors.black87, fontWeight: active?FontWeight.bold:FontWeight.normal))
+            ),
+        );
+    }
 }
+
