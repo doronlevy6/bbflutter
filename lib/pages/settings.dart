@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
+import '../utils/team_preferences.dart';
 
 class SettingsPage extends StatefulWidget {
   @override
@@ -32,16 +33,16 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _loadTeamSettings() async {
-      // Fetch team settings from server. 
-      // Using 'team-financial-summary' or a dedicated endpoint?
-      // I made 'team-financial-summary/:team_id' return defaultGameCost.
-      // I need team_id.
-      // TODO: Get real team_id. Fallback to 1.
-      int teamId = 1; 
+      final int? teamId = await TeamPreferences.getTeamId();
+      if (teamId == null) {
+          print('Team ID not found; skipping team settings load.');
+          return;
+      }
 
       try {
           final response = await apiService.get('finance/team-financial-summary/$teamId');
           if (response['success']) {
+              if (!mounted) return;
               setState(() {
                   _costController.text = response['defaultGameCost'].toString();
               });
@@ -58,9 +59,15 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _saveCost() async {
-      int teamId = 1; // Fallback
+      final int? teamId = await TeamPreferences.getTeamId();
+      if (teamId == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Team not found. Please log in again.'), backgroundColor: Colors.red),
+          );
+          return;
+      }
       int cost = int.tryParse(_costController.text) ?? 0;
-      
+
       setState(() => _isLoading = true);
       try {
           final response = await apiService.put('finance/update-team-settings', {

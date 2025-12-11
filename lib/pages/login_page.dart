@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import 'dart:convert';
 import '../services/rankings_service.dart';
+import '../utils/team_preferences.dart';
 
 class LoginPage extends StatefulWidget {
   @override
@@ -224,6 +225,10 @@ class _LoginPageState extends State<LoginPage> {
         if (data['user']['team_type'] != null) {
           await prefs.setString('team_type', data['user']['team_type']);
         }
+        final int? teamId = _parseTeamId(data['user']['team_id'] ?? data['team_id']);
+        if (teamId != null) {
+          await TeamPreferences.setTeamId(teamId);
+        }
         if (data['is_admin'] != null) {
           await prefs.setBool('is_admin', data['is_admin']);
         }
@@ -248,6 +253,12 @@ class _LoginPageState extends State<LoginPage> {
         _isLoading = false;
       });
     }
+  }
+
+  int? _parseTeamId(dynamic value) {
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value);
+    return null;
   }
 
   // טיפול בדיאלוג יצירת קבוצה עם בחירת סוג קבוצה באמצעות כפתורים

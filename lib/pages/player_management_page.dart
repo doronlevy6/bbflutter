@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/team_preferences.dart';
 
 class PlayerManagementPage extends StatefulWidget {
   @override
@@ -68,6 +69,14 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
         };
       }
     });
+  }
+
+  Future<int?> _getTeamId() async {
+    final int? teamId = await TeamPreferences.getTeamId();
+    if (teamId == null) {
+      _showError('Team not found. Please log in again.');
+    }
+    return teamId;
   }
 
   Future<void> fetchPlayers() async {
@@ -511,20 +520,9 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                     Navigator.pop(context);
                      // Call Backend
                      try {
-                         // Need team_id. Using 1 as default or getting from user
-                         SharedPreferences prefs = await SharedPreferences.getInstance();
-                         String? token = prefs.getString('token'); // We might need to decode token for team_id if not stored locally.
-                         // But server uses verifyToken to get team_id from token if not sent?
-                         // The finance endpoint expects team_id in BODY, or we can rely on verifyToken extract.
-                         // My financeRoutes logic: `const { team_id, ... } = req.body;`.
-                         // AND: `const teamRes = await pool.query('SELECT default_game_cost FROM teams WHERE team_id = $1', [team_id]);`
-                         // So I MUST send team_id.
-                         // Where do we keep team_id? Login response has it.
-                         // Let's assume it's in shared prefs or we default to 1 for now (MVP).
-                         
-                         int teamId = 1; // Fallback
-                         // Ideally we should store team_id in prefs on login.
-                         
+                         final int? teamId = await _getTeamId();
+                         if (teamId == null) return;
+
                         final response = await apiService.post('finance/record-game', {
                            'team_id': teamId,
                            'date': selectedDate.toIso8601String(),
@@ -758,12 +756,24 @@ class __PlayerFinancialDialogState extends State<_PlayerFinancialDialog> {
         }
     }
 
+    Future<int?> _getTeamId() async {
+        final int? teamId = await TeamPreferences.getTeamId();
+        if (teamId == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Team not found. Please log in again.'), backgroundColor: Colors.red),
+            );
+        }
+        return teamId;
+    }
+
     Future<void> _addPayment() async {
         if (amountController.text.isEmpty) return;
+        final int? teamId = await _getTeamId();
+        if (teamId == null) return;
         try {
             final response = await widget.apiService.post('finance/add-payment', {
                 'username': widget.username,
-                'team_id': 1, // TODO: Get correct team_id
+                'team_id': teamId,
                 'amount': int.tryParse(amountController.text) ?? 0,
                 'method': paymentMethod,
                 'notes': notesController.text,
