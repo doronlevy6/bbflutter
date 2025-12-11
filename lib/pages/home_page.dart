@@ -7,6 +7,7 @@ import 'grade_page.dart';
 import 'settings.dart';
 import 'playground_page.dart';
 import 'interactive_playground_page.dart';
+import 'financial_summary_page.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:responsive_builder/responsive_builder.dart';
 
@@ -235,16 +236,6 @@ class _HomePageState extends State<HomePage> {
                               page: GradePage(),
                               title: gradeTitle,
                             ),
-                            // Player Management option for managers
-                            if (_isAdmin)
-                              _buildDrawerIcon(
-                                context,
-                                icon: Icons.manage_accounts,
-                                color: Colors.purple[300],
-                                tooltip: _isHebrew ? 'ניהול שחקנים' : 'Player Management',
-                                page: PlayerManagementPage(),
-                                title: _isHebrew ? 'ניהול שחקנים' : 'Player Management',
-                              ),
                             _buildDrawerIcon(
                               context,
                               icon: Icons.group,
@@ -261,15 +252,36 @@ class _HomePageState extends State<HomePage> {
                               page: InteractivePlaygroundPage(),
                               title: _isHebrew ? 'בנייה אינטראקטיבית' : 'Interactive Builder',
                             ),
+                            // ADMIN SECTION - at the bottom
                             if (_isAdmin)
-                            _buildDrawerIcon(
-                              context,
-                              icon: Icons.settings,
-                              color: Colors.grey[600],
-                              tooltip: settingsTitle,
-                              page: SettingsPage(),
-                              title: settingsTitle,
-                            ),
+                              Divider(height: 20),
+                            if (_isAdmin)
+                              _buildDrawerIcon(
+                                context,
+                                icon: Icons.manage_accounts,
+                                color: Colors.purple[300],
+                                tooltip: _isHebrew ? 'ניהול שחקנים' : 'Player Management',
+                                page: PlayerManagementPage(),
+                                title: _isHebrew ? 'ניהול שחקנים' : 'Player Management',
+                              ),
+                            if (_isAdmin)
+                              _buildDrawerIcon(
+                                context,
+                                icon: Icons.account_balance_wallet,
+                                color: Colors.teal[400],
+                                tooltip: _isHebrew ? 'סיכום פיננסי' : 'Financial Summary',
+                                page: FinancialSummaryPage(),
+                                title: _isHebrew ? 'סיכום פיננסי' : 'Financial Summary',
+                              ),
+                            if (_isAdmin)
+                              _buildDrawerIcon(
+                                context,
+                                icon: Icons.settings,
+                                color: Colors.grey[600],
+                                tooltip: settingsTitle,
+                                page: SettingsPage(),
+                                title: settingsTitle,
+                              ),
                           ],
                         ),
                       ),

@@ -467,12 +467,12 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
             }
 
             return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               title: Row(
                  children: [
-                    Icon(Icons.save_as, color: Colors.green[800]),
+                    Icon(Icons.save, color: Colors.green[700], size: 24),
                     SizedBox(width: 8),
-                    Text('Save Game Record'),
+                    Text('Save Game', style: TextStyle(fontSize: 18)),
                  ]
               ),
               content: Container(
@@ -482,16 +482,14 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Archive current Enlisted players as a played game.'),
-                      SizedBox(height: 16),
-                      // DATE PICKER
+                      // DATE - COMPACT
                       Row(
                         children: [
-                          Text('Date:', style: TextStyle(fontWeight: FontWeight.bold)),
-                          SizedBox(width: 8),
-                          TextButton.icon(
-                            icon: Icon(Icons.calendar_today),
-                            label: Text(_formatDate(selectedDate)), // Enhanced Date Format
+                          Icon(Icons.calendar_today, size: 18, color: Colors.grey[600]),
+                          SizedBox(width: 6),
+                          TextButton(
+                            style: TextButton.styleFrom(padding: EdgeInsets.symmetric(horizontal: 8)),
+                            child: Text(_formatDate(selectedDate), style: TextStyle(fontSize: 14)),
                             onPressed: () async {
                               final DateTime? picked = await showDatePicker(
                                 context: context,
@@ -500,59 +498,64 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                                 lastDate: DateTime(2030),
                               );
                               if (picked != null && picked != selectedDate) {
-                                setState(() {
-                                  selectedDate = picked;
-                                });
+                                setState(() => selectedDate = picked);
                               }
                             },
                           ),
                         ],
                       ),
-                      SizedBox(height: 8),
-                      // NOTES
+                      
+                      // NOTES - COMPACT
                       TextField(
                         controller: notesController,
+                        style: TextStyle(fontSize: 13),
                         decoration: InputDecoration(
-                          labelText: 'Notes (Optional)',
-                          border: OutlineInputBorder(),
+                          hintText: 'Notes (optional)',
+                          hintStyle: TextStyle(fontSize: 12, color: Colors.grey),
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                         ),
                       ),
-                      SizedBox(height: 16),
+                      SizedBox(height: 12),
                       
-                      Divider(),
-                      Text('Cost Configuration', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green[800])),
-                      
-                      // GLOBAL GAME COST
+                      // COST SECTION
+                      Text('Cost', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.green[800])),
+                      SizedBox(height: 6),
                       TextField(
                           controller: costController, 
                           keyboardType: TextInputType.number,
+                          style: TextStyle(fontSize: 13),
                           decoration: InputDecoration(
-                              labelText: 'Game Cost Override (For this game)', 
-                              helperText: 'Leave empty to use defaults',
-                              prefixIcon: Icon(Icons.attach_money),
+                              hintText: 'Use default',
+                              hintStyle: TextStyle(fontSize: 12, color: Colors.grey),
+                              isDense: true,
+                              contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                              prefixIcon: Icon(Icons.attach_money, size: 18),
                           )
                       ),
                       
-                      // FORCE OVERRIDE CHECKBOX
+                      // FORCE OVERRIDE - COMPACT
                       CheckboxListTile(
-                          title: Text('Force Override for ALL?'),
-                          subtitle: Text('Ignore individual student/custom discounts'),
+                          title: Text('Force for all', style: TextStyle(fontSize: 13)),
+                          subtitle: Text('Ignore individual discounts', style: TextStyle(fontSize: 11, color: Colors.grey)),
                           value: forceOverrideAll,
                           onChanged: (val) => setState(() => forceOverrideAll = val!),
                           controlAffinity: ListTileControlAffinity.leading,
                           contentPadding: EdgeInsets.zero,
-                          activeColor: Colors.red, // Highlight this is a strong action
+                          dense: true,
+                          activeColor: Colors.orange,
                       ),
                       
-                      SizedBox(height: 8),
-                      
-                      // INDIVIDUAL COSTS EXPANSION
+                      // INDIVIDUAL COSTS - COLLAPSED BY DEFAULT
                       ExpansionTile(
-                          title: Text('Adjust Individual Costs (${selectedUsernames.length})'),
-                          leading: Icon(Icons.group),
+                          tilePadding: EdgeInsets.zero,
+                          title: Text('Per-player costs', style: TextStyle(fontSize: 13, color: Colors.grey[700])),
+                          leading: Icon(Icons.group, size: 18, color: Colors.grey),
                           children: [
                               Container(
-                                  height: 200, // Limit height
+                                  height: 150,
                                   child: ListView.builder(
                                       shrinkWrap: true,
                                       itemCount: selectedUsernames.length,
@@ -560,14 +563,17 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                                           String username = selectedUsernames[idx];
                                           return ListTile(
                                               dense: true,
-                                              title: Text(username),
+                                              visualDensity: VisualDensity.compact,
+                                              title: Text(username, style: TextStyle(fontSize: 12)),
                                               trailing: SizedBox(
-                                                  width: 80,
+                                                  width: 60,
                                                   child: TextField(
+                                                      style: TextStyle(fontSize: 12),
                                                       decoration: InputDecoration(
-                                                          hintText: 'Auto',
+                                                          hintText: '-',
+                                                          hintStyle: TextStyle(fontSize: 11),
                                                           isDense: true,
-                                                          contentPadding: EdgeInsets.all(8),
+                                                          contentPadding: EdgeInsets.all(6),
                                                           border: OutlineInputBorder(),
                                                       ),
                                                       keyboardType: TextInputType.number,
