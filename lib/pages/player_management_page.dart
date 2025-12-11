@@ -462,6 +462,7 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
     }
 
     DateTime selectedDate = DateTime.now();
+    TimeOfDay selectedTime = TimeOfDay(hour: 19, minute: 30); // Default: 7:30 PM
     TextEditingController notesController = TextEditingController();
     TextEditingController costController = TextEditingController();
     bool forceOverrideAll = false;
@@ -470,6 +471,12 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
     Map<String, int> individualCostOverrides = {};
     // Map to store per-player override notes
     Map<String, String> individualCostNotes = {};
+    
+    // Game session selection
+    String sessionMode = 'new'; // 'new' or 'existing'
+    String? selectedSessionId;
+    List<Map<String, dynamic>> availableSessions = [];
+    bool loadingSessions = false;
 
     await showDialog(
       context: context,
@@ -478,9 +485,30 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
           builder: (context, setState) {
             
             String _formatDate(DateTime d) {
-                // Simple day name format
                 List<String> days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
                 return "${days[d.weekday - 1]}, ${d.day}/${d.month}/${d.year}";
+            }
+
+            String _formatTime(TimeOfDay t) {
+                final hour = t.hour.toString().padLeft(2, '0');
+                final minute = t.minute.toString().padLeft(2, '0');
+                return "$hour:$minute";
+            }
+
+            Future<void> _loadGameSessions() async {
+                setState(() => loadingSessions = true);
+                try {
+                    final response = await apiService.get('finance/game-sessions');
+                    if (response['success']) {
+                        setState(() {
+                            availableSessions = List<Map<String, dynamic>>.from(response['sessions']);
+                            loadingSessions = false;
+                        });
+                    }
+                } catch (e) {
+                    print('Error loading sessions: $e');
+                    setState(() => loadingSessions = false);
+                }
             }
 
             return AlertDialog(
@@ -499,28 +527,195 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // DATE - COMPACT
+                      // SESSION MODE SELECTION
+                      Text('Game Session', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.blue[800])),
+                      SizedBox(height: 8),
                       Row(
                         children: [
-                          Icon(Icons.calendar_today, size: 18, color: Colors.grey[600]),
-                          SizedBox(width: 6),
-                          TextButton(
-                            style: TextButton.styleFrom(padding: EdgeInsets.symmetric(horizontal: 8)),
-                            child: Text(_formatDate(selectedDate), style: TextStyle(fontSize: 14)),
-                            onPressed: () async {
-                              final DateTime? picked = await showDatePicker(
-                                context: context,
-                                initialDate: selectedDate,
-                                firstDate: DateTime(2020),
-                                lastDate: DateTime(2030),
-                              );
-                              if (picked != null && picked != selectedDate) {
-                                setState(() => selectedDate = picked);
-                              }
-                            },
+                          Expanded(
+                            child: RadioListTile<String>(
+                              title: Text('New Session', style: TextStyle(fontSize: 13)),
+                              value: 'new',
+                              groupValue: sessionMode,
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              onChanged: (val) => setState(() => sessionMode = val!),
+                            ),
+                          ),
+                          Expanded(
+                            child: RadioListTile<String>(
+                              title: Text('Existing', style: TextStyle(fontSize: 13)),
+                              value: 'existing',
+                              groupValue: sessionMode,
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              onChanged: (val) {
+                                setState(() => sessionMode = val!);
+                                if (availableSessions.isEmpty && !loadingSessions) {
+                                  _loadGameSessions();
+                                }
+                              },
+                            ),
                           ),
                         ],
                       ),
+                      
+                      SizedBox(height: 12),
+                      
+                      // EXISTING SESSION SELECTION
+                      if (sessionMode == 'existing') ...[
+                        if (loadingSessions)
+                          Center(child: CircularProgressIndicator())
+                        else if (availableSessions.isEmpty)
+                          Text('No existing sessions found', style: TextStyle(fontSize: 12, color: Colors.grey))
+                        else
+                          DropdownButtonFormField<String>(
+                            decoration: InputDecoration(
+                              labelText: 'Select Session',
+                              labelStyle: TextStyle(fontSize: 13),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                              isDense: true,
+                              contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                            ),
+                            value: selectedSessionId,
+                            menuMaxHeight: 120, // Limit height to show ~2 items
+                            items: availableSessions.map((session) {
+                              final sessionId = session['game_session_id'] as String;
+                              final playerCount = session['player_count'] ?? 0;
+                              final notes = session['notes'] ?? '';
+                              return DropdownMenuItem(
+                                value: sessionId,
+                                child: Text(
+                                  '$sessionId ($playerCount players) ${notes.isNotEmpty ? "- $notes" : ""}',
+                                  style: TextStyle(fontSize: 12),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              setState(() => selectedSessionId = val);
+                              // Parse selected session to populate date and time
+                              if (val != null) {
+                                try {
+                                  final parts = val.split('_');
+                                  if (parts.length == 2) {
+                                    final dateParts = parts[0].split('-');
+                                    final timeParts = parts[1].split(':');
+                                    setState(() {
+                                      selectedDate = DateTime(
+                                        int.parse(dateParts[0]),
+                                        int.parse(dateParts[1]),
+                                        int.parse(dateParts[2]),
+                                      );
+                                      selectedTime = TimeOfDay(
+                                        hour: int.parse(timeParts[0]),
+                                        minute: int.parse(timeParts[1]),
+                                      );
+                                    });
+                                  }
+                                } catch (e) {
+                                  print('Error parsing session ID: $e');
+                                }
+                              }
+                            },
+                          ),
+                        SizedBox(height: 8),
+                        // MANAGE SESSION BUTTON
+                        if (selectedSessionId != null)
+                          TextButton.icon(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              _showManageSessionDialog(selectedSessionId!);
+                            },
+                            icon: Icon(Icons.edit, size: 16),
+                            label: Text('Manage Players in Session', style: TextStyle(fontSize: 12)),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.blue[700],
+                            ),
+                          ),
+                        SizedBox(height: 12),
+                      ],
+                      
+                      // DATE & TIME SELECTION (for new sessions or display for existing)
+                      if (sessionMode == 'new') ...[
+                        Text('Date & Time', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.green[800])),
+                        SizedBox(height: 8),
+                        Row(
+                          children: [
+                            // DATE PICKER
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                icon: Icon(Icons.calendar_today, size: 16),
+                                label: Text(_formatDate(selectedDate), style: TextStyle(fontSize: 13)),
+                                style: OutlinedButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                ),
+                                onPressed: () async {
+                                  final DateTime? picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: selectedDate,
+                                    firstDate: DateTime(2020),
+                                    lastDate: DateTime(2030),
+                                  );
+                                  if (picked != null && picked != selectedDate) {
+                                    setState(() => selectedDate = picked);
+                                  }
+                                },
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            // TIME PICKER
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                icon: Icon(Icons.access_time, size: 16),
+                                label: Text(_formatTime(selectedTime), style: TextStyle(fontSize: 13)),
+                                style: OutlinedButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                ),
+                                onPressed: () async {
+                                  final TimeOfDay? picked = await showTimePicker(
+                                    context: context,
+                                    initialTime: selectedTime,
+                                    builder: (BuildContext context, Widget? child) {
+                                      return MediaQuery(
+                                        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+                                        child: child!,
+                                      );
+                                    },
+                                  );
+                                  if (picked != null) {
+                                    // Round to nearest 15 minutes
+                                    int roundedMinute = ((picked.minute / 15).round() * 15) % 60;
+                                    final roundedTime = TimeOfDay(hour: picked.hour, minute: roundedMinute);
+                                    setState(() => selectedTime = roundedTime);
+                                  }
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 12),
+                      ] else ...[
+                        // Display selected session date & time (read-only)
+                        Container(
+                          padding: EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.blue[50],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.info_outline, size: 16, color: Colors.blue[700]),
+                              SizedBox(width: 8),
+                              Text(
+                                '${_formatDate(selectedDate)} at ${_formatTime(selectedTime)}',
+                                style: TextStyle(fontSize: 13, color: Colors.blue[900]),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: 12),
+                      ],
                       
                       // NOTES - COMPACT
                       TextField(
@@ -654,15 +849,17 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                     Navigator.pop(context);
                      // Call Backend
                      try {
-                         SharedPreferences prefs = await SharedPreferences.getInstance();
-                         String? token = prefs.getString('token'); 
-                         
                          int teamId = 1; // Fallback
                          int? baseCost = int.tryParse(costController.text);
+                         
+                         // Format date and time
+                         final dateStr = "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
+                         final timeStr = _formatTime(selectedTime);
                          
                         final response = await apiService.postQueued('finance/record-game', {
                            'team_id': teamId,
                            'date': selectedDate.toIso8601String(),
+                           'time': timeStr,
                            'enlistedPlayers': selectedUsernames,
                            'notes': notesController.text,
                            'base_cost': baseCost,
@@ -690,6 +887,137 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
         );
       },
     );
+  }
+
+  Future<void> _showManageSessionDialog(String gameSessionId) async {
+    // Load session data
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final response = await apiService.get('finance/game-session-players/$gameSessionId');
+      Navigator.of(context).pop(); // Close loading
+      
+      if (!mounted) return;
+      
+      if (response['success'] != true) {
+        _showError('Failed to load session: ${response['message']}');
+        return;
+      }
+
+      final game = response['game'];
+      final players = List<Map<String, dynamic>>.from(response['players']);
+
+      // Show management dialog
+      showDialog(
+        context: context,
+        builder: (context) => StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Row(
+                children: [
+                  Icon(Icons.people, color: Colors.blue[700], size: 24),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Manage Session', style: TextStyle(fontSize: 18)),
+                        Text(gameSessionId, style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              content: Container(
+                width: double.maxFinite,
+                child: players.isEmpty
+                    ? Text('No players in this session')
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: players.length,
+                        itemBuilder: (ctx, idx) {
+                          final player = players[idx];
+                          return Card(
+                            margin: EdgeInsets.symmetric(vertical: 4),
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: Colors.blue[100],
+                                child: Text(
+                                  player['username'][0].toUpperCase(),
+                                  style: TextStyle(color: Colors.blue[900]),
+                                ),
+                              ),
+                              title: Text(player['username'], style: TextStyle(fontWeight: FontWeight.bold)),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Cost: ${player['applied_cost']}₪'),
+                                  if (player['adjustment_note'] != null && player['adjustment_note'].toString().isNotEmpty)
+                                    Text('Note: ${player['adjustment_note']}', style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic)),
+                                ],
+                              ),
+                              trailing: IconButton(
+                                icon: Icon(Icons.delete, color: Colors.red),
+                                onPressed: () async {
+                                  // Confirm deletion
+                                  bool? confirm = await showDialog<bool>(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      title: Text('Remove Player?'),
+                                      content: Text('Remove ${player['username']} from this game session? This will cancel their charge.'),
+                                      actions: [
+                                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancel')),
+                                        ElevatedButton(
+                                          onPressed: () => Navigator.pop(ctx, true),
+                                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                                          child: Text('Remove'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+
+                                  if (confirm == true) {
+                                    try {
+                                      final deleteRes = await apiService.delete('finance/delete-attendance/${player['attendance_id']}');
+                                      if (deleteRes['success']) {
+                                        _showSuccess('Player removed from session');
+                                        setState(() {
+                                          players.removeAt(idx);
+                                        });
+                                      } else {
+                                        _showError(deleteRes['message']);
+                                      }
+                                    } catch (e) {
+                                      _showError('Error removing player: $e');
+                                    }
+                                  }
+                                },
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('Close'),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+    } catch (e) {
+      Navigator.of(context).pop(); // Close loading
+      if (!mounted) return;
+      _showError('Error loading session: $e');
+    }
   }
 
   Future<void> _showPlayerFinancials(Map<String, dynamic> player) async {
