@@ -42,6 +42,7 @@ dependencies:
   socket_io_client: ^2.0.0
   google_fonts: ^4.0.3
   responsive_builder: ^0.7.1
+  connectivity_plus: ^6.0.3
 
 
 dev_dependencies:

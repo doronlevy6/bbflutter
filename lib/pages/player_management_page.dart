@@ -27,6 +27,9 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
   
   // For sorting
   bool _isAscending = true;
+  bool _playersFromCache = false;
+  String _preloadStatus = 'idle';
+  String? _preloadUpdatedAt;
 
   @override
   void initState() {
@@ -77,10 +80,11 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
       isLoading = true;
     });
     try {
-      final response = await apiService.get('players');
+      final response = await apiService.getWithCache('players', cacheKey: 'cache_players');
       if (response['success']) {
         setState(() {
           players = response['users'];
+          _playersFromCache = response['_cached'] == true;
           // Initialize role maps
           for (var player in players) {
             String username = player['username'];
@@ -96,14 +100,25 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
         _showError(response['message']);
       }
     } catch (e) {
-      _showError('Failed to fetch players: $e');
+        _showError('Failed to fetch players: $e');
     } finally {
       if (mounted) {
         setState(() {
           isLoading = false;
         });
       }
+      _loadPreloadStatus();
     }
+  }
+
+  Future<void> _loadPreloadStatus() async {
+    try {
+      final status = await apiService.getPreloadStatus();
+      setState(() {
+        _preloadStatus = status['status'] ?? 'idle';
+        _preloadUpdatedAt = status['updatedAt'] as String?;
+      });
+    } catch (_) {}
   }
 
   void _showError(String message) {
@@ -645,7 +660,7 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                          int teamId = 1; // Fallback
                          int? baseCost = int.tryParse(costController.text);
                          
-                         final response = await apiService.post('finance/record-game', {
+                        final response = await apiService.postQueued('finance/record-game', {
                            'team_id': teamId,
                            'date': selectedDate.toIso8601String(),
                            'enlistedPlayers': selectedUsernames,
@@ -657,7 +672,8 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                          });
                          
                          if (response['success']) {
-                             _showSuccess('Game saved successfully!');
+                             final queued = response['queued'] == true;
+                             _showSuccess(queued ? 'Saved offline. Will sync when online.' : 'Game saved successfully!');
                          } else {
                              _showError(response['message']);
                          }
@@ -708,6 +724,34 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
         ),
         child: Column(
           children: [
+            if (_preloadStatus == 'in_progress')
+              Container(
+                width: double.infinity,
+                color: Colors.orange[50],
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.cloud_download, size: 16, color: Colors.orange[700]),
+                    SizedBox(width: 6),
+                    Text('Refreshing cache in background…', style: TextStyle(color: Colors.orange[800], fontSize: 12)),
+                  ],
+                ),
+              )
+            else if (_preloadStatus == 'ready')
+              Container(
+                width: double.infinity,
+                color: Colors.green[50],
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.check_circle, size: 16, color: Colors.green[700]),
+                    SizedBox(width: 6),
+                    Text('Cache up to date', style: TextStyle(color: Colors.green[800], fontSize: 12)),
+                  ],
+                ),
+              ),
             // TOP BAR
             Container(
               padding: EdgeInsets.all(16),
@@ -767,64 +811,82 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
             Expanded(
               child: isLoading 
                 ? Center(child: CircularProgressIndicator())
-                : ListView.builder(
-                    padding: EdgeInsets.all(16),
-                    itemCount: players.length,
-                    itemBuilder: (context, index) {
-                      final player = players[index];
-                      final isEnlisted = selectedUsernames.contains(player['username']);
-                      
-                      return Card(
-                          margin: EdgeInsets.symmetric(vertical: 6),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                          color: Colors.white.withOpacity(0.95),
-                          child: ListTile(
-                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                              leading: Checkbox(
-                                  value: isEnlisted,
-                                  onChanged: (val) {
-                                      setState(() {
-                                          if (val == true) {
-                                              if (!selectedUsernames.contains(player['username'])) selectedUsernames.add(player['username']);
-                                          } else {
-                                              selectedUsernames.remove(player['username']);
-                                          }
-                                      });
-                                  },
-                                  activeColor: Colors.green,
-                              ),
-                              title: Text(player['username'], style: TextStyle(fontWeight: FontWeight.bold)),
-                              subtitle: Text(player['email'] ?? ''),
-                              trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                      // FINANCIAL ICON
-                                      IconButton(
-                                          icon: Icon(Icons.account_balance_wallet, color: Colors.teal[700]),
-                                          onPressed: () => _showPlayerFinancials(player),
-                                          tooltip: 'Wallet & Payments',
-                                      ),
-                                      // Existing Icons
-                                      IconButton(
-                                          icon: Icon(
-                                              Icons.emoji_events, 
-                                              color: playerRoles[player['username']] == 'manager' ? Colors.amber : Colors.grey[400]
-                                          ),
-                                          onPressed: () {
+                : Column(
+                    children: [
+                      if (_playersFromCache)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              Icon(Icons.cloud_off, color: Colors.orange[700], size: 16),
+                              SizedBox(width: 6),
+                              Text('Showing cached players (offline)', style: TextStyle(color: Colors.orange[700], fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                      Expanded(
+                        child: ListView.builder(
+                            padding: EdgeInsets.all(16),
+                            itemCount: players.length,
+                            itemBuilder: (context, index) {
+                              final player = players[index];
+                              final isEnlisted = selectedUsernames.contains(player['username']);
+                              
+                              return Card(
+                                  margin: EdgeInsets.symmetric(vertical: 6),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                                  color: _playersFromCache ? Colors.orange[50] : Colors.white.withOpacity(0.95),
+                                  child: ListTile(
+                                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                      leading: Checkbox(
+                                          value: isEnlisted,
+                                          onChanged: (val) {
                                               setState(() {
-                                                  String r = playerRoles[player['username']] ?? 'player';
-                                                  playerRoles[player['username']] = r == 'manager' ? 'player' : 'manager';
+                                                  if (val == true) {
+                                                      if (!selectedUsernames.contains(player['username'])) selectedUsernames.add(player['username']);
+                                                  } else {
+                                                      selectedUsernames.remove(player['username']);
+                                                  }
                                               });
                                           },
+                                          activeColor: Colors.green,
                                       ),
-                                      IconButton(icon: Icon(Icons.edit, color: Colors.blue), onPressed: () => _editPlayer(player)),
-                                      IconButton(icon: Icon(Icons.delete, color: Colors.red), onPressed: () => _deletePlayer(player['username'])),
-                                  ],
-                              ),
-                          ),
-                      );
-                    },
-                ),
+                                      title: Text(player['username'], style: TextStyle(fontWeight: FontWeight.bold)),
+                                      subtitle: Text(player['email'] ?? ''),
+                                      trailing: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                              // FINANCIAL ICON
+                                              IconButton(
+                                                  icon: Icon(Icons.account_balance_wallet, color: Colors.teal[700]),
+                                                  onPressed: () => _showPlayerFinancials(player),
+                                                  tooltip: 'Wallet & Payments',
+                                              ),
+                                              // Existing Icons
+                                              IconButton(
+                                                  icon: Icon(
+                                                      Icons.emoji_events, 
+                                                      color: playerRoles[player['username']] == 'manager' ? Colors.amber : Colors.grey[400]
+                                                  ),
+                                                  onPressed: () {
+                                                      setState(() {
+                                                          String r = playerRoles[player['username']] ?? 'player';
+                                                          playerRoles[player['username']] = r == 'manager' ? 'player' : 'manager';
+                                                      });
+                                                  },
+                                              ),
+                                              IconButton(icon: Icon(Icons.edit, color: Colors.blue), onPressed: () => _editPlayer(player)),
+                                              IconButton(icon: Icon(Icons.delete, color: Colors.red), onPressed: () => _deletePlayer(player['username'])),
+                                          ],
+                                      ),
+                                  ),
+                              );
+                            },
+                        ),
+                      ),
+                    ],
+                  ),
             ),
           ],
         ),
@@ -856,6 +918,10 @@ class __PlayerFinancialDialogState extends State<_PlayerFinancialDialog> {
     bool loading = true;
     Map<String, dynamic>? data;
     String errorMessage = '';
+    bool fromCache = false;
+    int pendingQueue = 0;
+    int lastSyncedCount = 0;
+    String? lastSyncedAt;
     
     // Filter State: 'all', 'games', 'payments'
     String _filter = 'all';
@@ -874,21 +940,33 @@ class __PlayerFinancialDialogState extends State<_PlayerFinancialDialog> {
     Future<void> _fetchData() async {
         setState(() { loading = true; errorMessage = ''; });
         try {
-            final response = await widget.apiService.get('finance/player-financials/${widget.username}');
-            if (response['success']) {
-                setState(() { data = response; loading = false; });
+            final response = await widget.apiService.getWithCache('finance/player-financials/${widget.username}', cacheKey: 'cache_player_financials_${widget.username}');
+            if (response['success'] == true) {
+                setState(() { data = response; loading = false; fromCache = response['_cached'] == true; });
             } else {
                 setState(() { errorMessage = response['message']; loading = false; });
             }
         } catch (e) {
             setState(() { errorMessage = e.toString(); loading = false; });
         }
+        _loadQueueStats();
+    }
+
+    Future<void> _loadQueueStats() async {
+        try {
+            final stats = await widget.apiService.getQueueStats();
+            setState(() {
+                pendingQueue = stats['pending'] ?? 0;
+                lastSyncedCount = stats['last_synced_count'] ?? 0;
+                lastSyncedAt = stats['last_synced_at'] as String?;
+            });
+        } catch (_) {}
     }
 
     Future<void> _addPayment() async {
         if (amountController.text.isEmpty) return;
         try {
-            final response = await widget.apiService.post('finance/add-payment', {
+            final response = await widget.apiService.postQueued('finance/add-payment', {
                 'username': widget.username,
                 'team_id': 1, // TODO: Get correct team_id
                 'amount': int.tryParse(amountController.text) ?? 0,
@@ -899,7 +977,10 @@ class __PlayerFinancialDialogState extends State<_PlayerFinancialDialog> {
                 amountController.clear();
                 notesController.clear();
                 _fetchData(); // Reload
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Payment added!'), backgroundColor: Colors.green));
+                final queued = response['queued'] == true;
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(queued ? 'Payment saved offline, will sync later' : 'Payment added!'),
+                    backgroundColor: queued ? Colors.orange : Colors.green));
             } else {
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(response['message']), backgroundColor: Colors.red));
             }
@@ -926,10 +1007,13 @@ class __PlayerFinancialDialogState extends State<_PlayerFinancialDialog> {
                 ? 'finance/delete-payment/$id' 
                 : 'finance/delete-attendance/$id';
                 
-            final response = await widget.apiService.delete(endpoint);
+            final response = await widget.apiService.deleteQueued(endpoint);
             
             if (response['success']) {
                  _fetchData(); // Reload
+                 if (response['queued'] == true) {
+                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Deletion queued (offline)'), backgroundColor: Colors.orange));
+                 }
             } else {
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(response['message'])));
             }
@@ -1016,6 +1100,12 @@ class __PlayerFinancialDialogState extends State<_PlayerFinancialDialog> {
                 child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                        if (fromCache)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0),
+                            child: Text('Showing cached data (offline)', style: TextStyle(color: Colors.orange[700], fontSize: 12)),
+                          ),
+                        _buildQueueInfo(),
                         // FILTER BUTTONS
                         Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -1040,6 +1130,7 @@ class __PlayerFinancialDialogState extends State<_PlayerFinancialDialog> {
                                         bool isPayment = item['type'] == 'payment';
                                         return Card(
                                             margin: EdgeInsets.symmetric(vertical: 4),
+                                            color: fromCache ? Colors.orange[50] : null,
                                             child: ListTile(
                                                 dense: true,
                                                 leading: Icon(
@@ -1127,5 +1218,32 @@ class __PlayerFinancialDialogState extends State<_PlayerFinancialDialog> {
                 child: Text(label, style: TextStyle(color: active ? Colors.blue[800] : Colors.black87, fontWeight: active?FontWeight.bold:FontWeight.normal))
             ),
         );
+    }
+
+    Widget _buildQueueInfo() {
+        final syncedInfo = lastSyncedAt != null
+            ? 'Last synced: $lastSyncedCount at ${_fmtTime(lastSyncedAt)}'
+            : 'No sync yet';
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Queue: $pendingQueue pending', style: TextStyle(fontSize: 12, color: Colors.grey[800])),
+              Text(syncedInfo, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+            ],
+          ),
+        );
+    }
+
+    String _fmtTime(String? iso) {
+        if (iso == null) return '';
+        try {
+          final d = DateTime.parse(iso);
+          String two(int n) => n.toString().padLeft(2, '0');
+          return '${two(d.hour)}:${two(d.minute)}';
+        } catch (_) {
+          return iso;
+        }
     }
 }

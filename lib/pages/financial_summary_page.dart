@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'dart:async';
 
 class FinancialSummaryPage extends StatefulWidget {
   @override
@@ -12,11 +14,19 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
   List<dynamic> players = [];
   int defaultCost = 0;
   String? errorMessage;
+  bool fromCache = false;
 
   // Summary stats
   int totalDebt = 0;
   int totalPaid = 0;
   int totalBalance = 0;
+  int pendingQueue = 0;
+  int lastSyncedCount = 0;
+  String? lastSyncedAt;
+  StreamSubscription<List<ConnectivityResult>>? _connSub;
+  bool _autoRefreshing = false;
+  String _preloadStatus = 'idle';
+  String? _preloadUpdatedAt;
 
   // Sorting state
   String _sortBy = 'name'; // 'name' or 'balance'
@@ -26,16 +36,41 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
   void initState() {
     super.initState();
     _loadData();
+    _loadQueueStats();
+    _startConnectivityListener();
+    _loadPreloadStatus();
+  }
+
+  void _startConnectivityListener() {
+    _connSub = Connectivity().onConnectivityChanged.listen((results) {
+      final hasConnection = results.any((r) => r != ConnectivityResult.none);
+      if (hasConnection) {
+        _handleOnlineRefresh();
+      }
+    });
+  }
+
+  Future<void> _handleOnlineRefresh() async {
+    if (_autoRefreshing) return;
+    _autoRefreshing = true;
+    try {
+      await apiService.processQueue();
+      await _loadData();
+      await _loadPreloadStatus();
+    } finally {
+      _autoRefreshing = false;
+    }
   }
 
   Future<void> _loadData() async {
     setState(() => isLoading = true);
     try {
-      final response = await apiService.get('finance/team-financial-summary/1');
-      if (response['success']) {
+      final response = await apiService.getWithCache('finance/team-financial-summary/1', cacheKey: 'cache_team_summary_1');
+      if (response['success'] == true) {
         setState(() {
           players = response['summary'] ?? [];
           defaultCost = response['defaultGameCost'] ?? 0;
+          fromCache = response['_cached'] == true;
           
           // Calculate totals
           totalDebt = 0;
@@ -59,10 +94,32 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
       }
     } catch (e) {
       setState(() {
-        errorMessage = e.toString();
+        errorMessage = 'Offline and no cached data yet.';
         isLoading = false;
       });
     }
+    _loadQueueStats();
+  }
+
+  Future<void> _loadQueueStats() async {
+    try {
+      final stats = await apiService.getQueueStats();
+      setState(() {
+        pendingQueue = stats['pending'] ?? 0;
+        lastSyncedCount = stats['last_synced_count'] ?? 0;
+        lastSyncedAt = stats['last_synced_at'] as String?;
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _loadPreloadStatus() async {
+    try {
+      final status = await apiService.getPreloadStatus();
+      setState(() {
+        _preloadStatus = status['status'] ?? 'idle';
+        _preloadUpdatedAt = status['updatedAt'] as String?;
+      });
+    } catch (_) {}
   }
 
   void _applySorting() {
@@ -90,7 +147,7 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
     );
 
     try {
-      final res = await apiService.get('finance/player-financials/$username');
+      final res = await apiService.getWithCache('finance/player-financials/$username', cacheKey: 'cache_player_financials_$username');
       Navigator.of(context).pop();
       if (!mounted) return;
       if (res['success'] != true) {
@@ -196,7 +253,7 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
       body: isLoading
           ? Center(child: CircularProgressIndicator())
           : errorMessage != null
-              ? Center(child: Text('Error: $errorMessage', style: TextStyle(color: Colors.red)))
+              ? Center(child: Text('Offline/no cache yet. Connect once to load data.', style: TextStyle(color: Colors.orange[700])))
               : RefreshIndicator(
                   onRefresh: _loadData,
                   child: _buildContent(),
@@ -207,6 +264,13 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
   Widget _buildContent() {
     return Column(
       children: [
+        if (fromCache)
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text('Showing cached data (offline)', style: TextStyle(color: Colors.orange[700], fontSize: 12)),
+          ),
+        _buildPreloadStatus(),
+        _buildQueueInfo(),
         // SUMMARY CARDS - more compact
         Container(
           padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -281,6 +345,8 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
                   final balance = player['balance'] as int? ?? 0;
                   final customCost = player['custom_game_cost'] as int?;
                   final playerCost = customCost ?? defaultCost;
+                  final isCached = fromCache;
+                  final tileColor = isCached ? Colors.orange[50] : Colors.white;
 
                   // Calculate games and remainder
                   int games = 0;
@@ -294,89 +360,107 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
 
                   return InkWell(
                     onTap: () => _openPlayerFinancials(player['username']),
-                    child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(color: Colors.grey[200]!, width: 0.5),
-                          right: BorderSide(
-                            color: crossAxisCount > 1 && (index % crossAxisCount != crossAxisCount - 1)
-                                ? Colors.grey[200]!
-                                : Colors.transparent,
-                            width: 0.5,
-                          ),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          // Status icon - small
-                          Container(
-                            width: 24,
-                            height: 24,
-                            decoration: BoxDecoration(
-                              color: isPositive ? Colors.green[50] : Colors.red[50],
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              isPositive ? Icons.check : Icons.warning,
-                              size: 14,
-                              color: isPositive ? Colors.green : Colors.red,
+                    child: Stack(
+                      children: [
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: tileColor,
+                            border: Border(
+                              bottom: BorderSide(color: Colors.grey[200]!, width: 0.5),
+                              right: BorderSide(
+                                color: crossAxisCount > 1 && (index % crossAxisCount != crossAxisCount - 1)
+                                    ? Colors.grey[200]!
+                                    : Colors.transparent,
+                                width: 0.5,
+                              ),
                             ),
                           ),
-                          SizedBox(width: 10),
-
-                          // Name only
-                          Expanded(
-                            flex: 2,
-                            child: Text(
-                              player['username'],
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-
-                          // Balance + games/remainder (compact right side)
-                          SizedBox(
-                            width: 72,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  '$balance₪',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                    color: isPositive ? Colors.green[700] : Colors.red[700],
-                                  ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              // Status icon - small
+                              Container(
+                                width: 24,
+                                height: 24,
+                                decoration: BoxDecoration(
+                                  color: isPositive ? Colors.green[50] : Colors.red[50],
+                                  shape: BoxShape.circle,
                                 ),
-                                Row(
+                                child: Icon(
+                                  isPositive ? Icons.check : Icons.warning,
+                                  size: 14,
+                                  color: isPositive ? Colors.green : Colors.red,
+                                ),
+                              ),
+                              SizedBox(width: 10),
+
+                              // Name only
+                              Expanded(
+                                flex: 2,
+                                child: Text(
+                                  player['username'],
+                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+
+                              // Balance + games/remainder (compact right side)
+                              SizedBox(
+                                width: 72,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text(
-                                      '${games >= 0 ? (games > 0 ? '+' : '') : ''}$games',
+                                      '$balance₪',
                                       style: TextStyle(
                                         fontSize: 13,
-                                        fontWeight: FontWeight.w600,
+                                        fontWeight: FontWeight.bold,
                                         color: isPositive ? Colors.green[700] : Colors.red[700],
                                       ),
                                     ),
-                                    SizedBox(width: 2),
-                                    Icon(Icons.sports_basketball, size: 13, color: Colors.grey),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          '${games >= 0 ? (games > 0 ? '+' : '') : ''}$games',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: isPositive ? Colors.green[700] : Colors.red[700],
+                                          ),
+                                        ),
+                                        SizedBox(width: 2),
+                                        Icon(Icons.sports_basketball, size: 13, color: Colors.grey),
+                                      ],
+                                    ),
+                                    if (remainder != 0)
+                                      Text(
+                                        '${remainder >= 0 ? '+' : ''}$remainder₪',
+                                        style: TextStyle(fontSize: 9, color: Colors.grey[600]),
+                                      ),
                                   ],
                                 ),
-                                if (remainder != 0)
-                                  Text(
-                                    '${remainder >= 0 ? '+' : ''}$remainder₪',
-                                    style: TextStyle(fontSize: 9, color: Colors.grey[600]),
-                                  ),
-                              ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (isCached)
+                          Positioned(
+                            top: 6,
+                            right: 8,
+                            child: Container(
+                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.orange[200],
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text('Cache', style: TextStyle(fontSize: 10, color: Colors.orange[900])),
                             ),
                           ),
-                        ],
-                      ),
+                      ],
                     ),
                   );
                 },
@@ -386,6 +470,65 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
         ),
       ],
     );
+  }
+
+  Widget _buildQueueInfo() {
+    final syncedInfo = lastSyncedAt != null
+        ? 'Last synced: $lastSyncedCount at ${DateTime.tryParse(lastSyncedAt!) != null ? _fmtTime(DateTime.parse(lastSyncedAt!)) : lastSyncedAt}'
+        : 'No sync yet';
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text('Offline queue: $pendingQueue pending', style: TextStyle(fontSize: 12, color: Colors.grey[800])),
+          Text(syncedInfo, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+        ],
+      ),
+    );
+  }
+
+  String _fmtTime(DateTime d) {
+    final two = (int n) => n.toString().padLeft(2, '0');
+    return '${two(d.hour)}:${two(d.minute)}';
+  }
+
+  Widget _buildPreloadStatus() {
+    String text;
+    Color color;
+    IconData icon;
+    if (_preloadStatus == 'in_progress') {
+      text = 'Refreshing cache in background…';
+      color = Colors.orange[800]!;
+      icon = Icons.cloud_download;
+    } else if (_preloadStatus == 'ready') {
+      text = 'Cache up to date';
+      color = Colors.green[800]!;
+      icon = Icons.check_circle;
+    } else if (_preloadStatus == 'failed') {
+      text = 'Cache refresh failed';
+      color = Colors.red[700]!;
+      icon = Icons.error_outline;
+    } else {
+      return SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 16, color: color),
+          SizedBox(width: 6),
+          Text(text, style: TextStyle(fontSize: 12, color: color)),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _connSub?.cancel();
+    super.dispose();
   }
 
   Widget _buildSummaryCard(String label, int value, Color color) {

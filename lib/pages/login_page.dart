@@ -224,6 +224,9 @@ class _LoginPageState extends State<LoginPage> {
         if (data['user']['team_type'] != null) {
           await prefs.setString('team_type', data['user']['team_type']);
         }
+        if (data['user']['team_id'] != null) {
+          await prefs.setInt('team_id', data['user']['team_id']);
+        }
         if (data['is_admin'] != null) {
           await prefs.setBool('is_admin', data['is_admin']);
         }
@@ -232,6 +235,10 @@ class _LoginPageState extends State<LoginPage> {
         await RankingsService.fetchAndCachePlayerRankingsForUser(username);
         await RankingsService.fetchAndCacheOverallPlayerRankings();
         await RankingsService.getEnlisted();
+        final int teamId = data['user']['team_id'] ?? 1;
+        await _apiService.processQueue(); // flush any pending
+        // Kick off preload in background (do not block login)
+        _apiService.preloadAll(username: username, teamId: teamId);
 
         Navigator.pushReplacementNamed(context, '/home');
       } else {

@@ -37,6 +37,7 @@ class _WelcomePageState extends State<WelcomePage> {
   // Balance state
   Map<String, dynamic>? _balanceData;
   bool _loadingBalance = true;
+  bool _balanceCached = false;
 
   @override
   void initState() {
@@ -107,11 +108,12 @@ class _WelcomePageState extends State<WelcomePage> {
     if (user.isEmpty) return;
     
     try {
-      final response = await _apiService.get('finance/player-balance/$user');
-      if (response['success']) {
+      final response = await _apiService.getWithCache('finance/player-balance/$user', cacheKey: 'cache_player_balance_$user');
+      if (response['success'] == true) {
         setState(() {
           _balanceData = response;
           _loadingBalance = false;
+          _balanceCached = response['_cached'] == true;
         });
       }
     } catch (error) {
@@ -447,6 +449,14 @@ class _WelcomePageState extends State<WelcomePage> {
                     color: textColor.withOpacity(0.8),
                   ),
                 ),
+                if (_balanceCached)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      'Offline data',
+                      style: TextStyle(fontSize: 11, color: Colors.orange[700]),
+                    ),
+                  ),
               ],
             ),
           ],

@@ -4,6 +4,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 // Import the pages
+import 'services/api_service.dart';
 import 'pages/login_page.dart';
 import 'pages/grade_page.dart';
 import 'pages/playground_page.dart';
@@ -91,7 +92,18 @@ class _AuthCheckState extends State<AuthCheck> {
   Future<bool> _checkLoginStatus() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? token = prefs.getString('token');
-    return token != null;
+    if (token != null) {
+      final api = ApiService();
+      final username = prefs.getString('user') ?? '';
+      final teamId = prefs.getInt('team_id') ?? 1;
+      await api.processQueue();
+      if (username.isNotEmpty) {
+        // Fire-and-forget preload for all offline data (do not block navigation)
+        api.preloadAll(username: username, teamId: teamId);
+      }
+      return true;
+    }
+    return false;
   }
 
   @override

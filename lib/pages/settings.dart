@@ -15,6 +15,7 @@ class _SettingsPageState extends State<SettingsPage> {
   final TextEditingController _costController = TextEditingController();
   final ApiService apiService = ApiService();
   bool _isLoading = false;
+  bool _teamSettingsCached = false;
 
   @override
   void initState() {
@@ -40,10 +41,11 @@ class _SettingsPageState extends State<SettingsPage> {
       int teamId = 1; 
 
       try {
-          final response = await apiService.get('finance/team-financial-summary/$teamId');
-          if (response['success']) {
+          final response = await apiService.getWithCache('finance/team-financial-summary/$teamId', cacheKey: 'cache_team_summary_$teamId');
+          if (response['success'] == true) {
               setState(() {
                   _costController.text = response['defaultGameCost'].toString();
+                  _teamSettingsCached = response['_cached'] == true;
               });
           }
       } catch (e) {
@@ -63,12 +65,15 @@ class _SettingsPageState extends State<SettingsPage> {
       
       setState(() => _isLoading = true);
       try {
-          final response = await apiService.put('finance/update-team-settings', {
+          final response = await apiService.putQueued('finance/update-team-settings', {
               'team_id': teamId,
               'default_game_cost': cost
           });
           if (response['success']) {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Cost updated'), backgroundColor: Colors.green));
+              final queued = response['queued'] == true;
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text(queued ? 'Saved offline. Will sync when online.' : 'Cost updated'),
+                  backgroundColor: queued ? Colors.orange : Colors.green));
           } else {
                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(response['message']), backgroundColor: Colors.red));
           }
@@ -99,6 +104,11 @@ class _SettingsPageState extends State<SettingsPage> {
               
               Text('Default Game Cost (Amount per player per game):'),
               SizedBox(height: 8),
+              if (_teamSettingsCached)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text('Showing cached data (offline)', style: TextStyle(color: Colors.orange[700], fontSize: 12)),
+                ),
               Row(
                   children: [
                       Expanded(
@@ -222,9 +232,9 @@ class _SettingsPageState extends State<SettingsPage> {
       // Assuming 'enlist' returns usernames, we might need a richer endpoint.
       // Or we can use 'team-financial-summary' which returns everyone.
       int teamId = 1; // Fallback
-      final response = await apiService.get('finance/team-financial-summary/$teamId');
+      final response = await apiService.getWithCache('finance/team-financial-summary/$teamId', cacheKey: 'cache_team_summary_$teamId');
       
-      if (response['success']) {
+      if (response['success'] == true) {
         setState(() {
           _players = response['summary'];
           // Note: team-financial-summary returns {username, balance, debt, paid}
@@ -320,13 +330,16 @@ class _SettingsPageState extends State<SettingsPage> {
       int? cost = int.tryParse(costStr);
       
       try {
-          final response = await apiService.put('finance/update-user-financial-settings', {
+          final response = await apiService.putQueued('finance/update-user-financial-settings', {
               'username': username,
               'custom_game_cost': cost // null sends null to DB (resets to default)
           });
           
           if (response['success']) {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Updated $username'), backgroundColor: Colors.green));
+              final queued = response['queued'] == true;
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text(queued ? 'Saved offline. Will sync when online.' : 'Updated $username'),
+                  backgroundColor: queued ? Colors.orange : Colors.green));
               _loadTeamSettings(); // Refresh
               _loadPlayers();
           }
