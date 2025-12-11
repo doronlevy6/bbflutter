@@ -453,6 +453,8 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
     
     // Map to store individual cost overrides: { 'username': custom_cost }
     Map<String, int> individualCostOverrides = {};
+    // Map to store per-player override notes
+    Map<String, String> individualCostNotes = {};
 
     await showDialog(
       context: context,
@@ -555,38 +557,71 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                           leading: Icon(Icons.group, size: 18, color: Colors.grey),
                           children: [
                               Container(
-                                  height: 150,
+                                  height: 200,
                                   child: ListView.builder(
                                       shrinkWrap: true,
                                       itemCount: selectedUsernames.length,
                                       itemBuilder: (ctx, idx) {
                                           String username = selectedUsernames[idx];
-                                          return ListTile(
-                                              dense: true,
-                                              visualDensity: VisualDensity.compact,
-                                              title: Text(username, style: TextStyle(fontSize: 12)),
-                                              trailing: SizedBox(
-                                                  width: 60,
-                                                  child: TextField(
-                                                      style: TextStyle(fontSize: 12),
-                                                      decoration: InputDecoration(
+                                          return Padding(
+                                            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(username, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                                SizedBox(height: 6),
+                                                Row(
+                                                  children: [
+                                                    SizedBox(
+                                                      width: 70,
+                                                      child: TextField(
+                                                        style: TextStyle(fontSize: 12),
+                                                        decoration: InputDecoration(
                                                           hintText: '-',
                                                           hintStyle: TextStyle(fontSize: 11),
                                                           isDense: true,
                                                           contentPadding: EdgeInsets.all(6),
                                                           border: OutlineInputBorder(),
-                                                      ),
-                                                      keyboardType: TextInputType.number,
-                                                      onChanged: (val) {
+                                                          labelText: 'Cost',
+                                                          labelStyle: TextStyle(fontSize: 10),
+                                                        ),
+                                                        keyboardType: TextInputType.number,
+                                                        onChanged: (val) {
                                                           int? v = int.tryParse(val);
                                                           if (v != null) {
                                                               individualCostOverrides[username] = v;
                                                           } else {
                                                               individualCostOverrides.remove(username);
                                                           }
-                                                      },
-                                                  ),
-                                              ),
+                                                        },
+                                                      ),
+                                                    ),
+                                                    SizedBox(width: 8),
+                                                    Expanded(
+                                                      child: TextField(
+                                                        style: TextStyle(fontSize: 12),
+                                                        decoration: InputDecoration(
+                                                          hintText: 'Why was it changed?',
+                                                          hintStyle: TextStyle(fontSize: 11, color: Colors.grey),
+                                                          isDense: true,
+                                                          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                                                          border: OutlineInputBorder(),
+                                                          labelText: 'Note',
+                                                          labelStyle: TextStyle(fontSize: 10),
+                                                        ),
+                                                        onChanged: (val) {
+                                                          if (val.trim().isNotEmpty) {
+                                                              individualCostNotes[username] = val.trim();
+                                                          } else {
+                                                              individualCostNotes.remove(username);
+                                                          }
+                                                        },
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
                                           );
                                       },
                                   ),
@@ -610,7 +645,7 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                          int teamId = 1; // Fallback
                          int? baseCost = int.tryParse(costController.text);
                          
-                        final response = await apiService.post('finance/record-game', {
+                         final response = await apiService.post('finance/record-game', {
                            'team_id': teamId,
                            'date': selectedDate.toIso8601String(),
                            'enlistedPlayers': selectedUsernames,
@@ -618,6 +653,7 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                            'base_cost': baseCost,
                            'force_base_cost': forceOverrideAll,
                            'specific_player_costs': individualCostOverrides.isNotEmpty ? individualCostOverrides : null,
+                           'specific_player_notes': individualCostNotes.isNotEmpty ? individualCostNotes : null,
                          });
                          
                          if (response['success']) {
@@ -1093,4 +1129,3 @@ class __PlayerFinancialDialogState extends State<_PlayerFinancialDialog> {
         );
     }
 }
-
