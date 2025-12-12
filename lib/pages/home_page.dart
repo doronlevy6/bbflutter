@@ -7,6 +7,8 @@ import 'grade_page.dart';
 import 'settings.dart';
 import 'playground_page.dart';
 import 'interactive_playground_page.dart';
+import 'draw_page.dart';
+import 'game_board_page.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:responsive_builder/responsive_builder.dart';
 
@@ -176,6 +178,8 @@ class _HomePageState extends State<HomePage> {
                   final gradeTooltip = _isHebrew ? 'ציונים' : 'Grade Page';
                   final managementTitle = _isHebrew ? 'ניהול' : 'Management';
                   final playgroundTitle = _isHebrew ? 'מגרש משחקים' : 'Playground';
+                  final drawTitle = _isHebrew ? 'דף הגרלות' : 'Draws';
+                  final boardTitle = _isHebrew ? 'לוח משחק חי' : 'Game Board';
                   final settingsTitle = _isHebrew ? 'הגדרות' : 'Settings';
                   final logoutTitle = _isHebrew ? 'התנתק' : 'Logout';
 
@@ -260,6 +264,22 @@ class _HomePageState extends State<HomePage> {
                               tooltip: _isHebrew ? 'בנייה אינטראקטיבית' : 'Interactive Builder',
                               page: InteractivePlaygroundPage(),
                               title: _isHebrew ? 'בנייה אינטראקטיבית' : 'Interactive Builder',
+                            ),
+                            _buildDrawerIcon(
+                              context,
+                              icon: Icons.shuffle,
+                              color: Colors.lightGreen[300],
+                              tooltip: drawTitle,
+                              page: const DrawPage(),
+                              title: drawTitle,
+                            ),
+                            _buildDrawerIcon(
+                              context,
+                              icon: Icons.scoreboard,
+                              color: Colors.redAccent[100],
+                              tooltip: boardTitle,
+                              page: const GameBoardPage(),
+                              title: boardTitle,
                             ),
                             if (username.toLowerCase() == 'doron')
                             _buildDrawerIcon(
