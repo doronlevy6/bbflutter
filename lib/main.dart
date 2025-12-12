@@ -9,6 +9,8 @@ import 'pages/grade_page.dart';
 import 'pages/playground_page.dart';
 import 'pages/home_page.dart';
 import 'pages/welcome_page.dart';
+import 'pages/draw_page.dart';
+import 'pages/game_board_page.dart';
 
 Future<void> main() async {
   // Ensure that widget binding is initialized
@@ -74,6 +76,8 @@ class MyApp extends StatelessWidget {
         '/welcome': (context) => WelcomePage(),
         '/teams': (context) => PlayGround(),
         '/home': (context) => HomePage(),
+        '/draws': (context) => const DrawPage(),
+        '/board': (context) => const GameBoardPage(),
       },
       onUnknownRoute: (settings) => MaterialPageRoute(
         builder: (context) => LoginPage(),
