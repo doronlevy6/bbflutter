@@ -3,6 +3,7 @@ import '../services/api_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:async';
 import '../widgets/basketball_spinner.dart';
+import 'player_management_page.dart';
 
 class FinancialSummaryPage extends StatefulWidget {
   @override
@@ -161,95 +162,11 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
   Future<void> _openPlayerFinancials(String username) async {
     showDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
-    );
-
-    try {
-      final res = await apiService.getWithCache('finance/player-financials/$username', cacheKey: 'cache_player_financials_$username');
-      Navigator.of(context).pop();
-      if (!mounted) return;
-      if (res['success'] != true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${res['message'] ?? 'Failed to load'}')),
-        );
-        return;
-      }
-
-      final balance = res['balance'] ?? 0;
-      final historyObj = res['history'] as Map<String, dynamic>? ?? {};
-      final games = (historyObj['games'] as List<dynamic>? ?? [])
-          .map<Map<String, dynamic>>((g) => {
-                'type': 'game',
-                'date': g['date'],
-                'amount': -1 * ((g['applied_cost'] ?? 0) as num),
-                'desc': 'Game ${g['notes'] ?? ''}',
-              })
-          .toList();
-      final payments = (historyObj['payments'] as List<dynamic>? ?? [])
-          .map<Map<String, dynamic>>((p) => {
-                'type': 'payment',
-                'date': p['date'],
-                'amount': p['amount'] ?? 0,
-                'desc': 'Payment (${p['method'] ?? ''})',
-              })
-          .toList();
-      final entries = [...games, ...payments]
-        ..sort((a, b) => DateTime.parse(b['date']).compareTo(DateTime.parse(a['date'])));
-
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text('$username • $balance₪'),
-          content: SizedBox(
-            width: 320,
-            height: 320,
-            child: entries.isEmpty
-                ? const Center(child: Text('No data'))
-                : ListView.separated(
-                    itemCount: entries.length,
-                    separatorBuilder: (_, __) => const Divider(height: 12),
-                    itemBuilder: (_, i) {
-                      final e = entries[i];
-                      final amt = e['amount'] as num? ?? 0;
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            e['desc'] ?? '',
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          const SizedBox(height: 2),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(e['date'] ?? '', style: TextStyle(fontSize: 11, color: Colors.grey[600])),
-                              Text(
-                                '${amt >= 0 ? '+' : ''}$amt₪',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: amt >= 0 ? Colors.green[700] : Colors.red[700],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Close')),
-          ],
-        ),
-      );
-    } catch (e) {
-      Navigator.of(context).pop();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
-    }
+      builder: (context) => PlayerFinancialDialog(username: username, apiService: apiService),
+    ).then((_) {
+      // Refresh data after dialog closes
+      _loadData();
+    });
   }
 
   Widget _buildSortChip(String label, String field) {
@@ -320,6 +237,157 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
       ),
     );
   }
+  
+  void _showPendingQueueDialog() async {
+    final items = await apiService.getQueueItems();
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.cloud_off, color: Colors.orange),
+              SizedBox(width: 8),
+              Text('Pending Actions (${items.length})'),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 300,
+            child: items.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.green, size: 48),
+                      SizedBox(height: 8),
+                      Text('No pending actions', style: TextStyle(fontSize: 16)),
+                      Text('All synced!', style: TextStyle(color: Colors.grey)),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  itemCount: items.length,
+                  itemBuilder: (context, index) {
+                    final item = items[index];
+                    final method = item['method'] ?? 'POST';
+                    final endpoint = item['endpoint'] ?? '';
+                    final createdAt = item['created_at'] ?? '';
+                    final attempts = item['attempts'] ?? 0;
+                    
+                    String description = _getActionDescription(method, endpoint, item['body']);
+                    
+                    return Card(
+                      child: ListTile(
+                        leading: Icon(
+                          method == 'DELETE' ? Icons.delete : Icons.cloud_upload,
+                          color: method == 'DELETE' ? Colors.red : Colors.blue,
+                        ),
+                        title: Text(description, style: TextStyle(fontSize: 13)),
+                        subtitle: Text(
+                          'Attempts: $attempts | ${_formatQueueTime(createdAt)}',
+                          style: TextStyle(fontSize: 11),
+                        ),
+                        trailing: IconButton(
+                          icon: Icon(Icons.delete_outline, color: Colors.red),
+                          onPressed: () async {
+                            await apiService.removeFromQueue(item['id']);
+                            final newItems = await apiService.getQueueItems();
+                            setDialogState(() => items
+                              ..clear()
+                              ..addAll(newItems));
+                            _loadQueueStats();
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('Close'),
+            ),
+            if (items.isNotEmpty) ...[
+              TextButton(
+                onPressed: () async {
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: Text('Clear All?'),
+                      content: Text('Delete all ${items.length} pending actions? Cannot be undone.'),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancel')),
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: Text('Delete', style: TextStyle(color: Colors.red)),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirmed == true) {
+                    await apiService.clearQueue();
+                    Navigator.pop(ctx);
+                    _loadQueueStats();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Queue cleared')),
+                    );
+                  }
+                },
+                child: Text('Clear All', style: TextStyle(color: Colors.red)),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await apiService.processQueue();
+                  _loadQueueStats();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Syncing...')),
+                  );
+                },
+                child: Text('Sync Now'),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+  
+  String _getActionDescription(String method, String endpoint, dynamic body) {
+    final bodyMap = body is Map<String, dynamic> ? body : <String, dynamic>{};
+    final amount = bodyMap['amount'];
+    final username = bodyMap['username'] ?? bodyMap['player_username'] ?? '';
+    
+    if (endpoint.contains('add-payment')) {
+      return 'Payment: ${amount != null ? "₪$amount" : ""} ${username.isNotEmpty ? "($username)" : ""}';
+    }
+    if (endpoint.contains('record-game')) {
+      final fee = bodyMap['game_fee'] ?? bodyMap['fee'];
+      return 'Game: ${fee != null ? "₪$fee" : ""} ${username.isNotEmpty ? "($username)" : ""}';
+    }
+    if (endpoint.contains('delete-payment')) {
+      return 'Delete Payment ${username.isNotEmpty ? "($username)" : ""}';
+    }
+    if (endpoint.contains('delete-attendance')) {
+      return 'Delete Attendance ${username.isNotEmpty ? "($username)" : ""}';
+    }
+    if (endpoint.contains('enlist')) {
+      return 'Enlist Player ${username.isNotEmpty ? "($username)" : ""}';
+    }
+    return '$method: $endpoint';
+  }
+  
+  String _formatQueueTime(String isoString) {
+    try {
+      final d = DateTime.parse(isoString);
+      return '${d.day}/${d.month} ${d.hour}:${d.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return isoString;
+    }
+  }
 
   @override
   void dispose() {
@@ -345,30 +413,31 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
   Widget _buildContent() {
     return Column(
       children: [
-        if (fromCache)
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Text('Showing cached data (offline)', style: TextStyle(color: Colors.orange[700], fontSize: 12)),
-          ),
-        
-        // SYNC INDICATOR
-        if (_isSyncing)
-          Container(
-            width: double.infinity,
-            color: Colors.blue[50], // Light blue bg
-            padding: EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                BasketballSpinner(size: 16), // Mini spinner
-                SizedBox(width: 8),
-                Text('Syncing changes...', style: TextStyle(fontSize: 12, color: Colors.blue[800])),
-              ],
+        // SINGLE CACHE/SYNC INDICATOR - only when there are pending items
+        if (pendingQueue > 0 || _isSyncing)
+          GestureDetector(
+            onTap: _showPendingQueueDialog,
+            child: Container(
+              width: double.infinity,
+              color: Colors.orange[50],
+              padding: EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (_isSyncing) ...[
+                    BasketballSpinner(size: 16),
+                    SizedBox(width: 8),
+                    Text('Syncing...', style: TextStyle(fontSize: 12, color: Colors.blue[800])),
+                  ] else ...[
+                    Icon(Icons.cloud_off, color: Colors.orange, size: 18),
+                    SizedBox(width: 8),
+                    Text('$pendingQueue pending (tap to view)', style: TextStyle(fontSize: 12, color: Colors.orange[800])),
+                  ],
+                ],
+              ),
             ),
           ),
-
-        _buildPreloadStatus(),
-        _buildQueueInfo(),
+        
         // SUMMARY CARDS - more compact
         Container(
           padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -420,22 +489,23 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
           ),
         ),
 
-        // PLAYER LIST - COMPACT / GRID WHEN SPACE ALLOWS
+        // PLAYER LIST - ULTRA COMPACT GRID
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
               final width = constraints.maxWidth;
-              final crossAxisCount = width > 1100 ? 3 : (width > 700 ? 2 : 1);
-              final childAspectRatio = crossAxisCount == 1
-                  ? 4.5
-                  : crossAxisCount == 2
-                      ? 3.8
-                      : 3.2;
+              // Always at least 3 columns as requested
+              final crossAxisCount = width > 1200 ? 5 : (width > 900 ? 4 : 3);
+              // Simple fixed aspect ratio for density
+              final childAspectRatio = 4.0; 
+              
               return GridView.builder(
                 padding: EdgeInsets.zero,
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: crossAxisCount,
                   childAspectRatio: childAspectRatio,
+                  mainAxisSpacing: 0,
+                  crossAxisSpacing: 0,
                 ),
                 itemCount: players.length,
                 itemBuilder: (context, index) {
@@ -458,107 +528,63 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
 
                   return InkWell(
                     onTap: () => _openPlayerFinancials(player['username']),
-                    child: Stack(
-                      children: [
-                        Container(
-                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: tileColor,
-                            border: Border(
-                              bottom: BorderSide(color: Colors.grey[200]!, width: 0.5),
-                              right: BorderSide(
-                                color: crossAxisCount > 1 && (index % crossAxisCount != crossAxisCount - 1)
-                                    ? Colors.grey[200]!
-                                    : Colors.transparent,
-                                width: 0.5,
-                              ),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: tileColor,
+                        border: Border.all(color: Colors.grey[200]!, width: 0.3),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // Name
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 4,
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                    color: isPositive ? Colors.green : Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                SizedBox(width: 3),
+                                Expanded(
+                                  child: Text(
+                                    player['username'],
+                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            crossAxisAlignment: CrossAxisAlignment.center,
+                          // Games & Remainder (Remainder Left, Games Right)
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              // Status icon - small
-                              Container(
-                                width: 24,
-                                height: 24,
-                                decoration: BoxDecoration(
-                                  color: isPositive ? Colors.green[50] : Colors.red[50],
-                                  shape: BoxShape.circle,
+                              // Remainder in parens (Left)
+                              if (remainder != 0) ...[
+                                Text(
+                                  '(${remainder > 0 ? '+' : ''}$remainder₪)',
+                                  style: TextStyle(fontSize: 9, color: Colors.grey[600]),
                                 ),
-                                child: Icon(
-                                  isPositive ? Icons.check : Icons.warning,
-                                  size: 14,
-                                  color: isPositive ? Colors.green : Colors.red,
-                                ),
-                              ),
-                              SizedBox(width: 10),
-
-                              // Name only
-                              Expanded(
-                                flex: 2,
-                                child: Text(
-                                  player['username'],
-                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-
-                              // Balance + games/remainder (compact right side)
-                              SizedBox(
-                                width: 72,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      '$balance₪',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.bold,
-                                        color: isPositive ? Colors.green[700] : Colors.red[700],
-                                      ),
-                                    ),
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          '${games >= 0 ? (games > 0 ? '+' : '') : ''}$games',
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w600,
-                                            color: isPositive ? Colors.green[700] : Colors.red[700],
-                                          ),
-                                        ),
-                                        SizedBox(width: 2),
-                                        Icon(Icons.sports_basketball, size: 13, color: Colors.grey),
-                                      ],
-                                    ),
-                                    if (remainder != 0)
-                                      Text(
-                                        '${remainder >= 0 ? '+' : ''}$remainder₪',
-                                        style: TextStyle(fontSize: 9, color: Colors.grey[600]),
-                                      ),
-                                  ],
+                                SizedBox(width: 2),
+                              ],
+                              // Games count (Right)
+                              Text(
+                                '${games >= 0 ? (games > 0 ? '+' : '') : ''}$games',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: isPositive ? Colors.green[700] : Colors.red[700],
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                        if (isCached)
-                          Positioned(
-                            top: 6,
-                            right: 8,
-                            child: Container(
-                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.orange[200],
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text('Cache', style: TextStyle(fontSize: 10, color: Colors.orange[900])),
-                            ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
                   );
                 },

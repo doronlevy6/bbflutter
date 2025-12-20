@@ -217,6 +217,24 @@ class OfflineService {
     return metrics;
   }
   
+  /// Get all pending queue items for display
+  Future<List<Map<String, dynamic>>> getQueueItems() async {
+    final queue = await _loadQueue();
+    return queue.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+  }
+  
+  /// Clear a specific item from queue by ID
+  Future<void> removeFromQueue(String id) async {
+    final queue = await _loadQueue();
+    queue.removeWhere((item) => item['id'] == id);
+    await _saveQueue(queue);
+  }
+  
+  /// Clear all pending queue items
+  Future<void> clearQueue() async {
+    await _saveQueue([]);
+  }
+  
   // New Sync Stream
   final _syncStatusController = StreamController<bool>.broadcast();
   Stream<bool> get isSyncing => _syncStatusController.stream;

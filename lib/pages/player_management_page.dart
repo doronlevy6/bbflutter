@@ -1043,8 +1043,157 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
     
     showDialog(
       context: context,
-      builder: (context) => _PlayerFinancialDialog(username: player['username'], apiService: apiService),
+      builder: (context) => PlayerFinancialDialog(username: player['username'], apiService: apiService),
     );
+  }
+  
+  void _showPendingQueueDialog() async {
+    final items = await apiService.getQueueItems();
+    final stats = await apiService.getQueueStats();
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.cloud_off, color: Colors.orange),
+              SizedBox(width: 8),
+              Text('Pending Actions (${items.length})'),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 300,
+            child: items.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.green, size: 48),
+                      SizedBox(height: 8),
+                      Text('No pending actions', style: TextStyle(fontSize: 16)),
+                      Text('All synced!', style: TextStyle(color: Colors.grey)),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  itemCount: items.length,
+                  itemBuilder: (context, index) {
+                    final item = items[index];
+                    final method = item['method'] ?? 'POST';
+                    final endpoint = item['endpoint'] ?? '';
+                    final createdAt = item['created_at'] ?? '';
+                    final attempts = item['attempts'] ?? 0;
+                    
+                    String description = _getActionDescription(method, endpoint, item['body']);
+                    
+                    return Card(
+                      child: ListTile(
+                        leading: Icon(
+                          method == 'DELETE' ? Icons.delete : Icons.cloud_upload,
+                          color: method == 'DELETE' ? Colors.red : Colors.blue,
+                        ),
+                        title: Text(description, style: TextStyle(fontSize: 13)),
+                        subtitle: Text(
+                          'Attempts: $attempts | ${_formatTime(createdAt)}',
+                          style: TextStyle(fontSize: 11),
+                        ),
+                        trailing: IconButton(
+                          icon: Icon(Icons.delete_outline, color: Colors.red),
+                          onPressed: () async {
+                            await apiService.removeFromQueue(item['id']);
+                            final newItems = await apiService.getQueueItems();
+                            setDialogState(() => items
+                              ..clear()
+                              ..addAll(newItems));
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('Close'),
+            ),
+            if (items.isNotEmpty) ...[
+              TextButton(
+                onPressed: () async {
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: Text('Clear All?'),
+                      content: Text('Are you sure you want to delete all ${items.length} pending actions? This cannot be undone.'),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancel')),
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: Text('Delete', style: TextStyle(color: Colors.red)),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirmed == true) {
+                    await apiService.clearQueue();
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Queue cleared')),
+                    );
+                  }
+                },
+                child: Text('Clear All', style: TextStyle(color: Colors.red)),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await apiService.processQueue();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Syncing...')),
+                  );
+                },
+                child: Text('Sync Now'),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+  
+  String _getActionDescription(String method, String endpoint, dynamic body) {
+    final bodyMap = body is Map<String, dynamic> ? body : <String, dynamic>{};
+    final amount = bodyMap['amount'];
+    final username = bodyMap['username'] ?? bodyMap['player_username'] ?? '';
+    
+    if (endpoint.contains('add-payment')) {
+      return 'Payment: ${amount != null ? "₪$amount" : ""} ${username.isNotEmpty ? "($username)" : ""}';
+    }
+    if (endpoint.contains('record-game')) {
+      final fee = bodyMap['game_fee'] ?? bodyMap['fee'];
+      return 'Game: ${fee != null ? "₪$fee" : ""} ${username.isNotEmpty ? "($username)" : ""}';
+    }
+    if (endpoint.contains('delete-payment')) {
+      return 'Delete Payment ${username.isNotEmpty ? "($username)" : ""}';
+    }
+    if (endpoint.contains('delete-attendance')) {
+      return 'Delete Attendance ${username.isNotEmpty ? "($username)" : ""}';
+    }
+    if (endpoint.contains('enlist')) {
+      return 'Enlist Player ${username.isNotEmpty ? "($username)" : ""}';
+    }
+    return '$method: $endpoint';
+  }
+  
+  String _formatTime(String isoString) {
+    try {
+      final d = DateTime.parse(isoString);
+      return '${d.day}/${d.month} ${d.hour}:${d.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return isoString;
+    }
   }
 
   @override
@@ -1064,35 +1213,8 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
     }
     
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Player Management'),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh),
-            tooltip: 'Refresh Players',
-            onPressed: fetchPlayers,
-          ),
-        ],
-        bottom: _isSyncing 
-          ? PreferredSize(
-              preferredSize: Size.fromHeight(24),
-              child: Container(
-                color: Colors.blue[50], 
-                height: 24,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    BasketballSpinner(size: 14), 
-                    SizedBox(width: 8), 
-                    Text('Syncing...', style: TextStyle(fontSize: 10, color: Colors.blue[800]))
-                  ],
-                ),
-              ),
-            )
-          : null,
-      ),
       body: isLoading
-        ? Center(child: CircularProgressIndicator()) // Assuming BasketballSpinner is a custom widget, using CircularProgressIndicator as a fallback for this example.
+        ? Center(child: CircularProgressIndicator())
         : _buildContent(),
     );
   }
@@ -1108,34 +1230,36 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
         ),
         child: Column(
           children: [
-            if (_preloadStatus == 'in_progress')
-              Container(
-                width: double.infinity,
-                color: Colors.orange[50],
-                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.cloud_download, size: 16, color: Colors.orange[700]),
-                    SizedBox(width: 6),
-                    Text('Refreshing cache in background…', style: TextStyle(color: Colors.orange[800], fontSize: 12)),
-                  ],
-                ),
-              )
-            else if (_preloadStatus == 'ready')
-              Container(
-                width: double.infinity,
-                color: Colors.green[50],
-                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.check_circle, size: 16, color: Colors.green[700]),
-                    SizedBox(width: 6),
-                    Text('Cache up to date', style: TextStyle(color: Colors.green[800], fontSize: 12)),
-                  ],
-                ),
-              ),
+            // SINGLE CACHE INDICATOR - only when there are pending items
+            FutureBuilder<Map<String, dynamic>>(
+              future: apiService.getQueueStats(),
+              builder: (context, snapshot) {
+                final pending = snapshot.data?['pending'] ?? 0;
+                if (pending == 0 && !_isSyncing) return SizedBox.shrink();
+                return GestureDetector(
+                  onTap: _showPendingQueueDialog,
+                  child: Container(
+                    width: double.infinity,
+                    color: Colors.orange[50],
+                    padding: EdgeInsets.symmetric(vertical: 6),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (_isSyncing) ...[
+                          BasketballSpinner(size: 16),
+                          SizedBox(width: 8),
+                          Text('Syncing...', style: TextStyle(fontSize: 12, color: Colors.blue[800])),
+                        ] else ...[
+                          Icon(Icons.cloud_off, color: Colors.orange, size: 18),
+                          SizedBox(width: 8),
+                          Text('$pending pending (tap to view)', style: TextStyle(fontSize: 12, color: Colors.orange[800])),
+                        ],
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
             // TOP BAR
             Container(
               padding: EdgeInsets.all(16),
@@ -1282,17 +1406,17 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
 // SEPARATE CLASS FOR FINANCIAL DIALOG
 // ==========================================
 
-class _PlayerFinancialDialog extends StatefulWidget {
+class PlayerFinancialDialog extends StatefulWidget {
     final String username;
     final ApiService apiService;
 
-    const _PlayerFinancialDialog({required this.username, required this.apiService});
+    const PlayerFinancialDialog({required this.username, required this.apiService});
 
     @override
-    __PlayerFinancialDialogState createState() => __PlayerFinancialDialogState();
+    _PlayerFinancialDialogState createState() => _PlayerFinancialDialogState();
 }
 
-class __PlayerFinancialDialogState extends State<_PlayerFinancialDialog> {
+class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
     bool loading = true;
     Map<String, dynamic>? data;
     String errorMessage = '';

@@ -158,6 +158,18 @@ class ApiService {
   Future<Map<String, dynamic>> getQueueStats() async {
     return _offline.getQueueStats();
   }
+  
+  Future<List<Map<String, dynamic>>> getQueueItems() async {
+    return _offline.getQueueItems();
+  }
+  
+  Future<void> removeFromQueue(String id) async {
+    await _offline.removeFromQueue(id);
+  }
+  
+  Future<void> clearQueue() async {
+    await _offline.clearQueue();
+  }
 
   Future<void> _setPreloadStatus(String status) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
