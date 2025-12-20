@@ -62,6 +62,12 @@ class OfflineService {
     }
   }
 
+  /// Manually inject data into the cache (used for bulk loading).
+  Future<void> manuallyCache(String cacheKey, Map<String, dynamic> data) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString(cacheKey, jsonEncode(data));
+  }
+
   /// Send write action, queue on connectivity issues. Returns payload; when queued adds `queued: true`.
   Future<Map<String, dynamic>> sendOrQueue({
     required String method,
@@ -127,7 +133,7 @@ class OfflineService {
   /// Try to flush queued actions using the provided dispatcher.
   Future<void> processQueue(Future<Map<String, dynamic>> Function(String, String, Map<String, dynamic>?) dispatcher) async {
     if (_syncInProgress) return;
-    _syncInProgress = true;
+    _setSyncing(true); // Notify start
     try {
       List<dynamic> queue = await _loadQueue();
       if (queue.isEmpty) return;
@@ -156,7 +162,7 @@ class OfflineService {
 
       await _saveQueue(remaining, lastSynced: synced);
     } finally {
-      _syncInProgress = false;
+      _setSyncing(false); // Notify end
     }
   }
 
@@ -210,4 +216,14 @@ class OfflineService {
     metrics['pending'] = queue.length;
     return metrics;
   }
-}
+  
+  // New Sync Stream
+  final _syncStatusController = StreamController<bool>.broadcast();
+  Stream<bool> get isSyncing => _syncStatusController.stream;
+
+  void _setSyncing(bool isSyncing) {
+    _syncInProgress = isSyncing;
+    _syncStatusController.add(isSyncing);
+  }
+} // End class
+

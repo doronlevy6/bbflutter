@@ -8,6 +8,7 @@ import 'settings.dart';
 import 'playground_page.dart';
 import 'interactive_playground_page.dart';
 import 'financial_summary_page.dart';
+import 'scoreboard_page.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:responsive_builder/responsive_builder.dart';
 
@@ -251,6 +252,14 @@ class _HomePageState extends State<HomePage> {
                               tooltip: _isHebrew ? 'בנייה אינטראקטיבית' : 'Interactive Builder',
                               page: InteractivePlaygroundPage(),
                               title: _isHebrew ? 'בנייה אינטראקטיבית' : 'Interactive Builder',
+                            ),
+                            _buildDrawerIcon(
+                              context,
+                              icon: Icons.sports_basketball,
+                              color: Colors.orange[400],
+                              tooltip: _isHebrew ? 'סקורבורד' : 'Scoreboard',
+                              page: ScoreboardPage(),
+                              title: _isHebrew ? 'סקורבורד' : 'Scoreboard',
                             ),
                             // ADMIN SECTION - at the bottom
                             if (_isAdmin)

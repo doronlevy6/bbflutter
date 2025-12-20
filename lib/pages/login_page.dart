@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import 'dart:convert';
 import '../services/rankings_service.dart';
+import '../widgets/basketball_spinner.dart';
 
 class LoginPage extends StatefulWidget {
   @override
@@ -592,12 +593,7 @@ class _LoginPageState extends State<LoginPage> {
                                     ),
                                     child: _isLoading
                                         ? SizedBox(
-                                      width: 24,
-                                      height: 24,
-                                      child: CircularProgressIndicator(
-                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                        strokeWidth: 2.0,
-                                      ),
+                                      child: BasketballSpinner(size: 24),
                                     )
                                         : Text(
                                       _isRegister ? texts['titleRegister']! : texts['titleLogin']!,

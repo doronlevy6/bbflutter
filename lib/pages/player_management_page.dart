@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../widgets/basketball_spinner.dart';
+import 'dart:async';
 
 class PlayerManagementPage extends StatefulWidget {
   @override
@@ -31,10 +33,24 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
   String _preloadStatus = 'idle';
   String? _preloadUpdatedAt;
 
+  StreamSubscription<bool>? _syncSub;
+  bool _isSyncing = false;
+
   @override
   void initState() {
     super.initState();
     _checkAccess();
+    _startSyncListener();
+  }
+
+  void _startSyncListener() {
+    _syncSub = apiService.isSyncing.listen((isSyncing) {
+      if (mounted) {
+        setState(() {
+          _isSyncing = isSyncing;
+        });
+      }
+    });
   }
 
   Future<void> _checkAccess() async {
@@ -1032,6 +1048,12 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
   }
 
   @override
+  void dispose() {
+    _syncSub?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     if (accessDenied) {
       return Scaffold(
@@ -1040,9 +1062,43 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
         ),
       );
     }
-
+    
     return Scaffold(
-      body: Container(
+      appBar: AppBar(
+        title: Text('Player Management'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh),
+            tooltip: 'Refresh Players',
+            onPressed: fetchPlayers,
+          ),
+        ],
+        bottom: _isSyncing 
+          ? PreferredSize(
+              preferredSize: Size.fromHeight(24),
+              child: Container(
+                color: Colors.blue[50], 
+                height: 24,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    BasketballSpinner(size: 14), 
+                    SizedBox(width: 8), 
+                    Text('Syncing...', style: TextStyle(fontSize: 10, color: Colors.blue[800]))
+                  ],
+                ),
+              ),
+            )
+          : null,
+      ),
+      body: isLoading
+        ? Center(child: CircularProgressIndicator()) // Assuming BasketballSpinner is a custom widget, using CircularProgressIndicator as a fallback for this example.
+        : _buildContent(),
+    );
+  }
+
+  Widget _buildContent() {
+    return Container(
         decoration: BoxDecoration(
           image: DecorationImage(
             image: AssetImage('assets/images/reka.webp'),
@@ -1218,13 +1274,7 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
             ),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addPlayer,
-        child: Icon(Icons.add),
-        backgroundColor: Colors.green[800],
-      ),
-    );
+      );
   }
 }
 
@@ -1296,12 +1346,12 @@ class __PlayerFinancialDialogState extends State<_PlayerFinancialDialog> {
         try {
             final response = await widget.apiService.postQueued('finance/add-payment', {
                 'username': widget.username,
-                'team_id': 1, // TODO: Get correct team_id
+                'team_id': 1, // Default team
                 'amount': int.tryParse(amountController.text) ?? 0,
                 'method': paymentMethod,
                 'notes': notesController.text,
             });
-            if (response['success']) {
+            if (response['success'] == true) {
                 amountController.clear();
                 notesController.clear();
                 _fetchData(); // Reload
@@ -1310,7 +1360,7 @@ class __PlayerFinancialDialogState extends State<_PlayerFinancialDialog> {
                     content: Text(queued ? 'Payment saved offline, will sync later' : 'Payment added!'),
                     backgroundColor: queued ? Colors.orange : Colors.green));
             } else {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(response['message']), backgroundColor: Colors.red));
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(response['message'] ?? 'Failed'), backgroundColor: Colors.red));
             }
         } catch (e) {
              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
@@ -1337,13 +1387,13 @@ class __PlayerFinancialDialogState extends State<_PlayerFinancialDialog> {
                 
             final response = await widget.apiService.deleteQueued(endpoint);
             
-            if (response['success']) {
+            if (response['success'] == true) {
                  _fetchData(); // Reload
                  if (response['queued'] == true) {
                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Deletion queued (offline)'), backgroundColor: Colors.orange));
                  }
             } else {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(response['message'])));
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(response['message'] ?? 'Failed')));
             }
         } catch(e) {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
@@ -1380,7 +1430,7 @@ class __PlayerFinancialDialogState extends State<_PlayerFinancialDialog> {
                 displayedList.add({
                     'type': 'game',
                     'date': g['date'],
-                    'amount': -1 * (g['applied_cost'] as num), // displayed as negative
+                    'amount': -1 * ((g['applied_cost'] as num?) ?? 0), 
                     'desc': 'Game (${g['notes'] ?? ''})',
                     'id': g['attendance_id'] // Ensure ID available
                 });
@@ -1575,3 +1625,6 @@ class __PlayerFinancialDialogState extends State<_PlayerFinancialDialog> {
         }
     }
 }
+
+
+

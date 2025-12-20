@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:async';
+import '../widgets/basketball_spinner.dart';
 
 class FinancialSummaryPage extends StatefulWidget {
   @override
@@ -24,6 +25,8 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
   int lastSyncedCount = 0;
   String? lastSyncedAt;
   StreamSubscription<List<ConnectivityResult>>? _connSub;
+  StreamSubscription<bool>? _syncSub;
+  bool _isSyncing = false;
   bool _autoRefreshing = false;
   String _preloadStatus = 'idle';
   String? _preloadUpdatedAt;
@@ -38,6 +41,7 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
     _loadData();
     _loadQueueStats();
     _startConnectivityListener();
+    _startSyncListener();
     _loadPreloadStatus();
   }
 
@@ -45,7 +49,22 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
     _connSub = Connectivity().onConnectivityChanged.listen((results) {
       final hasConnection = results.any((r) => r != ConnectivityResult.none);
       if (hasConnection) {
-        _handleOnlineRefresh();
+        // Just got online!
+        _handleOnlineRefresh(); 
+      }
+    });
+  }
+
+  void _startSyncListener() {
+    _syncSub = apiService.isSyncing.listen((isSyncing) {
+      if (mounted) {
+        setState(() {
+          _isSyncing = isSyncing;
+        });
+        if (!isSyncing) {
+          // Sync finished, reload queue stats
+          _loadQueueStats();
+        }
       }
     });
   }
@@ -247,11 +266,73 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
     );
   }
 
+
+
+  Widget _buildQueueInfo() {
+    final syncedInfo = lastSyncedAt != null
+        ? 'Last synced: $lastSyncedCount at ${DateTime.tryParse(lastSyncedAt!) != null ? _fmtTime(DateTime.parse(lastSyncedAt!)) : lastSyncedAt}'
+        : 'No sync yet';
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text('Offline queue: $pendingQueue pending', style: TextStyle(fontSize: 12, color: Colors.grey[800])),
+          Text(syncedInfo, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+        ],
+      ),
+    );
+  }
+
+  String _fmtTime(DateTime d) {
+    final two = (int n) => n.toString().padLeft(2, '0');
+    return '${two(d.hour)}:${two(d.minute)}';
+  }
+
+  Widget _buildPreloadStatus() {
+    String text;
+    Color color;
+    IconData icon;
+    if (_preloadStatus == 'in_progress') {
+      text = 'Refreshing cache in background…';
+      color = Colors.orange[800]!;
+      icon = Icons.cloud_download;
+    } else if (_preloadStatus == 'ready') {
+      text = 'Cache up to date';
+      color = Colors.green[800]!;
+      icon = Icons.check_circle;
+    } else if (_preloadStatus == 'failed') {
+      text = 'Cache refresh failed';
+      color = Colors.red[700]!;
+      icon = Icons.error_outline;
+    } else {
+      return SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 16, color: color),
+          SizedBox(width: 6),
+          Text(text, style: TextStyle(fontSize: 12, color: color)),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _connSub?.cancel();
+    _syncSub?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: isLoading
-          ? Center(child: CircularProgressIndicator())
+          ? Center(child: BasketballSpinner(size: 80))
           : errorMessage != null
               ? Center(child: Text('Offline/no cache yet. Connect once to load data.', style: TextStyle(color: Colors.orange[700])))
               : RefreshIndicator(
@@ -269,12 +350,29 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
             padding: const EdgeInsets.all(8.0),
             child: Text('Showing cached data (offline)', style: TextStyle(color: Colors.orange[700], fontSize: 12)),
           ),
+        
+        // SYNC INDICATOR
+        if (_isSyncing)
+          Container(
+            width: double.infinity,
+            color: Colors.blue[50], // Light blue bg
+            padding: EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                BasketballSpinner(size: 16), // Mini spinner
+                SizedBox(width: 8),
+                Text('Syncing changes...', style: TextStyle(fontSize: 12, color: Colors.blue[800])),
+              ],
+            ),
+          ),
+
         _buildPreloadStatus(),
         _buildQueueInfo(),
         // SUMMARY CARDS - more compact
         Container(
           padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          color: Colors.teal[50],
+          color: Colors.teal[50], // Light teal bg
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -470,65 +568,6 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
         ),
       ],
     );
-  }
-
-  Widget _buildQueueInfo() {
-    final syncedInfo = lastSyncedAt != null
-        ? 'Last synced: $lastSyncedCount at ${DateTime.tryParse(lastSyncedAt!) != null ? _fmtTime(DateTime.parse(lastSyncedAt!)) : lastSyncedAt}'
-        : 'No sync yet';
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text('Offline queue: $pendingQueue pending', style: TextStyle(fontSize: 12, color: Colors.grey[800])),
-          Text(syncedInfo, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-        ],
-      ),
-    );
-  }
-
-  String _fmtTime(DateTime d) {
-    final two = (int n) => n.toString().padLeft(2, '0');
-    return '${two(d.hour)}:${two(d.minute)}';
-  }
-
-  Widget _buildPreloadStatus() {
-    String text;
-    Color color;
-    IconData icon;
-    if (_preloadStatus == 'in_progress') {
-      text = 'Refreshing cache in background…';
-      color = Colors.orange[800]!;
-      icon = Icons.cloud_download;
-    } else if (_preloadStatus == 'ready') {
-      text = 'Cache up to date';
-      color = Colors.green[800]!;
-      icon = Icons.check_circle;
-    } else if (_preloadStatus == 'failed') {
-      text = 'Cache refresh failed';
-      color = Colors.red[700]!;
-      icon = Icons.error_outline;
-    } else {
-      return SizedBox.shrink();
-    }
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 16, color: color),
-          SizedBox(width: 6),
-          Text(text, style: TextStyle(fontSize: 12, color: color)),
-        ],
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _connSub?.cancel();
-    super.dispose();
   }
 
   Widget _buildSummaryCard(String label, int value, Color color) {

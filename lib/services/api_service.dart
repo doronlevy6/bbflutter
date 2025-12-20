@@ -15,6 +15,9 @@ class ApiService {
 
   // Getter for the current API URL
   String get apiUrl => _envManager.apiUrl;
+  
+  // Expose sync status
+  Stream<bool> get isSyncing => _offline.isSyncing;
 
   ApiService() {
     // Start background sync for any pending queued actions
@@ -176,10 +179,31 @@ class ApiService {
   Future<void> preloadAll({required String username, required int teamId}) async {
     await _setPreloadStatus('in_progress');
     try {
+      // 1. Fetch Team Summary (includes list of all players)
       await getWithCache('finance/team-financial-summary/$teamId', cacheKey: 'cache_team_summary_$teamId');
-      await getWithCache('finance/player-financials/$username', cacheKey: 'cache_player_financials_$username');
-      await getWithCache('finance/player-balance/$username', cacheKey: 'cache_player_balance_$username');
+      
+      // 2. NEW: Fetch FULL History for ALL players in ONE request
+      // This is the "Heavy" lift, but done once.
+      try {
+        final bulkData = await get('finance/all-players-history/$teamId');
+        if (bulkData != null && bulkData['success'] == true && bulkData['allPlayersData'] is Map) {
+          final Map<String, dynamic> allMap = bulkData['allPlayersData'];
+          // Cache each player's data individually so the UI can find it later
+          for (final pName in allMap.keys) {
+            final pData = allMap[pName];
+            if (pData != null) {
+              await _offline.manuallyCache('cache_player_financials_$pName', pData);
+            }
+          }
+        }
+      } catch (e) {
+        print('Bulk preload failed: $e');
+        // Fallback or just ignore (partial cache is better than none)
+      }
+
       await getWithCache('players', cacheKey: 'cache_players');
+      await getWithCache('finance/player-balance/$username', cacheKey: 'cache_player_balance_$username');
+
       await _setPreloadStatus('ready');
     } catch (_) {
       await _setPreloadStatus('failed');
@@ -188,12 +212,6 @@ class ApiService {
 
   /// Preload frequently used financial data in the background (after login).
   Future<void> preloadFinancialData({required String username, required int teamId}) async {
-    try {
-      await getWithCache('finance/team-financial-summary/$teamId', cacheKey: 'cache_team_summary_$teamId');
-      await getWithCache('finance/player-financials/$username', cacheKey: 'cache_player_financials_$username');
-      await getWithCache('finance/player-balance/$username', cacheKey: 'cache_player_balance_$username');
-    } catch (_) {
-      // Swallow preload errors
-    }
+      await preloadAll(username: username, teamId: teamId);
   }
 }

@@ -15,6 +15,7 @@ class EnvironmentManager {
   EnvironmentManager._internal();
 
   Environment _currentEnvironment = Environment.LOCAL
+
   ;
   // Getter for the current environment
   Environment get currentEnvironment => _currentEnvironment;
