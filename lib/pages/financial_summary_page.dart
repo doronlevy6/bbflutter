@@ -4,6 +4,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:async';
 import '../widgets/basketball_spinner.dart';
 import 'player_management_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class FinancialSummaryPage extends StatefulWidget {
   @override
@@ -83,42 +84,60 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
   }
 
   Future<void> _loadData() async {
-    setState(() => isLoading = true);
-    try {
-      final response = await apiService.getWithCache('finance/team-financial-summary/1', cacheKey: 'cache_team_summary_1');
-      if (response['success'] == true) {
-        setState(() {
-          players = response['summary'] ?? [];
-          defaultCost = response['defaultGameCost'] ?? 0;
-          fromCache = response['_cached'] == true;
-          
-          // Calculate totals
-          totalDebt = 0;
-          totalPaid = 0;
-          totalBalance = 0;
-          for (var p in players) {
-            totalDebt += (p['debt'] as int? ?? 0);
-            totalPaid += (p['paid'] as int? ?? 0);
-            totalBalance += (p['balance'] as int? ?? 0);
-          }
+    // 1. Get Team ID
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int teamId = prefs.getInt('team_id') ?? 1;
+    String cacheKey = 'cache_team_summary_$teamId';
 
-          _applySorting();
-          
-          isLoading = false;
-        });
-      } else {
-        setState(() {
-          errorMessage = response['message'];
-          isLoading = false;
-        });
+    // 2. Try to load from cache immediately (Stale-while-revalidate)
+    final cachedData = await apiService.getFromCacheOnly(cacheKey);
+    if (cachedData != null && mounted) {
+      _processData(cachedData);
+      setState(() => isLoading = false);
+    } else {
+      setState(() => isLoading = true);
+    }
+
+    // 3. Update from Network (background)
+    try {
+      final response = await apiService.getWithCache('finance/team-financial-summary/$teamId', cacheKey: cacheKey);
+      if (mounted) {
+        if (response['success'] == true) {
+          _processData(response);
+        } else {
+          // If network failed but we had cache, we are fine. If no cache, show error.
+          if (players.isEmpty) {
+             setState(() => errorMessage = response['message']);
+          }
+        }
       }
     } catch (e) {
-      setState(() {
-        errorMessage = 'Offline and no cached data yet.';
-        isLoading = false;
-      });
+      if (mounted && players.isEmpty) {
+        setState(() => errorMessage = 'Offline and no cached data yet.');
+      }
+    } finally {
+      if (mounted) setState(() => isLoading = false);
     }
     _loadQueueStats();
+  }
+
+  void _processData(Map<String, dynamic> response) {
+    setState(() {
+      players = response['summary'] ?? [];
+      defaultCost = response['defaultGameCost'] ?? 0;
+      fromCache = response['_cached'] == true;
+      
+      // Calculate totals
+      totalDebt = 0;
+      totalPaid = 0;
+      totalBalance = 0;
+      for (var p in players) {
+        totalDebt += (p['debt'] as int? ?? 0);
+        totalPaid += (p['paid'] as int? ?? 0);
+        totalBalance += (p['balance'] as int? ?? 0);
+      }
+      _applySorting();
+    });
   }
 
   Future<void> _loadQueueStats() async {
@@ -496,8 +515,8 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
               final width = constraints.maxWidth;
               // Always at least 3 columns as requested
               final crossAxisCount = width > 1200 ? 5 : (width > 900 ? 4 : 3);
-              // Simple fixed aspect ratio for density
-              final childAspectRatio = 4.0; 
+              // Taller cards (30% increase): previously 4.0, now reduced to ~2.8 to make them taller
+              final childAspectRatio = 2.8; 
               
               return GridView.builder(
                 padding: EdgeInsets.zero,

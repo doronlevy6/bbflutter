@@ -496,7 +496,7 @@ class _LoginPageState extends State<LoginPage> {
                                           child: ElevatedButton.icon(
                                             onPressed: () {
                                               setState(() {
-                                                _selectedTeamType = "bk";
+                                                _selectedTeamType = "bb";
                                               });
                                             },
                                             icon: Container(
@@ -515,7 +515,7 @@ class _LoginPageState extends State<LoginPage> {
                                               style: TextStyle(fontSize: 12),
                                             ),
                                             style: ElevatedButton.styleFrom(
-                                              backgroundColor: _selectedTeamType == "bk"
+                                              backgroundColor: _selectedTeamType == "bb"
                                                   ? Colors.green[400]
                                                   : Colors.green[100],
                                             ),

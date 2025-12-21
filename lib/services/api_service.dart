@@ -138,6 +138,10 @@ class ApiService {
     );
   }
 
+  Future<Map<String, dynamic>?> getFromCacheOnly(String cacheKey) async {
+    return _offline.getFromCacheOnly(cacheKey);
+  }
+
   /// Offline-capable write operations
   Future<Map<String, dynamic>> postQueued(String endpoint, Map<String, dynamic> data) async {
     return _offline.sendOrQueue(method: 'POST', endpoint: endpoint, body: data, dispatcher: _dispatch);

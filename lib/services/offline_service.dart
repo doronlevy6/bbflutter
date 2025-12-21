@@ -28,6 +28,19 @@ class OfflineService {
     processQueue(dispatcher);
   }
 
+  /// Get directly from cache (no network). Returns null if not found.
+  Future<Map<String, dynamic>?> getFromCacheOnly(String cacheKey) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final cachedString = prefs.getString(cacheKey);
+    if (cachedString != null) {
+      try {
+        final data = jsonDecode(cachedString) as Map<String, dynamic>;
+        return {...data, '_cached': true};
+      } catch (_) {}
+    }
+    return null;
+  }
+
   /// GET with cache fallback. Returns the server payload; adds `_cached: true` when falling back.
   Future<Map<String, dynamic>> getWithCache({
     required String endpoint,

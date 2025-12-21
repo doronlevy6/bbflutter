@@ -92,31 +92,27 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
   Future<void> fetchPlayers() async {
     if (accessDenied) return;
     
-    setState(() {
-      isLoading = true;
-    });
+    const String cacheKey = 'cache_players';
+
+    // 1. Try Cache Immediately
+    final cached = await apiService.getFromCacheOnly(cacheKey);
+    if (cached != null && cached['success'] == true && mounted) {
+      _processPlayersData(cached);
+      setState(() => isLoading = false);
+    } else {
+      setState(() => isLoading = true);
+    }
+
+    // 2. Fetch Network (Background update)
     try {
-      final response = await apiService.getWithCache('players', cacheKey: 'cache_players');
-      if (response['success']) {
-        setState(() {
-          players = response['users'];
-          _playersFromCache = response['_cached'] == true;
-          // Initialize role maps
-          for (var player in players) {
-            String username = player['username'];
-            String role = player['role'] ?? 'player';
-            playerRoles[username] = role;
-            initialRoles[username] = role;
-          }
-          // Refresh initial selections if needed
-          _loadEnlistedPlayers(); 
-          isLoading = false;
-        });
-      } else {
+      final response = await apiService.getWithCache('players', cacheKey: cacheKey);
+      if (mounted && response['success'] == true) {
+        _processPlayersData(response);
+      } else if (mounted && players.isEmpty) {
         _showError(response['message']);
       }
     } catch (e) {
-        _showError('Failed to fetch players: $e');
+        if (mounted && players.isEmpty) _showError('Failed to fetch players: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -125,6 +121,22 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
       }
       _loadPreloadStatus();
     }
+  }
+
+  void _processPlayersData(Map<String, dynamic> data) {
+    setState(() {
+      players = data['users'];
+      _playersFromCache = data['_cached'] == true;
+      // Initialize role maps
+      for (var player in players) {
+        String username = player['username'];
+        String role = player['role'] ?? 'player';
+        playerRoles[username] = role;
+        initialRoles[username] = role;
+      }
+      // Refresh initial selections if needed
+      _loadEnlistedPlayers(); 
+    });
   }
 
   Future<void> _loadPreloadStatus() async {
