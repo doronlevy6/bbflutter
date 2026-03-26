@@ -318,16 +318,25 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
               padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
             onPressed: () async {
-              Navigator.pop(context);
+              final username = usernameController.text.trim();
+              final email = emailController.text.trim();
+              final password = passwordController.text.trim();
+
+              if (username.isEmpty) {
+                _showError('Username is required');
+                return;
+              }
+
               try {
                 final response = await apiService.post('add-player', {
-                  'username': usernameController.text,
-                  'email': emailController.text,
-                  'password': passwordController.text.isNotEmpty ? passwordController.text : null,
+                  'username': username,
+                  'email': email,
+                  'password': password.isNotEmpty ? password : null,
                 });
                 if (response['success']) {
+                  Navigator.pop(context);
                   _showSuccess('Player added successfully');
-                  fetchPlayers();
+                  await fetchPlayers();
                 } else {
                   _showError(response['message']);
                 }
@@ -1294,14 +1303,24 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                         ),
                      ],
                    ),
-                   Row(
+                   Wrap(
+                     spacing: 4,
+                     runSpacing: 4,
                      children: [
                         TextButton.icon(
                             onPressed: () { setState(() { _isAscending = !_isAscending; _sortPlayers(); }); },
                             icon: Icon(Icons.sort, color: Colors.white),
                             label: Text('Sort', style: TextStyle(color: Colors.white)),
                         ),
-                        SizedBox(width: 4),
+                        ElevatedButton.icon(
+                            onPressed: _addPlayer,
+                            icon: Icon(Icons.person_add),
+                            label: Text('Add Player'),
+                            style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.deepPurple[700],
+                                foregroundColor: Colors.white,
+                            ),
+                        ),
                         // NEW SAVE GAME BUTTON
                         ElevatedButton.icon(
                             onPressed: _showSaveGameDialog,
@@ -1761,6 +1780,5 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
         }
     }
 }
-
 
 
