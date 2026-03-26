@@ -1,43 +1,75 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Script to build Flutter Web and deploy to the GitHub Pages repository folder
+set -euo pipefail
 
-# Define paths
-FLUTTER_PROJECT_DIR=$(pwd)
-WEB_REPO_DIR="../BB_web" # Adjust this if your web repo is elsewhere
+# Build Flutter Web from BB_flutter and deploy the build artifact into BB_web.
+# Optional overrides:
+#   WEB_REPO_DIR=/path/to/BB_web ./deploy_web.sh
+#   WEB_BRANCH=main ./deploy_web.sh
+#   NO_PUSH=1 ./deploy_web.sh
 
-echo "🚀 Starting Web Deployment Process..."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+FLUTTER_PROJECT_DIR="${SCRIPT_DIR}"
+WEB_REPO_DIR="${WEB_REPO_DIR:-${SCRIPT_DIR}/../BB_web}"
+WEB_BRANCH="${WEB_BRANCH:-main}"
+NO_PUSH="${NO_PUSH:-0}"
 
-# 1. Build Flutter Web
-echo "🔨 Building Flutter Web..."
-flutter build web --release
+echo "[deploy] Starting web deployment"
+echo "[deploy] Flutter project: ${FLUTTER_PROJECT_DIR}"
+echo "[deploy] Web repo: ${WEB_REPO_DIR}"
 
-if [ $? -ne 0 ]; then
-    echo "❌ Build failed! Aborting."
-    exit 1
+if ! command -v flutter >/dev/null 2>&1; then
+  echo "[deploy] ERROR: flutter command not found in PATH"
+  exit 1
 fi
 
-echo "✅ Build successful."
+if ! command -v git >/dev/null 2>&1; then
+  echo "[deploy] ERROR: git command not found in PATH"
+  exit 1
+fi
 
-# 2. Clean destination directory (keep .git and README if needed)
-echo "🧹 Cleaning destination directory ($WEB_REPO_DIR)..."
-# Ensure we don't delete the .git folder!
-find "$WEB_REPO_DIR" -mindepth 1 -maxdepth 1 ! -name '.git' ! -name 'README.md' -exec rm -rf {} +
+if [ ! -d "${WEB_REPO_DIR}/.git" ]; then
+  echo "[deploy] ERROR: ${WEB_REPO_DIR} is not a git repository"
+  exit 1
+fi
 
-# 3. Copy build files
-echo "📂 Copying build files to $WEB_REPO_DIR..."
-cp -r "$FLUTTER_PROJECT_DIR/build/web/"* "$WEB_REPO_DIR/"
+echo "[deploy] Building Flutter web (release)"
+(cd "${FLUTTER_PROJECT_DIR}" && flutter build web --release)
 
-# Create .nojekyll file to prevent GitHub Pages from ignoring files starting with underscore
-touch "$WEB_REPO_DIR/.nojekyll"
+BUILD_DIR="${FLUTTER_PROJECT_DIR}/build/web"
+if [ ! -d "${BUILD_DIR}" ]; then
+  echo "[deploy] ERROR: build output not found at ${BUILD_DIR}"
+  exit 1
+fi
 
-echo "✅ Files copied successfully."
+echo "[deploy] Syncing build output to ${WEB_REPO_DIR}"
+rsync -av --delete \
+  --exclude '.git' \
+  --exclude '.last_build_id' \
+  --exclude 'README.md' \
+  "${BUILD_DIR}/" "${WEB_REPO_DIR}/"
 
-# 4. Git commands - Auto-push enabled
-cd "$WEB_REPO_DIR"
-git add .
-git commit -m "Deploy web build: $(date)"
-git push origin main
+# Prevent GitHub Pages from ignoring paths that start with underscore.
+touch "${WEB_REPO_DIR}/.nojekyll"
+# Keep repository clean from local Flutter build metadata.
+rm -f "${WEB_REPO_DIR}/.last_build_id"
 
-echo "🎉 Deployment complete!"
-echo "✅ Changes have been pushed to GitHub Pages."
+cd "${WEB_REPO_DIR}"
+git add -A
+
+if git diff --cached --quiet; then
+  echo "[deploy] No web changes detected. Nothing to commit."
+  exit 0
+fi
+
+DEPLOY_TS="$(date +"%Y-%m-%d %H:%M:%S %Z")"
+git commit -m "Deploy web build: ${DEPLOY_TS}"
+
+if [ "${NO_PUSH}" = "1" ]; then
+  echo "[deploy] NO_PUSH=1 -> commit created locally, push skipped."
+  exit 0
+fi
+
+echo "[deploy] Pushing to origin/${WEB_BRANCH}"
+git push origin "${WEB_BRANCH}"
+echo "[deploy] Deployment complete."
