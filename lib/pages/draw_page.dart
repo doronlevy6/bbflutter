@@ -1,7 +1,10 @@
 import 'dart:math';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:super_clipboard/super_clipboard.dart';
 
 class DrawPage extends StatefulWidget {
   @override
@@ -152,6 +155,179 @@ class _DrawPageState extends State<DrawPage> {
     return _wheel1Options[_ballIndex!];
   }
 
+  Widget _buildResultRow({
+    required IconData icon,
+    IconData? extraIcon,
+    required String label,
+    required String value,
+    required Color accentColor,
+  }) {
+    return Container(
+      width: double.infinity,
+      margin: EdgeInsets.only(bottom: 10),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: accentColor.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accentColor.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 18, color: accentColor),
+                if (extraIcon != null) ...[
+                  SizedBox(width: 2),
+                  Icon(extraIcon, size: 13, color: accentColor),
+                ],
+              ],
+            ),
+          ),
+          SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black54,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShareResultCard({
+    required String firstResult,
+    required String? secondResult,
+  }) {
+    return Container(
+      width: min(420, MediaQuery.of(context).size.width - 68),
+      padding: EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+          colors: [
+            Color(0xFFFFF8E1),
+            Color(0xFFFFE0B2),
+            Color(0xFFE8F5E9),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.orange.withValues(alpha: 0.45)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 14,
+            offset: Offset(0, 7),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.sports_basketball, color: Colors.deepOrange[700]),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _isHebrew ? 'תוצאות הגרלת כדורסל' : 'Basketball Draw Results',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.brown[800],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12),
+          _buildResultRow(
+            icon: Icons.event_seat,
+            label: _wheel1Title.trim(),
+            value: firstResult,
+            accentColor: Colors.deepOrange,
+          ),
+          if (secondResult != null)
+            _buildResultRow(
+              icon: Icons.sports_basketball,
+              extraIcon: Icons.checkroom,
+              label: _wheel2Title.trim(),
+              value: secondResult,
+              accentColor: Colors.green,
+            ),
+          SizedBox(height: 2),
+          Text(
+            _isHebrew
+                ? 'הגרלה הוגנת עם סיכוי שווה לכל אפשרות'
+                : 'Fair draw with equal chance for each option',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Colors.brown[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<Uint8List?> _captureCardPng(GlobalKey boundaryKey) async {
+    await Future<void>.delayed(Duration(milliseconds: 16));
+    final renderObject = boundaryKey.currentContext?.findRenderObject();
+    if (renderObject is! RenderRepaintBoundary) return null;
+
+    final image = await renderObject.toImage(pixelRatio: 3);
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    image.dispose();
+    return byteData?.buffer.asUint8List();
+  }
+
+  Future<bool> _copyImageToClipboard(
+      Uint8List pngBytes, String fallbackText) async {
+    try {
+      final clipboard = SystemClipboard.instance;
+      if (clipboard == null) return false;
+
+      final item = DataWriterItem();
+      item.add(Formats.png(pngBytes));
+      item.add(Formats.plainText(fallbackText));
+      await clipboard.write([item]);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> _showFinalResultsDialog() async {
     if (!mounted || _outsideIndex == null) return;
 
@@ -165,6 +341,7 @@ class _DrawPageState extends State<DrawPage> {
     ];
 
     final summaryText = messageLines.join('\n');
+    final resultsCardKey = GlobalKey();
 
     await showDialog<void>(
       context: context,
@@ -184,29 +361,11 @@ class _DrawPageState extends State<DrawPage> {
               ),
             ],
           ),
-          content: Container(
-            decoration: BoxDecoration(
-              color: Colors.green.withValues(alpha: 0.07),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            padding: EdgeInsets.all(12),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  summaryText,
-                  style: TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w600, height: 1.4),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  _isHebrew
-                      ? 'לחץ על העתק כדי להדביק ישירות בוואטסאפ.'
-                      : 'Tap copy and paste directly to WhatsApp.',
-                  style: TextStyle(color: Colors.grey[700]),
-                ),
-              ],
+          content: RepaintBoundary(
+            key: resultsCardKey,
+            child: _buildShareResultCard(
+              firstResult: firstResult,
+              secondResult: secondResult,
             ),
           ),
           actions: [
@@ -215,19 +374,31 @@ class _DrawPageState extends State<DrawPage> {
               child: Text(_isHebrew ? 'סגור' : 'Close'),
             ),
             ElevatedButton.icon(
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: summaryText));
+              onPressed: () async {
+                final pngBytes = await _captureCardPng(resultsCardKey);
+                final imageCopied = pngBytes != null
+                    ? await _copyImageToClipboard(pngBytes, summaryText)
+                    : false;
+
+                if (!imageCopied) {
+                  await Clipboard.setData(ClipboardData(text: summaryText));
+                }
+
                 if (Navigator.of(dialogContext).canPop()) {
                   Navigator.pop(dialogContext);
                 }
                 _showSnack(
-                  _isHebrew
-                      ? 'התוצאות הועתקו. אפשר להדביק בוואטסאפ.'
-                      : 'Results copied. You can paste them in WhatsApp.',
+                  imageCopied
+                      ? (_isHebrew
+                          ? 'הכרטיס הועתק כתמונה. אפשר להדביק בוואטסאפ.'
+                          : 'Result card copied as image. You can paste it in WhatsApp.')
+                      : (_isHebrew
+                          ? 'הפלטפורמה לא תמכה בהעתקת תמונה, הועתק טקסט.'
+                          : 'Image copy not supported here, copied text instead.'),
                 );
               },
               icon: Icon(Icons.copy),
-              label: Text(_isHebrew ? 'העתק תוצאות' : 'Copy Results'),
+              label: Text(_isHebrew ? 'העתק כתמונה' : 'Copy as Image'),
               style: _primaryButtonStyle(context),
             ),
           ],

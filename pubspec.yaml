@@ -43,6 +43,7 @@ dependencies:
   google_fonts: ^4.0.3
   responsive_builder: ^0.7.1
   connectivity_plus: ^6.0.3
+  super_clipboard: ^0.9.1
 
 
 dev_dependencies:
