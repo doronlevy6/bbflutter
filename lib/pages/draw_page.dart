@@ -32,6 +32,17 @@ class _DrawPageState extends State<DrawPage> {
 
   static const Duration _spinDuration = Duration(milliseconds: 3200);
 
+  ButtonStyle _primaryButtonStyle(BuildContext context) {
+    return ElevatedButton.styleFrom(
+      backgroundColor: Colors.green[700],
+      foregroundColor: Colors.white,
+      disabledBackgroundColor: Colors.grey[400],
+      disabledForegroundColor: Colors.white70,
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      textStyle: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+    );
+  }
+
   String _defaultPageTitle(bool isHebrew) =>
       isHebrew ? 'הגרלת כדורסל' : 'Basketball Draw';
 
@@ -217,6 +228,7 @@ class _DrawPageState extends State<DrawPage> {
               },
               icon: Icon(Icons.copy),
               label: Text(_isHebrew ? 'העתק תוצאות' : 'Copy Results'),
+              style: _primaryButtonStyle(context),
             ),
           ],
         );
@@ -499,6 +511,7 @@ class _DrawPageState extends State<DrawPage> {
                     Navigator.pop(dialogContext);
                   },
                   child: Text(_isHebrew ? 'שמור' : 'Save'),
+                  style: _primaryButtonStyle(context),
                 ),
               ],
             );
@@ -586,6 +599,7 @@ class _DrawPageState extends State<DrawPage> {
               onPressed: disabled || isSpinning ? null : onSpin,
               icon: Icon(Icons.casino),
               label: Text(spinLabel),
+              style: _primaryButtonStyle(context),
             ),
             SizedBox(height: 8),
             Text(
