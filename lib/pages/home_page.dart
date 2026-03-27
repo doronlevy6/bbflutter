@@ -9,6 +9,7 @@ import 'playground_page.dart';
 import 'interactive_playground_page.dart';
 import 'financial_summary_page.dart';
 import 'scoreboard_page.dart';
+import 'draw_page.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:responsive_builder/responsive_builder.dart';
 
@@ -176,9 +177,10 @@ class _HomePageState extends State<HomePage> {
                   final homeTitle = _isHebrew ? 'רשימת נרשמים' : 'enlisted playres';
                   final gradeTitle = _isHebrew ? 'ציוני  $username ' : "$username's Grades";
                   final gradeTooltip = _isHebrew ? 'ציונים' : 'Grade Page';
-                  final managementTitle = _isHebrew ? 'ניהול' : 'Management';
                   final playgroundTitle = _isHebrew ? 'מגרש משחקים' : 'Playground';
                   final settingsTitle = _isHebrew ? 'הגדרות' : 'Settings';
+                  final drawTitle = _isHebrew ? 'הגרלה' : 'Draw';
+                  final drawTooltip = _isHebrew ? 'הגרלת כדורסל' : 'Basketball Draw';
                   final logoutTitle = _isHebrew ? 'התנתק' : 'Logout';
 
                   return Column(
@@ -291,6 +293,14 @@ class _HomePageState extends State<HomePage> {
                                 page: SettingsPage(),
                                 title: settingsTitle,
                               ),
+                            _buildDrawerIcon(
+                              context,
+                              icon: Icons.casino,
+                              color: Colors.amber[700],
+                              tooltip: drawTooltip,
+                              page: DrawPage(),
+                              title: drawTitle,
+                            ),
                           ],
                         ),
                       ),
