@@ -4,6 +4,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/basketball_spinner.dart';
 import 'dart:async';
 
+enum PlayerSortMode {
+  nameAsc,
+  nameDesc,
+  enlistedFirst,
+  notEnlistedFirst,
+  managerFirst,
+}
+
 class PlayerManagementPage extends StatefulWidget {
   @override
   _PlayerManagementPageState createState() => _PlayerManagementPageState();
@@ -28,7 +36,7 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
   Map<String, String> initialRoles = {}; // Original roles for change detection
 
   // For sorting
-  bool _isAscending = true;
+  PlayerSortMode _sortMode = PlayerSortMode.nameAsc;
   bool _playersFromCache = false;
   String _preloadStatus = 'idle';
   String? _preloadUpdatedAt;
@@ -86,6 +94,7 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
             player['username']: savedPlayers.contains(player['username'])
         };
       }
+      _sortPlayersInternal();
     });
   }
 
@@ -135,6 +144,7 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
         playerRoles[username] = role;
         initialRoles[username] = role;
       }
+      _sortPlayersInternal();
       // Refresh initial selections if needed
       _loadEnlistedPlayers();
     });
@@ -240,14 +250,65 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
     }
   }
 
-  void _sortPlayers() {
-    setState(() {
-      players.sort((a, b) {
-        final first = a['username'].toString().toLowerCase();
-        final second = b['username'].toString().toLowerCase();
-        return _isAscending ? first.compareTo(second) : second.compareTo(first);
-      });
+  String _playerName(Map player) {
+    return (player['username'] ?? '').toString().toLowerCase();
+  }
+
+  int _compareByName(Map a, Map b) {
+    return _playerName(a).compareTo(_playerName(b));
+  }
+
+  void _sortPlayersInternal() {
+    players.sort((a, b) {
+      final first = a as Map;
+      final second = b as Map;
+      final firstName = _compareByName(first, second);
+
+      switch (_sortMode) {
+        case PlayerSortMode.nameAsc:
+          return firstName;
+        case PlayerSortMode.nameDesc:
+          return -firstName;
+        case PlayerSortMode.enlistedFirst:
+          final firstEnlisted = selectedUsernames.contains(first['username']);
+          final secondEnlisted = selectedUsernames.contains(second['username']);
+          if (firstEnlisted != secondEnlisted) {
+            return firstEnlisted ? -1 : 1;
+          }
+          return firstName;
+        case PlayerSortMode.notEnlistedFirst:
+          final firstEnlisted = selectedUsernames.contains(first['username']);
+          final secondEnlisted = selectedUsernames.contains(second['username']);
+          if (firstEnlisted != secondEnlisted) {
+            return firstEnlisted ? 1 : -1;
+          }
+          return firstName;
+        case PlayerSortMode.managerFirst:
+          final firstManager =
+              (playerRoles[first['username']] ?? 'player') == 'manager';
+          final secondManager =
+              (playerRoles[second['username']] ?? 'player') == 'manager';
+          if (firstManager != secondManager) {
+            return firstManager ? -1 : 1;
+          }
+          return firstName;
+      }
     });
+  }
+
+  String _sortLabel() {
+    switch (_sortMode) {
+      case PlayerSortMode.nameAsc:
+        return 'Name A-Z';
+      case PlayerSortMode.nameDesc:
+        return 'Name Z-A';
+      case PlayerSortMode.enlistedFirst:
+        return 'Enlisted First';
+      case PlayerSortMode.notEnlistedFirst:
+        return 'Not Enlisted First';
+      case PlayerSortMode.managerFirst:
+        return 'Managers First';
+    }
   }
 
   Future<void> _addPlayer() async {
@@ -1385,6 +1446,7 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
       } else {
         selectedUsernames.remove(username);
       }
+      _sortPlayersInternal();
     });
   }
 
@@ -1392,89 +1454,80 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
     setState(() {
       final currentRole = playerRoles[username] ?? 'player';
       playerRoles[username] = currentRole == 'manager' ? 'player' : 'manager';
+      _sortPlayersInternal();
     });
   }
 
   Widget _buildPlayerCard(Map<String, dynamic> player) {
     final username = (player['username'] ?? '').toString();
-    final email = (player['email'] ?? '').toString();
     final isEnlisted = selectedUsernames.contains(username);
     final isManager = (playerRoles[username] ?? 'player') == 'manager';
 
     return Card(
       margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       color: _playersFromCache
           ? Colors.orange[50]
           : Colors.white.withOpacity(0.95),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Row(
           children: [
-            Row(
-              children: [
-                Checkbox(
-                  value: isEnlisted,
-                  onChanged: (val) => _toggleEnlist(username, val ?? false),
-                  activeColor: Colors.green,
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        username,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        email,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12, color: Colors.black54),
-                      ),
-                    ],
-                  ),
-                ),
-                Tooltip(
-                  message: isManager ? 'Manager' : 'Player',
-                  child: IconButton(
-                    icon: Icon(
-                      Icons.emoji_events,
-                      color: isManager ? Colors.amber : Colors.grey[400],
-                    ),
-                    onPressed: () => _toggleManagerRole(username),
-                  ),
-                ),
-              ],
-            ),
-            Spacer(),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Wrap(
-                spacing: 2,
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.account_balance_wallet,
-                        color: Colors.teal[700]),
-                    onPressed: () => _showPlayerFinancials(player),
-                    tooltip: 'Wallet & Payments',
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.edit, color: Colors.blue),
-                    onPressed: () => _editPlayer(player),
-                    tooltip: 'Edit',
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.delete, color: Colors.red),
-                    onPressed: () => _deletePlayer(username),
-                    tooltip: 'Delete',
-                  ),
-                ],
+            Transform.scale(
+              scale: 0.9,
+              child: Checkbox(
+                value: isEnlisted,
+                onChanged: (val) => _toggleEnlist(username, val ?? false),
+                activeColor: Colors.green,
+                visualDensity: VisualDensity.compact,
               ),
+            ),
+            Expanded(
+              child: Text(
+                username,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+              ),
+            ),
+            Tooltip(
+              message: isManager ? 'Manager' : 'Player',
+              child: IconButton(
+                constraints: BoxConstraints.tightFor(width: 28, height: 28),
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+                icon: Icon(
+                  Icons.emoji_events,
+                  size: 18,
+                  color: isManager ? Colors.amber : Colors.grey[400],
+                ),
+                onPressed: () => _toggleManagerRole(username),
+              ),
+            ),
+            IconButton(
+              constraints: BoxConstraints.tightFor(width: 28, height: 28),
+              padding: EdgeInsets.zero,
+              visualDensity: VisualDensity.compact,
+              icon: Icon(Icons.account_balance_wallet,
+                  size: 18, color: Colors.teal[700]),
+              onPressed: () => _showPlayerFinancials(player),
+              tooltip: 'Wallet',
+            ),
+            IconButton(
+              constraints: BoxConstraints.tightFor(width: 28, height: 28),
+              padding: EdgeInsets.zero,
+              visualDensity: VisualDensity.compact,
+              icon: Icon(Icons.edit, size: 18, color: Colors.blue),
+              onPressed: () => _editPlayer(player),
+              tooltip: 'Edit',
+            ),
+            IconButton(
+              constraints: BoxConstraints.tightFor(width: 28, height: 28),
+              padding: EdgeInsets.zero,
+              visualDensity: VisualDensity.compact,
+              icon: Icon(Icons.delete, size: 18, color: Colors.red),
+              onPressed: () => _deletePlayer(username),
+              tooltip: 'Delete',
             ),
           ],
         ),
@@ -1485,19 +1538,19 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
   Widget _buildPlayersGrid() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        const minCardWidth = 320.0;
+        const minCardWidth = 200.0;
         int crossAxisCount = (constraints.maxWidth / minCardWidth).floor();
         if (crossAxisCount < 1) crossAxisCount = 1;
-        if (crossAxisCount > 3) crossAxisCount = 3;
+        if (crossAxisCount > 6) crossAxisCount = 6;
 
         return GridView.builder(
-          padding: EdgeInsets.all(16),
+          padding: EdgeInsets.all(12),
           itemCount: players.length,
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            mainAxisExtent: 165,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+            mainAxisExtent: 74,
           ),
           itemBuilder: (context, index) {
             final player = Map<String, dynamic>.from(players[index] as Map);
@@ -1592,16 +1645,62 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                   spacing: 4,
                   runSpacing: 4,
                   children: [
-                    TextButton.icon(
-                      onPressed: () {
+                    PopupMenuButton<PlayerSortMode>(
+                      tooltip: 'Sort Players',
+                      onSelected: (mode) {
                         setState(() {
-                          _isAscending = !_isAscending;
-                          _sortPlayers();
+                          _sortMode = mode;
+                          _sortPlayersInternal();
                         });
                       },
-                      icon: Icon(Icons.sort, color: Colors.white),
-                      label:
-                          Text('Sort', style: TextStyle(color: Colors.white)),
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: PlayerSortMode.nameAsc,
+                          child: Text('Name A-Z'),
+                        ),
+                        PopupMenuItem(
+                          value: PlayerSortMode.nameDesc,
+                          child: Text('Name Z-A'),
+                        ),
+                        PopupMenuItem(
+                          value: PlayerSortMode.enlistedFirst,
+                          child: Text('Enlisted First'),
+                        ),
+                        PopupMenuItem(
+                          value: PlayerSortMode.notEnlistedFirst,
+                          child: Text('Not Enlisted First'),
+                        ),
+                        PopupMenuItem(
+                          value: PlayerSortMode.managerFirst,
+                          child: Text('Managers First'),
+                        ),
+                      ],
+                      child: Container(
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.white54),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.sort, color: Colors.white, size: 18),
+                            SizedBox(width: 6),
+                            Text(
+                              _sortLabel(),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
+                            ),
+                            SizedBox(width: 4),
+                            Icon(Icons.arrow_drop_down, color: Colors.white),
+                          ],
+                        ),
+                      ),
                     ),
                     ElevatedButton.icon(
                       onPressed: _addPlayer,
