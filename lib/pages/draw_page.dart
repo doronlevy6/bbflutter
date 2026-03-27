@@ -49,9 +49,8 @@ class _DrawPageState extends State<DrawPage> {
   String _defaultPageTitle(bool isHebrew) =>
       isHebrew ? 'הגרלת כדורסל' : 'Basketball Draw';
 
-  String _defaultPageSubtitle(bool isHebrew) => isHebrew
-      ? 'הגרלה הוגנת עם הסתברות שווה לכל אפשרות'
-      : 'Fair draw with equal probability';
+  String _defaultPageSubtitle(bool isHebrew) =>
+      isHebrew ? 'סיבובי הגרלה לקבוצות' : 'Spin draws for teams';
 
   String _defaultWheel1Title(bool isHebrew) =>
       isHebrew ? 'הקבוצה שבחוץ' : 'Team Out';
@@ -122,19 +121,6 @@ class _DrawPageState extends State<DrawPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
-  }
-
-  String _probabilityText(int count) {
-    if (count <= 0) return _isHebrew ? 'אין אפשרויות' : 'No options';
-    if (count == 1)
-      return _isHebrew
-          ? '100% לכל האפשרות היחידה'
-          : '100% for the single option';
-
-    final percent = (100 / count).toStringAsFixed(2);
-    return _isHebrew
-        ? 'סיכוי שווה: 1/$count (${percent}%) לכל אפשרות'
-        : 'Equal chance: 1/$count (${percent}%) per option';
   }
 
   String _outsideResultText() {
@@ -287,9 +273,7 @@ class _DrawPageState extends State<DrawPage> {
             ),
           SizedBox(height: 2),
           Text(
-            _isHebrew
-                ? 'הגרלה הוגנת עם סיכוי שווה לכל אפשרות'
-                : 'Fair draw with equal chance for each option',
+            _isHebrew ? 'בהצלחה במשחק' : 'Good luck in the game',
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
@@ -591,13 +575,7 @@ class _DrawPageState extends State<DrawPage> {
                           ),
                         ],
                       ),
-                      Text(
-                        _isHebrew
-                            ? 'כל אפשרות בגלגל מקבלת סיכוי שווה לחלוטין.'
-                            : 'Every option gets an exactly equal chance on each wheel.',
-                        style: TextStyle(color: Colors.grey[700]),
-                      ),
-                      SizedBox(height: 10),
+                      SizedBox(height: 8),
                       ListView.builder(
                         shrinkWrap: true,
                         physics: NeverScrollableScrollPhysics(),
@@ -709,7 +687,6 @@ class _DrawPageState extends State<DrawPage> {
     required VoidCallback? onSpin,
     required String resultLabel,
     required String resultValue,
-    required String probabilityLabel,
   }) {
     final disabled = options.isEmpty || onSpin == null;
 
@@ -723,13 +700,6 @@ class _DrawPageState extends State<DrawPage> {
             Text(
               title,
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 6),
-            Text(
-              probabilityLabel,
-              textAlign: TextAlign.center,
-              style:
-                  TextStyle(color: Colors.black54, fontWeight: FontWeight.w500),
             ),
             SizedBox(height: 12),
             SizedBox(
@@ -837,14 +807,6 @@ class _DrawPageState extends State<DrawPage> {
                         style: TextStyle(fontSize: 15, color: Colors.white70),
                         textAlign: TextAlign.center,
                       ),
-                      SizedBox(height: 8),
-                      Text(
-                        _isHebrew
-                            ? 'הוגנות: הבחירה מתבצעת תמיד באקראיות אחידה (Uniform Random)'
-                            : 'Fairness: selection always uses uniform random distribution',
-                        style: TextStyle(fontSize: 13, color: Colors.white70),
-                        textAlign: TextAlign.center,
-                      ),
                       SizedBox(height: 12),
                       Wrap(
                         spacing: 16,
@@ -862,8 +824,6 @@ class _DrawPageState extends State<DrawPage> {
                                 : null,
                             resultLabel: _wheel1Title,
                             resultValue: wheel1Result,
-                            probabilityLabel:
-                                _probabilityText(_wheel1Options.length),
                           ),
                           if (_enableSecondDraw)
                             _buildWheelCard(
@@ -880,11 +840,6 @@ class _DrawPageState extends State<DrawPage> {
                               resultValue: _outsideIndex == null
                                   ? waitingText
                                   : wheel2Result,
-                              probabilityLabel: _outsideIndex == null
-                                  ? (_isHebrew
-                                      ? 'יופיע אחרי סיבוב 1'
-                                      : 'Appears after spin 1')
-                                  : _probabilityText(wheel2Options.length),
                             ),
                         ],
                       ),
