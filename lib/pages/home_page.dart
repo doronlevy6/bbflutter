@@ -26,6 +26,7 @@ class _HomePageState extends State<HomePage> {
   bool _isHebrew = false;
   bool _isAdmin = false;
   final ApiService _apiService = ApiService();
+  // Fallback only. Workspace tasks and GitHub Pages deploy pass APP_ENV explicitly.
   static const String _appEnv =
       String.fromEnvironment('APP_ENV', defaultValue: 'PROD');
   static const String _deploymentTarget =

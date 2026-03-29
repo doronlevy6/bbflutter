@@ -14,6 +14,7 @@ class EnvironmentManager {
 
   EnvironmentManager._internal();
 
+  // Fallback only. Workspace tasks pass APP_ENV explicitly at runtime.
   Environment _currentEnvironment = Environment.PROD;
   // Getter for the effective environment currently in use.
   // Priority:
