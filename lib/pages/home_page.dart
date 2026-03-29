@@ -26,6 +26,8 @@ class _HomePageState extends State<HomePage> {
   bool _isHebrew = false;
   bool _isAdmin = false;
   final ApiService _apiService = ApiService();
+  static const String _appEnv =
+      String.fromEnvironment('APP_ENV', defaultValue: 'PROD');
 
   @override
   void initState() {
@@ -272,6 +274,31 @@ class _HomePageState extends State<HomePage> {
                   color: Colors.white,
                 ),
               ),
+              actions: [
+                Tooltip(
+                  message: 'API: ${_apiService.apiUrl}',
+                  child: Container(
+                    margin: EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _appEnv.toUpperCase() == 'LOCAL'
+                          ? Colors.green[900]
+                          : Colors.blueGrey[800],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Center(
+                      child: Text(
+                        'FE: ${_appEnv.toUpperCase()}',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
               backgroundColor: Colors.green[700],
             ),
             drawer: Drawer(
