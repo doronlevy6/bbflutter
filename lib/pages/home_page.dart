@@ -67,8 +67,48 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _clearSessionPrefs() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    // Full reset on logout: token + all cached/offline app data.
+    // Regular logout: clear sensitive session only.
+    await prefs.remove('token');
+    await prefs.remove('user');
+    await prefs.remove('email');
+    await prefs.remove('team_id');
+    await prefs.remove('is_admin');
+  }
+
+  Future<void> _clearAllLocalAppData() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.clear();
+  }
+
+  Future<void> _handleDebugReset() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Reset all local data?'),
+        content: Text(
+          'This clears token, cache, and all offline pending data on this device.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Reset', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    await _clearAllLocalAppData();
+    if (!mounted) return;
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      '/login',
+      (Route<dynamic> route) => false,
+    );
   }
 
   Future<void> _handleLogout() async {
@@ -261,6 +301,9 @@ class _HomePageState extends State<HomePage> {
                   final drawTooltip =
                       _isHebrew ? 'הגרלת כדורסל' : 'Basketball Draw';
                   final logoutTitle = _isHebrew ? 'התנתק' : 'Logout';
+                  final resetTitle = _isHebrew
+                      ? 'איפוס נתונים מקומיים (דיבוג)'
+                      : 'Reset Local Data (Debug)';
 
                   return Column(
                     children: [
@@ -395,6 +438,19 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                       Divider(),
+                      ListTile(
+                        leading: Icon(Icons.cleaning_services,
+                            color: Colors.orange[700]),
+                        title: Text(
+                          resetTitle,
+                          style: TextStyle(
+                            fontSize: 14,
+                          ),
+                        ),
+                        onTap: () async {
+                          await _handleDebugReset();
+                        },
+                      ),
                       ListTile(
                         leading: Icon(Icons.logout, color: Colors.red),
                         title: Text(
