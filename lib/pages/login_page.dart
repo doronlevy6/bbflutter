@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
-import 'dart:convert';
 import '../services/rankings_service.dart';
 import '../widgets/basketball_spinner.dart';
 
@@ -23,8 +23,10 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _teamPasswordController = TextEditingController();
 
   // בקרי טקסט עבור דיאלוג יצירת קבוצה (ללא controller לסוג קבוצה)
-  final TextEditingController _createTeamNameController = TextEditingController();
-  final TextEditingController _createTeamPasswordController = TextEditingController();
+  final TextEditingController _createTeamNameController =
+      TextEditingController();
+  final TextEditingController _createTeamPasswordController =
+      TextEditingController();
   // הסרנו: final TextEditingController _createTeamTypeController = TextEditingController();
 
   // משתנה לבחירת סוג קבוצה: "fb" עבור כדורגל, "bb" עבור כדורסל
@@ -40,49 +42,53 @@ class _LoginPageState extends State<LoginPage> {
   // מפה של טקסטים בהתאם לשפה
   Map<String, String> get texts => _isHebrew
       ? {
-    'titleLogin': 'כניסה',
-    'titleRegister': 'רישום',
-    'username': 'שם משתמש',
-    'password': 'סיסמה',
-    'email': 'אימייל',
-    'teamName': 'שם קבוצה',
-    'teamPassword': 'סיסמת קבוצה',
-    'createNewTeam': 'צור קבוצה ',
-    'cancel': 'ביטול',
-    'create': 'צור',
-    'alreadyHaveAccount': 'כבר יש לך חשבון? התחבר',
-    'dontHaveAccount': 'אין לך חשבון? הירשם',
-    'fillAllFields': 'אנא מלא את כל השדות הנדרשים.',
-    'fillTeamCredentials': 'אנא מלא את פרטי הקבוצה (שם קבוצה וסיסמה).',
-    'fillTeamType': 'אנא בחר סוג קבוצה.',
-    'teamCreatedSuccessfully': 'הקבוצה נוצרה בהצלחה!',
-    'teamCreationFailed': 'יצירת הקבוצה נכשלה',
-    'teamTooltip': 'אם אינך יודע את שם הקבוצה , שאל את מנהל הקבוצה.',
-    'teamPasswordTooltip': ' אם אינך יודע את סיסמת הקבוצה , שאל את מנהל הקבוצה.',
-    'selectTeamHint': 'בחר ',
-  }
+          'titleLogin': 'כניסה',
+          'titleRegister': 'רישום',
+          'username': 'שם משתמש',
+          'password': 'סיסמה',
+          'email': 'אימייל',
+          'teamName': 'שם קבוצה',
+          'teamPassword': 'סיסמת קבוצה',
+          'createNewTeam': 'צור קבוצה ',
+          'cancel': 'ביטול',
+          'create': 'צור',
+          'alreadyHaveAccount': 'כבר יש לך חשבון? התחבר',
+          'dontHaveAccount': 'אין לך חשבון? הירשם',
+          'fillAllFields': 'אנא מלא את כל השדות הנדרשים.',
+          'fillTeamCredentials': 'אנא מלא את פרטי הקבוצה (שם קבוצה וסיסמה).',
+          'fillTeamType': 'אנא בחר סוג קבוצה.',
+          'teamCreatedSuccessfully': 'הקבוצה נוצרה בהצלחה!',
+          'teamCreationFailed': 'יצירת הקבוצה נכשלה',
+          'teamTooltip': 'אם אינך יודע את שם הקבוצה , שאל את מנהל הקבוצה.',
+          'teamPasswordTooltip':
+              ' אם אינך יודע את סיסמת הקבוצה , שאל את מנהל הקבוצה.',
+          'selectTeamHint': 'בחר ',
+        }
       : {
-    'titleLogin': 'Login',
-    'titleRegister': 'Register',
-    'username': 'Username',
-    'password': 'Password',
-    'email': 'Email',
-    'teamName': 'Team Name',
-    'teamPassword': 'Team Password',
-    'createNewTeam': 'New Team',
-    'cancel': 'Cancel',
-    'create': 'Create',
-    'alreadyHaveAccount': 'Already have an account? Login',
-    'dontHaveAccount': 'Don\'t have an account? Register',
-    'fillAllFields': 'Please fill in all required fields.',
-    'fillTeamCredentials': 'Please fill in team credentials (Team Name & Team Password).',
-    'fillTeamType': 'Please select a team type.',
-    'teamCreatedSuccessfully': 'Team created successfully!',
-    'teamCreationFailed': 'Team creation failed',
-    'teamTooltip': 'If you don\'t know your team name, ask your team manager.',
-    'teamPasswordTooltip': ' If you don\'t know Your team password, ask your team manager.',
-    'selectTeamHint': ' select',
-  };
+          'titleLogin': 'Login',
+          'titleRegister': 'Register',
+          'username': 'Username',
+          'password': 'Password',
+          'email': 'Email',
+          'teamName': 'Team Name',
+          'teamPassword': 'Team Password',
+          'createNewTeam': 'New Team',
+          'cancel': 'Cancel',
+          'create': 'Create',
+          'alreadyHaveAccount': 'Already have an account? Login',
+          'dontHaveAccount': 'Don\'t have an account? Register',
+          'fillAllFields': 'Please fill in all required fields.',
+          'fillTeamCredentials':
+              'Please fill in team credentials (Team Name & Team Password).',
+          'fillTeamType': 'Please select a team type.',
+          'teamCreatedSuccessfully': 'Team created successfully!',
+          'teamCreationFailed': 'Team creation failed',
+          'teamTooltip':
+              'If you don\'t know your team name, ask your team manager.',
+          'teamPasswordTooltip':
+              ' If you don\'t know Your team password, ask your team manager.',
+          'selectTeamHint': ' select',
+        };
   List<String> _teams = [];
   String? _selectedTeam;
 
@@ -91,7 +97,8 @@ class _LoginPageState extends State<LoginPage> {
       final data = await _apiService.get('teams');
       if (data['success']) {
         setState(() {
-          _teams = List<String>.from(data['teams'].map((team) => team['team_name']));
+          _teams =
+              List<String>.from(data['teams'].map((team) => team['team_name']));
           _teams.sort((a, b) => a.compareTo(b));
         });
       }
@@ -129,7 +136,7 @@ class _LoginPageState extends State<LoginPage> {
     _teamPasswordController.dispose();
     _createTeamNameController.dispose();
     _createTeamPasswordController.dispose();
-     super.dispose();
+    super.dispose();
   }
 
   // בדיקת תקינות הקלט (לכניסה ולרישום)
@@ -175,16 +182,19 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      // Send all data to register endpoint. 
+      // Send all data to register endpoint.
       // If _isCreatingTeam is true, we send team_type.
       // The backend will handle atomic creation.
       final data = await _apiService.post('register', {
         'username': _usernameController.text,
         'password': _passwordController.text,
         'email': _emailController.text,
-        'teamName': _isCreatingTeam ? _createTeamNameController.text : _selectedTeam,
+        'teamName':
+            _isCreatingTeam ? _createTeamNameController.text : _selectedTeam,
         'teamPassword': _teamPasswordController.text,
-        'teamType': _isCreatingTeam ? _selectedTeamType : null, // Send teamType only if creating
+        'teamType': _isCreatingTeam
+            ? _selectedTeamType
+            : null, // Send teamType only if creating
       });
 
       if (data['success']) {
@@ -236,10 +246,16 @@ class _LoginPageState extends State<LoginPage> {
         await RankingsService.fetchAndCachePlayerRankingsForUser(username);
         await RankingsService.fetchAndCacheOverallPlayerRankings();
         await RankingsService.getEnlisted();
-        final int teamId = data['user']['team_id'] ?? 1;
-        await _apiService.processQueue(); // flush any pending
-        // Kick off preload in background (do not block login)
-        _apiService.preloadAll(username: username, teamId: teamId);
+        final int? teamId = data['user']['team_id'];
+        final bool isAdmin = data['is_admin'] == true;
+
+        // Do not block login on sync/preload.
+        unawaited(_apiService.processQueue());
+        unawaited(_apiService.preloadAll(
+          username: username,
+          teamId: teamId,
+          isAdmin: isAdmin,
+        ));
 
         Navigator.pushReplacementNamed(context, '/home');
       } else {
@@ -286,7 +302,8 @@ class _LoginPageState extends State<LoginPage> {
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(data['message'] ?? texts['teamCreationFailed']!)),
+          SnackBar(
+              content: Text(data['message'] ?? texts['teamCreationFailed']!)),
         );
       }
     } catch (error) {
@@ -311,7 +328,6 @@ class _LoginPageState extends State<LoginPage> {
       _errorMessage = "";
     });
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -342,7 +358,8 @@ class _LoginPageState extends State<LoginPage> {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Image.asset('assets/images/us-flag.png', width: 30, height: 30),
+                        Image.asset('assets/images/us-flag.png',
+                            width: 30, height: 30),
                         Transform.scale(
                           scale: 0.7,
                           child: Switch(
@@ -354,10 +371,12 @@ class _LoginPageState extends State<LoginPage> {
                               _updateLanguagePreference(value);
                             },
                             activeColor: Colors.blueGrey,
-                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
                           ),
                         ),
-                        Image.asset('assets/images/il-flag.png', width: 30, height: 30),
+                        Image.asset('assets/images/il-flag.png',
+                            width: 30, height: 30),
                       ],
                     ),
                     // כפתור "צור קבוצה חדשה" בצד ימין
@@ -387,7 +406,9 @@ class _LoginPageState extends State<LoginPage> {
                         SizedBox(height: 20),
                         Center(
                           child: Text(
-                            _isRegister ? texts['titleRegister']! : texts['titleLogin']!,
+                            _isRegister
+                                ? texts['titleRegister']!
+                                : texts['titleLogin']!,
                             style: TextStyle(
                               fontSize: 28,
                               color: Colors.white,
@@ -453,12 +474,16 @@ class _LoginPageState extends State<LoginPage> {
                                     ),
                                     SizedBox(height: 16),
                                     Text(
-                                      _isHebrew ? ":בחר סוג קבוצה" : "Select Team Type:",
-                                      style: TextStyle(fontWeight: FontWeight.bold),
+                                      _isHebrew
+                                          ? ":בחר סוג קבוצה"
+                                          : "Select Team Type:",
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold),
                                     ),
                                     SizedBox(height: 10),
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
                                         Flexible(
                                           child: ElevatedButton.icon(
@@ -485,9 +510,10 @@ class _LoginPageState extends State<LoginPage> {
                                               style: TextStyle(fontSize: 12),
                                             ),
                                             style: ElevatedButton.styleFrom(
-                                              backgroundColor: _selectedTeamType == "fb"
-                                                  ? Colors.green[400]
-                                                  : Colors.green[100],
+                                              backgroundColor:
+                                                  _selectedTeamType == "fb"
+                                                      ? Colors.green[400]
+                                                      : Colors.green[100],
                                             ),
                                           ),
                                         ),
@@ -505,19 +531,23 @@ class _LoginPageState extends State<LoginPage> {
                                               decoration: BoxDecoration(
                                                 shape: BoxShape.circle,
                                                 image: DecorationImage(
-                                                  image: AssetImage('assets/images/basketball.png'),
+                                                  image: AssetImage(
+                                                      'assets/images/basketball.png'),
                                                   fit: BoxFit.cover,
                                                 ),
                                               ),
                                             ),
                                             label: Text(
-                                              _isHebrew ? "כדורסל" : "Basketball",
+                                              _isHebrew
+                                                  ? "כדורסל"
+                                                  : "Basketball",
                                               style: TextStyle(fontSize: 12),
                                             ),
                                             style: ElevatedButton.styleFrom(
-                                              backgroundColor: _selectedTeamType == "bb"
-                                                  ? Colors.green[400]
-                                                  : Colors.green[100],
+                                              backgroundColor:
+                                                  _selectedTeamType == "bb"
+                                                      ? Colors.green[400]
+                                                      : Colors.green[100],
                                             ),
                                           ),
                                         ),
@@ -533,8 +563,11 @@ class _LoginPageState extends State<LoginPage> {
                                         suffixIcon: Builder(
                                           builder: (context) => Tooltip(
                                             message: texts['teamTooltip']!,
-                                            waitDuration: Duration(milliseconds: 500),
-                                            child: Icon(Icons.help_outline, size: 20, color: Colors.blueAccent),
+                                            waitDuration:
+                                                Duration(milliseconds: 500),
+                                            child: Icon(Icons.help_outline,
+                                                size: 20,
+                                                color: Colors.blueAccent),
                                           ),
                                         ),
                                       ),
@@ -565,7 +598,8 @@ class _LoginPageState extends State<LoginPage> {
                                 ],
                                 if (_errorMessage.isNotEmpty)
                                   Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 8.0),
                                     child: Text(
                                       _errorMessage,
                                       style: TextStyle(
@@ -581,28 +615,32 @@ class _LoginPageState extends State<LoginPage> {
                                     onPressed: _isLoading
                                         ? null
                                         : _isRegister
-                                        ? _handleRegister
-                                        : _handleLogin,
+                                            ? _handleRegister
+                                            : _handleLogin,
                                     style: ElevatedButton.styleFrom(
-                                      padding: EdgeInsets.symmetric(vertical: 16.0),
+                                      padding:
+                                          EdgeInsets.symmetric(vertical: 16.0),
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8.0),
+                                        borderRadius:
+                                            BorderRadius.circular(8.0),
                                       ),
                                       backgroundColor: Colors.green,
                                       foregroundColor: Colors.white,
                                     ),
                                     child: _isLoading
                                         ? SizedBox(
-                                      child: BasketballSpinner(size: 24),
-                                    )
+                                            child: BasketballSpinner(size: 24),
+                                          )
                                         : Text(
-                                      _isRegister ? texts['titleRegister']! : texts['titleLogin']!,
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
-                                    ),
+                                            _isRegister
+                                                ? texts['titleRegister']!
+                                                : texts['titleLogin']!,
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          ),
                                   ),
                                 ),
                                 SizedBox(height: 8),
@@ -610,7 +648,8 @@ class _LoginPageState extends State<LoginPage> {
                                   onPressed: () {
                                     setState(() {
                                       _isRegister = !_isRegister;
-                                      _isCreatingTeam = false; // Reset create team mode when switching
+                                      _isCreatingTeam =
+                                          false; // Reset create team mode when switching
                                       _errorMessage = "";
                                       _usernameController.clear();
                                       _passwordController.clear();
@@ -622,7 +661,9 @@ class _LoginPageState extends State<LoginPage> {
                                     });
                                   },
                                   child: Text(
-                                    _isRegister ? texts['alreadyHaveAccount']! : texts['dontHaveAccount']!,
+                                    _isRegister
+                                        ? texts['alreadyHaveAccount']!
+                                        : texts['dontHaveAccount']!,
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontSize: 16,

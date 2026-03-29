@@ -3,7 +3,6 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import '../managers/environment_manager.dart';
 import 'offline_service.dart';
@@ -15,7 +14,7 @@ class ApiService {
 
   // Getter for the current API URL
   String get apiUrl => _envManager.apiUrl;
-  
+
   // Expose sync status
   Stream<bool> get isSyncing => _offline.isSyncing;
 
@@ -28,7 +27,8 @@ class ApiService {
   static const String _preloadStatusKey = 'cache_preload_status_v1';
   static const String _preloadUpdatedAtKey = 'cache_preload_updated_at_v1';
 
-  Future<Map<String, dynamic>> _dispatch(String method, String endpoint, Map<String, dynamic>? body) async {
+  Future<Map<String, dynamic>> _dispatch(
+      String method, String endpoint, Map<String, dynamic>? body) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? token = prefs.getString('token');
     final headers = {
@@ -40,13 +40,15 @@ class ApiService {
     http.Response response;
     switch (method.toUpperCase()) {
       case 'PUT':
-        response = await http.put(uri, headers: headers, body: jsonEncode(body ?? {}));
+        response =
+            await http.put(uri, headers: headers, body: jsonEncode(body ?? {}));
         break;
       case 'DELETE':
         response = await http.delete(uri, headers: headers);
         break;
       case 'POST':
-        response = await http.post(uri, headers: headers, body: jsonEncode(body ?? {}));
+        response = await http.post(uri,
+            headers: headers, body: jsonEncode(body ?? {}));
         break;
       default:
         response = await http.get(uri, headers: headers);
@@ -81,7 +83,9 @@ class ApiService {
       } else {
         return {
           'success': false,
-          'message': (responseData is Map<String, dynamic>) ? (responseData['message'] ?? 'Unknown error occurred') : 'Unknown error occurred',
+          'message': (responseData is Map<String, dynamic>)
+              ? (responseData['message'] ?? 'Unknown error occurred')
+              : 'Unknown error occurred',
         };
       }
     } catch (error) {
@@ -101,7 +105,9 @@ class ApiService {
       } else {
         return {
           'success': false,
-          'message': (responseData is Map<String, dynamic>) ? (responseData['message'] ?? 'Unknown error occurred') : 'Unknown error occurred',
+          'message': (responseData is Map<String, dynamic>)
+              ? (responseData['message'] ?? 'Unknown error occurred')
+              : 'Unknown error occurred',
         };
       }
     } catch (error) {
@@ -121,7 +127,9 @@ class ApiService {
       } else {
         return {
           'success': false,
-          'message': (responseData is Map<String, dynamic>) ? (responseData['message'] ?? 'Unknown error occurred') : 'Unknown error occurred',
+          'message': (responseData is Map<String, dynamic>)
+              ? (responseData['message'] ?? 'Unknown error occurred')
+              : 'Unknown error occurred',
         };
       }
     } catch (error) {
@@ -130,7 +138,8 @@ class ApiService {
   }
 
   /// GET with offline cache fallback
-  Future<Map<String, dynamic>> getWithCache(String endpoint, {required String cacheKey}) async {
+  Future<Map<String, dynamic>> getWithCache(String endpoint,
+      {required String cacheKey}) async {
     return _offline.getWithCache(
       endpoint: endpoint,
       cacheKey: cacheKey,
@@ -143,16 +152,21 @@ class ApiService {
   }
 
   /// Offline-capable write operations
-  Future<Map<String, dynamic>> postQueued(String endpoint, Map<String, dynamic> data) async {
-    return _offline.sendOrQueue(method: 'POST', endpoint: endpoint, body: data, dispatcher: _dispatch);
+  Future<Map<String, dynamic>> postQueued(
+      String endpoint, Map<String, dynamic> data) async {
+    return _offline.sendOrQueue(
+        method: 'POST', endpoint: endpoint, body: data, dispatcher: _dispatch);
   }
 
-  Future<Map<String, dynamic>> putQueued(String endpoint, Map<String, dynamic> data) async {
-    return _offline.sendOrQueue(method: 'PUT', endpoint: endpoint, body: data, dispatcher: _dispatch);
+  Future<Map<String, dynamic>> putQueued(
+      String endpoint, Map<String, dynamic> data) async {
+    return _offline.sendOrQueue(
+        method: 'PUT', endpoint: endpoint, body: data, dispatcher: _dispatch);
   }
 
   Future<Map<String, dynamic>> deleteQueued(String endpoint) async {
-    return _offline.sendOrQueue(method: 'DELETE', endpoint: endpoint, dispatcher: _dispatch);
+    return _offline.sendOrQueue(
+        method: 'DELETE', endpoint: endpoint, dispatcher: _dispatch);
   }
 
   Future<void> processQueue() async {
@@ -162,23 +176,32 @@ class ApiService {
   Future<Map<String, dynamic>> getQueueStats() async {
     return _offline.getQueueStats();
   }
-  
+
   Future<List<Map<String, dynamic>>> getQueueItems() async {
     return _offline.getQueueItems();
   }
-  
+
+  Future<List<Map<String, dynamic>>> getFailedQueueItems() async {
+    return _offline.getFailedQueueItems();
+  }
+
   Future<void> removeFromQueue(String id) async {
     await _offline.removeFromQueue(id);
   }
-  
+
   Future<void> clearQueue() async {
     await _offline.clearQueue();
+  }
+
+  Future<void> clearFailedQueue() async {
+    await _offline.clearFailedQueue();
   }
 
   Future<void> _setPreloadStatus(String status) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString(_preloadStatusKey, status);
-    await prefs.setString(_preloadUpdatedAtKey, DateTime.now().toIso8601String());
+    await prefs.setString(
+        _preloadUpdatedAtKey, DateTime.now().toIso8601String());
   }
 
   Future<Map<String, dynamic>> getPreloadStatus() async {
@@ -191,43 +214,95 @@ class ApiService {
     };
   }
 
-  /// Preload everything we need for offline use (non-blocking).
-  Future<void> preloadAll({required String username, required int teamId}) async {
-    await _setPreloadStatus('in_progress');
+  Future<bool> _safePreloadStep(Future<void> Function() step) async {
     try {
-      // 1. Fetch Team Summary (includes list of all players)
-      await getWithCache('finance/team-financial-summary/$teamId', cacheKey: 'cache_team_summary_$teamId');
-      
-      // 2. NEW: Fetch FULL History for ALL players in ONE request
-      // This is the "Heavy" lift, but done once.
-      try {
+      await step();
+      return true;
+    } catch (e) {
+      print('Preload step failed: $e');
+      return false;
+    }
+  }
+
+  /// Preload data for offline use (non-blocking from caller).
+  /// - Players: preload their own finance data.
+  /// - Admins: preload team summary and all players history in bulk.
+  Future<void> preloadAll({
+    required String username,
+    int? teamId,
+    bool isAdmin = false,
+  }) async {
+    await _setPreloadStatus('in_progress');
+    int successSteps = 0;
+
+    if (isAdmin && teamId != null) {
+      final loadedTeamSummary = await _safePreloadStep(() async {
+        await getWithCache(
+          'finance/team-financial-summary/$teamId',
+          cacheKey: 'cache_team_summary_$teamId',
+        );
+      });
+      if (loadedTeamSummary) successSteps += 1;
+
+      final loadedTeamHistory = await _safePreloadStep(() async {
         final bulkData = await get('finance/all-players-history/$teamId');
-        if (bulkData != null && bulkData['success'] == true && bulkData['allPlayersData'] is Map) {
-          final Map<String, dynamic> allMap = bulkData['allPlayersData'];
-          // Cache each player's data individually so the UI can find it later
+        if (bulkData != null &&
+            bulkData['success'] == true &&
+            bulkData['allPlayersData'] is Map) {
+          final allMap = Map<String, dynamic>.from(
+            bulkData['allPlayersData'] as Map,
+          );
           for (final pName in allMap.keys) {
             final pData = allMap[pName];
-            if (pData != null) {
-              await _offline.manuallyCache('cache_player_financials_$pName', pData);
+            if (pData is Map<String, dynamic>) {
+              await _offline.manuallyCache(
+                  'cache_player_financials_$pName', pData);
+            } else if (pData is Map) {
+              await _offline.manuallyCache(
+                'cache_player_financials_$pName',
+                Map<String, dynamic>.from(pData),
+              );
             }
           }
         }
-      } catch (e) {
-        print('Bulk preload failed: $e');
-        // Fallback or just ignore (partial cache is better than none)
-      }
+      });
+      if (loadedTeamHistory) successSteps += 1;
+    }
 
+    final loadedPlayers = await _safePreloadStep(() async {
       await getWithCache('players', cacheKey: 'cache_players');
-      await getWithCache('finance/player-balance/$username', cacheKey: 'cache_player_balance_$username');
+    });
+    if (loadedPlayers) successSteps += 1;
 
+    final loadedBalance = await _safePreloadStep(() async {
+      await getWithCache(
+        'finance/player-balance/$username',
+        cacheKey: 'cache_player_balance_$username',
+      );
+    });
+    if (loadedBalance) successSteps += 1;
+
+    final loadedPersonalFinancials = await _safePreloadStep(() async {
+      await getWithCache(
+        'finance/player-financials/$username',
+        cacheKey: 'cache_player_financials_$username',
+      );
+    });
+    if (loadedPersonalFinancials) successSteps += 1;
+
+    if (successSteps > 0) {
       await _setPreloadStatus('ready');
-    } catch (_) {
+    } else {
       await _setPreloadStatus('failed');
     }
   }
 
   /// Preload frequently used financial data in the background (after login).
-  Future<void> preloadFinancialData({required String username, required int teamId}) async {
-      await preloadAll(username: username, teamId: teamId);
+  Future<void> preloadFinancialData({
+    required String username,
+    int? teamId,
+    bool isAdmin = false,
+  }) async {
+    await preloadAll(username: username, teamId: teamId, isAdmin: isAdmin);
   }
 }

@@ -37,24 +37,20 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _loadTeamSettings() async {
-      // Fetch team settings from server. 
-      // Using 'team-financial-summary' or a dedicated endpoint?
-      // I made 'team-financial-summary/:team_id' return defaultGameCost.
-      // I need team_id.
-      // TODO: Get real team_id. Fallback to 1.
-      int teamId = 1; 
-
-      try {
-          final response = await apiService.getWithCache('finance/team-financial-summary/$teamId', cacheKey: 'cache_team_summary_$teamId');
-          if (response['success'] == true) {
-              setState(() {
-                  _costController.text = response['defaultGameCost'].toString();
-                  _teamSettingsCached = response['_cached'] == true;
-              });
-          }
-      } catch (e) {
-          print('Error loading team settings: $e');
+    try {
+      final response = await apiService.getWithCache(
+        'finance/team-settings',
+        cacheKey: 'cache_team_settings',
+      );
+      if (response['success'] == true) {
+        setState(() {
+          _costController.text = response['defaultGameCost'].toString();
+          _teamSettingsCached = response['_cached'] == true;
+        });
       }
+    } catch (e) {
+      print('Error loading team settings: $e');
+    }
   }
 
   Future<void> _saveSettings() async {
@@ -64,143 +60,144 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _saveCost() async {
-      int teamId = 1; // Fallback
-      int cost = int.tryParse(_costController.text) ?? 0;
-      
-      setState(() => _isLoading = true);
-      try {
-          final response = await apiService.putQueued('finance/update-team-settings', {
-              'team_id': teamId,
-              'default_game_cost': cost
-          });
-          if (response['success']) {
-              final queued = response['queued'] == true;
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(queued ? 'Saved offline. Will sync when online.' : 'Cost updated'),
-                  backgroundColor: queued ? Colors.orange : Colors.green));
-          } else {
-               ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(response['message']), backgroundColor: Colors.red));
-          }
-      } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
-      } finally {
-          setState(() => _isLoading = false);
+    int cost = int.tryParse(_costController.text) ?? 0;
+
+    setState(() => _isLoading = true);
+    try {
+      final response = await apiService.putQueued(
+          'finance/update-team-settings', {'default_game_cost': cost});
+      if (response['success']) {
+        final queued = response['queued'] == true;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(queued
+                ? 'Saved offline. Will sync when online.'
+                : 'Cost updated'),
+            backgroundColor: queued ? Colors.orange : Colors.green));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(response['message']), backgroundColor: Colors.red));
       }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-          padding: EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      padding: EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Default Game Cost (Amount per player per game):'),
+          SizedBox(height: 8),
+          if (_teamSettingsCached)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text('Showing cached data (offline)',
+                  style: TextStyle(color: Colors.orange[700], fontSize: 12)),
+            ),
+          Row(
             children: [
-
-              
-              Text('Default Game Cost (Amount per player per game):'),
-              SizedBox(height: 8),
-              if (_teamSettingsCached)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Text('Showing cached data (offline)', style: TextStyle(color: Colors.orange[700], fontSize: 12)),
+              Expanded(
+                child: TextField(
+                  controller: _costController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    prefixIcon: Icon(Icons.attach_money),
+                    border: OutlineInputBorder(),
+                    labelText: 'Cost',
+                  ),
                 ),
-              Row(
-                  children: [
-                      Expanded(
-                          child: TextField(
-                              controller: _costController,
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                  prefixIcon: Icon(Icons.attach_money),
-                                  border: OutlineInputBorder(),
-                                  labelText: 'Cost',
-                              ),
-                          ),
-                      ),
-                      SizedBox(width: 12),
-                      ElevatedButton(
-                          onPressed: _isLoading ? null : _saveCost,
-                          child: _isLoading ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : Text('Save Cost'),
-                      ),
-                  ],
               ),
-              
-              Divider(height: 40),
-              
-
-              
-              Text(
-                'Team Sport Type:',
-                style: TextStyle(fontSize: 18),
+              SizedBox(width: 12),
+              ElevatedButton(
+                onPressed: _isLoading ? null : _saveCost,
+                child: _isLoading
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : Text('Save Cost'),
               ),
-              DropdownButton<String>(
-                value: _selectedSport,
-                items: [
-                  DropdownMenuItem(
-                    child: Text('Basketball'),
-                    value: 'bb',
-                  ),
-                  DropdownMenuItem(
-                    child: Text('Football'),
-                    value: 'fb',
-                  ),
-                ],
+            ],
+          ),
+          Divider(height: 40),
+          Text(
+            'Team Sport Type:',
+            style: TextStyle(fontSize: 18),
+          ),
+          DropdownButton<String>(
+            value: _selectedSport,
+            items: [
+              DropdownMenuItem(
+                child: Text('Basketball'),
+                value: 'bb',
+              ),
+              DropdownMenuItem(
+                child: Text('Football'),
+                value: 'fb',
+              ),
+            ],
+            onChanged: (value) {
+              setState(() {
+                _selectedSport = value!;
+              });
+              _saveSettings();
+            },
+          ),
+          SizedBox(height: 24),
+          Text(
+            'Language:',
+            style: TextStyle(fontSize: 18),
+          ),
+          Row(
+            children: [
+              Radio<bool>(
+                value: false,
+                groupValue: _isHebrew,
                 onChanged: (value) {
                   setState(() {
-                    _selectedSport = value!;
+                    _isHebrew = value!;
                   });
                   _saveSettings();
                 },
               ),
-              SizedBox(height: 24),
-              Text(
-                'Language:',
-                style: TextStyle(fontSize: 18),
+              Text('English'),
+              Radio<bool>(
+                value: true,
+                groupValue: _isHebrew,
+                onChanged: (value) {
+                  setState(() {
+                    _isHebrew = value!;
+                  });
+                  _saveSettings();
+                },
               ),
-              Row(
-                children: [
-                  Radio<bool>(
-                    value: false,
-                    groupValue: _isHebrew,
-                    onChanged: (value) {
-                      setState(() {
-                        _isHebrew = value!;
-                      });
-                      _saveSettings();
-                    },
-                  ),
-                  Text('English'),
-                  Radio<bool>(
-                    value: true,
-                    groupValue: _isHebrew,
-                    onChanged: (value) {
-                      setState(() {
-                        _isHebrew = value!;
-                      });
-                      _saveSettings();
-                    },
-                  ),
-                  Text('עברית'),
-                ],
-              ),
-              
-              Divider(height: 40),
-
-              Text(
-                'Player Cost Overrides',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.orange[800]),
-              ),
-              SizedBox(height: 8),
-              Text(
-                'Set specific game cost for individual players (overrides default). Leave empty/0 to use default.',
-                style: TextStyle(color: Colors.grey[600], fontSize: 13),
-              ),
-              SizedBox(height: 16),
-              
-              _isLoadingPlayers 
-                  ? Center(child: CircularProgressIndicator())
-                  : _buildPlayersTable(),
+              Text('עברית'),
             ],
+          ),
+          Divider(height: 40),
+          Text(
+            'Player Cost Overrides',
+            style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.orange[800]),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Set specific game cost for individual players (overrides default). Leave empty/0 to use default.',
+            style: TextStyle(color: Colors.grey[600], fontSize: 13),
+          ),
+          SizedBox(height: 16),
+          _isLoadingPlayers
+              ? Center(child: CircularProgressIndicator())
+              : _buildPlayersTable(),
+        ],
       ),
     );
   }
@@ -218,17 +215,21 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _loadPlayers() async {
     setState(() => _isLoadingPlayers = true);
     try {
-      // Need an endpoint to get all users with their custom costs
-      // Assuming 'enlist' returns usernames, we might need a richer endpoint.
-      // Or we can use 'team-financial-summary' which returns everyone.
-      int teamId = 1; // Fallback
-      final response = await apiService.getWithCache('finance/team-financial-summary/$teamId', cacheKey: 'cache_team_summary_$teamId');
-      
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      final teamId = prefs.getInt('team_id');
+      if (teamId == null) {
+        return;
+      }
+      final response = await apiService.getWithCache(
+        'finance/team-financial-summary/$teamId',
+        cacheKey: 'cache_team_summary_$teamId',
+      );
+
       if (response['success'] == true) {
         setState(() {
           _players = response['summary'];
           // Note: team-financial-summary returns {username, balance, debt, paid}
-          // It DOES NOT currently return 'custom_game_cost'. 
+          // It DOES NOT currently return 'custom_game_cost'.
           // We need to update the backend or use a different endpoint.
           // For now, let's assume we update backend to include it.
         });
@@ -241,100 +242,108 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _buildPlayersTable() {
-     return ListView.builder(
-         shrinkWrap: true,
-         physics: NeverScrollableScrollPhysics(),
-         itemCount: _players.length,
-         itemBuilder: (context, index) {
-             final player = _players[index];
-             final username = player['username'];
-             // Placeholder for custom cost until backend is updated
-             final customCost = player['custom_game_cost'] ?? ''; 
-             
-             return Card(
-                 margin: EdgeInsets.symmetric(vertical: 4),
-                 child: ListTile(
-                     title: Text(username, style: TextStyle(fontWeight: FontWeight.bold)),
-                     trailing: SizedBox(
-                         width: 100,
-                         child: Row(
-                             children: [
-                                 Expanded(
-                                     child: TextField(
-                                         decoration: InputDecoration(
-                                             hintText: 'Default',
-                                             isDense: true,
-                                             contentPadding: EdgeInsets.all(8),
-                                             border: OutlineInputBorder(),
-                                         ),
-                                         keyboardType: TextInputType.number,
-                                         // Controller management for list view is tricky.
-                                         // For simplicity, we'll use a dialog to edit.
-                                         enabled: false, 
-                                         controller: TextEditingController(text: customCost != null ? customCost.toString() : ''),
-                                     ),
-                                 ),
-                                 IconButton(
-                                     icon: Icon(Icons.edit, size: 20, color: Colors.blue),
-                                     onPressed: () => _showEditCostDialog(username, customCost),
-                                 )
-                             ],
-                         ),
-                     ),
-                 ),
-             );
-         },
-     );
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: NeverScrollableScrollPhysics(),
+      itemCount: _players.length,
+      itemBuilder: (context, index) {
+        final player = _players[index];
+        final username = player['username'];
+        // Placeholder for custom cost until backend is updated
+        final customCost = player['custom_game_cost'] ?? '';
+
+        return Card(
+          margin: EdgeInsets.symmetric(vertical: 4),
+          child: ListTile(
+            title:
+                Text(username, style: TextStyle(fontWeight: FontWeight.bold)),
+            trailing: SizedBox(
+              width: 100,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      decoration: InputDecoration(
+                        hintText: 'Default',
+                        isDense: true,
+                        contentPadding: EdgeInsets.all(8),
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.number,
+                      // Controller management for list view is tricky.
+                      // For simplicity, we'll use a dialog to edit.
+                      enabled: false,
+                      controller: TextEditingController(
+                          text:
+                              customCost != null ? customCost.toString() : ''),
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.edit, size: 20, color: Colors.blue),
+                    onPressed: () => _showEditCostDialog(username, customCost),
+                  )
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _showEditCostDialog(String username, dynamic currentCost) {
-      TextEditingController _editController = TextEditingController(text: currentCost?.toString() ?? '');
-      
-      showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-              title: Text('Edit Cost for $username'),
-              content: TextField(
-                  controller: _editController,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(labelText: 'Cost per game'),
-              ),
-              actions: [
-                  TextButton(
-                      child: Text('Cancel'),
-                      onPressed: () => Navigator.pop(context),
-                  ),
-                  ElevatedButton(
-                      child: Text('Save'),
-                      onPressed: () {
-                          _updatePlayerCost(username, _editController.text);
-                          Navigator.pop(context);
-                      },
-                  ),
-              ],
+    TextEditingController _editController =
+        TextEditingController(text: currentCost?.toString() ?? '');
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Edit Cost for $username'),
+        content: TextField(
+          controller: _editController,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(labelText: 'Cost per game'),
+        ),
+        actions: [
+          TextButton(
+            child: Text('Cancel'),
+            onPressed: () => Navigator.pop(context),
           ),
-      );
+          ElevatedButton(
+            child: Text('Save'),
+            onPressed: () {
+              _updatePlayerCost(username, _editController.text);
+              Navigator.pop(context);
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _updatePlayerCost(String username, String costStr) async {
-      int? cost = int.tryParse(costStr);
-      
-      try {
-          final response = await apiService.putQueued('finance/update-user-financial-settings', {
-              'username': username,
-              'custom_game_cost': cost // null sends null to DB (resets to default)
-          });
-          
-          if (response['success']) {
-              final queued = response['queued'] == true;
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(queued ? 'Saved offline. Will sync when online.' : 'Updated $username'),
-                  backgroundColor: queued ? Colors.orange : Colors.green));
-              _loadTeamSettings(); // Refresh
-              _loadPlayers();
-          }
-      } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    int? cost = int.tryParse(costStr);
+
+    try {
+      final response =
+          await apiService.putQueued('finance/update-user-financial-settings', {
+        'username': username,
+        'custom_game_cost': cost // null sends null to DB (resets to default)
+      });
+
+      if (response['success']) {
+        final queued = response['queued'] == true;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(queued
+                ? 'Saved offline. Will sync when online.'
+                : 'Updated $username'),
+            backgroundColor: queued ? Colors.orange : Colors.green));
+        _loadTeamSettings(); // Refresh
+        _loadPlayers();
       }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    }
   }
 }

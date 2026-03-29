@@ -24,6 +24,7 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
   int totalPaid = 0;
   int totalBalance = 0;
   int pendingQueue = 0;
+  int failedQueue = 0;
   int lastSyncedCount = 0;
   String? lastSyncedAt;
   StreamSubscription<List<ConnectivityResult>>? _connSub;
@@ -52,7 +53,7 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
       final hasConnection = results.any((r) => r != ConnectivityResult.none);
       if (hasConnection) {
         // Just got online!
-        _handleOnlineRefresh(); 
+        _handleOnlineRefresh();
       }
     });
   }
@@ -86,7 +87,14 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
   Future<void> _loadData() async {
     // 1. Get Team ID
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    int teamId = prefs.getInt('team_id') ?? 1;
+    final teamId = prefs.getInt('team_id');
+    if (teamId == null) {
+      setState(() {
+        errorMessage = 'Missing team id. Please login again.';
+        isLoading = false;
+      });
+      return;
+    }
     String cacheKey = 'cache_team_summary_$teamId';
 
     // 2. Try to load from cache immediately (Stale-while-revalidate)
@@ -100,14 +108,16 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
 
     // 3. Update from Network (background)
     try {
-      final response = await apiService.getWithCache('finance/team-financial-summary/$teamId', cacheKey: cacheKey);
+      final response = await apiService.getWithCache(
+          'finance/team-financial-summary/$teamId',
+          cacheKey: cacheKey);
       if (mounted) {
         if (response['success'] == true) {
           _processData(response);
         } else {
           // If network failed but we had cache, we are fine. If no cache, show error.
           if (players.isEmpty) {
-             setState(() => errorMessage = response['message']);
+            setState(() => errorMessage = response['message']);
           }
         }
       }
@@ -126,7 +136,7 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
       players = response['summary'] ?? [];
       defaultCost = response['defaultGameCost'] ?? 0;
       fromCache = response['_cached'] == true;
-      
+
       // Calculate totals
       totalDebt = 0;
       totalPaid = 0;
@@ -145,6 +155,7 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
       final stats = await apiService.getQueueStats();
       setState(() {
         pendingQueue = stats['pending'] ?? 0;
+        failedQueue = stats['failed'] ?? 0;
         lastSyncedCount = stats['last_synced_count'] ?? 0;
         lastSyncedAt = stats['last_synced_at'] as String?;
       });
@@ -177,11 +188,11 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
     });
   }
 
-
   Future<void> _openPlayerFinancials(String username) async {
     showDialog(
       context: context,
-      builder: (context) => PlayerFinancialDialog(username: username, apiService: apiService),
+      builder: (context) =>
+          PlayerFinancialDialog(username: username, apiService: apiService),
     ).then((_) {
       // Refresh data after dialog closes
       _loadData();
@@ -202,8 +213,6 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
     );
   }
 
-
-
   Widget _buildQueueInfo() {
     final syncedInfo = lastSyncedAt != null
         ? 'Last synced: $lastSyncedCount at ${DateTime.tryParse(lastSyncedAt!) != null ? _fmtTime(DateTime.parse(lastSyncedAt!)) : lastSyncedAt}'
@@ -213,8 +222,12 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text('Offline queue: $pendingQueue pending', style: TextStyle(fontSize: 12, color: Colors.grey[800])),
-          Text(syncedInfo, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+          Text(
+            'Offline queue: $pendingQueue pending${failedQueue > 0 ? " | $failedQueue failed" : ""}',
+            style: TextStyle(fontSize: 12, color: Colors.grey[800]),
+          ),
+          Text(syncedInfo,
+              style: TextStyle(fontSize: 12, color: Colors.grey[600])),
         ],
       ),
     );
@@ -256,10 +269,10 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
       ),
     );
   }
-  
+
   void _showPendingQueueDialog() async {
     final items = await apiService.getQueueItems();
-    
+
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -275,54 +288,61 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
             width: double.maxFinite,
             height: 300,
             child: items.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.check_circle, color: Colors.green, size: 48),
-                      SizedBox(height: 8),
-                      Text('No pending actions', style: TextStyle(fontSize: 16)),
-                      Text('All synced!', style: TextStyle(color: Colors.grey)),
-                    ],
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.green, size: 48),
+                        SizedBox(height: 8),
+                        Text('No pending actions',
+                            style: TextStyle(fontSize: 16)),
+                        Text('All synced!',
+                            style: TextStyle(color: Colors.grey)),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: items.length,
+                    itemBuilder: (context, index) {
+                      final item = items[index];
+                      final method = item['method'] ?? 'POST';
+                      final endpoint = item['endpoint'] ?? '';
+                      final createdAt = item['created_at'] ?? '';
+                      final attempts = item['attempts'] ?? 0;
+
+                      String description =
+                          _getActionDescription(method, endpoint, item['body']);
+
+                      return Card(
+                        child: ListTile(
+                          leading: Icon(
+                            method == 'DELETE'
+                                ? Icons.delete
+                                : Icons.cloud_upload,
+                            color:
+                                method == 'DELETE' ? Colors.red : Colors.blue,
+                          ),
+                          title:
+                              Text(description, style: TextStyle(fontSize: 13)),
+                          subtitle: Text(
+                            'Attempts: $attempts | ${_formatQueueTime(createdAt)}',
+                            style: TextStyle(fontSize: 11),
+                          ),
+                          trailing: IconButton(
+                            icon: Icon(Icons.delete_outline, color: Colors.red),
+                            onPressed: () async {
+                              await apiService.removeFromQueue(item['id']);
+                              final newItems = await apiService.getQueueItems();
+                              setDialogState(() => items
+                                ..clear()
+                                ..addAll(newItems));
+                              _loadQueueStats();
+                            },
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                )
-              : ListView.builder(
-                  itemCount: items.length,
-                  itemBuilder: (context, index) {
-                    final item = items[index];
-                    final method = item['method'] ?? 'POST';
-                    final endpoint = item['endpoint'] ?? '';
-                    final createdAt = item['created_at'] ?? '';
-                    final attempts = item['attempts'] ?? 0;
-                    
-                    String description = _getActionDescription(method, endpoint, item['body']);
-                    
-                    return Card(
-                      child: ListTile(
-                        leading: Icon(
-                          method == 'DELETE' ? Icons.delete : Icons.cloud_upload,
-                          color: method == 'DELETE' ? Colors.red : Colors.blue,
-                        ),
-                        title: Text(description, style: TextStyle(fontSize: 13)),
-                        subtitle: Text(
-                          'Attempts: $attempts | ${_formatQueueTime(createdAt)}',
-                          style: TextStyle(fontSize: 11),
-                        ),
-                        trailing: IconButton(
-                          icon: Icon(Icons.delete_outline, color: Colors.red),
-                          onPressed: () async {
-                            await apiService.removeFromQueue(item['id']);
-                            final newItems = await apiService.getQueueItems();
-                            setDialogState(() => items
-                              ..clear()
-                              ..addAll(newItems));
-                            _loadQueueStats();
-                          },
-                        ),
-                      ),
-                    );
-                  },
-                ),
           ),
           actions: [
             TextButton(
@@ -336,12 +356,16 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
                     context: context,
                     builder: (ctx) => AlertDialog(
                       title: Text('Clear All?'),
-                      content: Text('Delete all ${items.length} pending actions? Cannot be undone.'),
+                      content: Text(
+                          'Delete all ${items.length} pending actions? Cannot be undone.'),
                       actions: [
-                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancel')),
+                        TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: Text('Cancel')),
                         TextButton(
                           onPressed: () => Navigator.pop(ctx, true),
-                          child: Text('Delete', style: TextStyle(color: Colors.red)),
+                          child: Text('Delete',
+                              style: TextStyle(color: Colors.red)),
                         ),
                       ],
                     ),
@@ -374,12 +398,12 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
       ),
     );
   }
-  
+
   String _getActionDescription(String method, String endpoint, dynamic body) {
     final bodyMap = body is Map<String, dynamic> ? body : <String, dynamic>{};
     final amount = bodyMap['amount'];
     final username = bodyMap['username'] ?? bodyMap['player_username'] ?? '';
-    
+
     if (endpoint.contains('add-payment')) {
       return 'Payment: ${amount != null ? "₪$amount" : ""} ${username.isNotEmpty ? "($username)" : ""}';
     }
@@ -398,7 +422,7 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
     }
     return '$method: $endpoint';
   }
-  
+
   String _formatQueueTime(String isoString) {
     try {
       final d = DateTime.parse(isoString);
@@ -421,7 +445,10 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
       body: isLoading
           ? Center(child: BasketballSpinner(size: 80))
           : errorMessage != null
-              ? Center(child: Text('Offline/no cache yet. Connect once to load data.', style: TextStyle(color: Colors.orange[700])))
+              ? Center(
+                  child: Text(
+                      'Offline/no cache yet. Connect once to load data.',
+                      style: TextStyle(color: Colors.orange[700])))
               : RefreshIndicator(
                   onRefresh: _loadData,
                   child: _buildContent(),
@@ -446,17 +473,21 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
                   if (_isSyncing) ...[
                     BasketballSpinner(size: 16),
                     SizedBox(width: 8),
-                    Text('Syncing...', style: TextStyle(fontSize: 12, color: Colors.blue[800])),
+                    Text('Syncing...',
+                        style:
+                            TextStyle(fontSize: 12, color: Colors.blue[800])),
                   ] else ...[
                     Icon(Icons.cloud_off, color: Colors.orange, size: 18),
                     SizedBox(width: 8),
-                    Text('$pendingQueue pending (tap to view)', style: TextStyle(fontSize: 12, color: Colors.orange[800])),
+                    Text('$pendingQueue pending (tap to view)',
+                        style:
+                            TextStyle(fontSize: 12, color: Colors.orange[800])),
                   ],
                 ],
               ),
             ),
           ),
-        
+
         // SUMMARY CARDS - more compact
         Container(
           padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -466,23 +497,26 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
             children: [
               _buildSummaryCard('Debt', totalDebt, Colors.red),
               _buildSummaryCard('Paid', totalPaid, Colors.green),
-              _buildSummaryCard('Balance', totalBalance, totalBalance >= 0 ? Colors.green : Colors.red),
+              _buildSummaryCard('Balance', totalBalance,
+                  totalBalance >= 0 ? Colors.green : Colors.red),
             ],
           ),
         ),
-        
+
         // INFO ROW
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('${players.length} players', style: TextStyle(fontSize: 11, color: Colors.grey)),
-              Text('Game: $defaultCost₪', style: TextStyle(fontSize: 11, color: Colors.grey)),
+              Text('${players.length} players',
+                  style: TextStyle(fontSize: 11, color: Colors.grey)),
+              Text('Game: $defaultCost₪',
+                  style: TextStyle(fontSize: 11, color: Colors.grey)),
             ],
           ),
         ),
-        
+
         Divider(height: 1),
 
         // SORT CONTROLS
@@ -495,7 +529,9 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
               _buildSortChip('Balance', 'balance'),
               Spacer(),
               IconButton(
-                icon: Icon(_sortAscending ? Icons.arrow_upward : Icons.arrow_downward, size: 18),
+                icon: Icon(
+                    _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                    size: 18),
                 tooltip: 'Toggle sort direction',
                 onPressed: () {
                   setState(() {
@@ -516,8 +552,8 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
               // Always at least 3 columns as requested
               final crossAxisCount = width > 1200 ? 5 : (width > 900 ? 4 : 3);
               // Taller cards (30% increase): previously 4.0, now reduced to ~2.8 to make them taller
-              final childAspectRatio = 2.8; 
-              
+              final childAspectRatio = 2.8;
+
               return GridView.builder(
                 padding: EdgeInsets.zero,
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -551,7 +587,8 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
                       padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                       decoration: BoxDecoration(
                         color: tileColor,
-                        border: Border.all(color: Colors.grey[200]!, width: 0.3),
+                        border:
+                            Border.all(color: Colors.grey[200]!, width: 0.3),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -564,7 +601,8 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
                                   width: 4,
                                   height: 4,
                                   decoration: BoxDecoration(
-                                    color: isPositive ? Colors.green : Colors.red,
+                                    color:
+                                        isPositive ? Colors.green : Colors.red,
                                     shape: BoxShape.circle,
                                   ),
                                 ),
@@ -572,7 +610,9 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
                                 Expanded(
                                   child: Text(
                                     player['username'],
-                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+                                    style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
@@ -587,7 +627,8 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
                               if (remainder != 0) ...[
                                 Text(
                                   '(${remainder > 0 ? '+' : ''}$remainder₪)',
-                                  style: TextStyle(fontSize: 9, color: Colors.grey[600]),
+                                  style: TextStyle(
+                                      fontSize: 9, color: Colors.grey[600]),
                                 ),
                                 SizedBox(width: 2),
                               ],
@@ -597,7 +638,9 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
-                                  color: isPositive ? Colors.green[700] : Colors.red[700],
+                                  color: isPositive
+                                      ? Colors.green[700]
+                                      : Colors.red[700],
                                 ),
                               ),
                             ],
@@ -627,7 +670,9 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
         children: [
           Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
           SizedBox(height: 4),
-          Text('$value ₪', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+          Text('$value ₪',
+              style: TextStyle(
+                  fontSize: 18, fontWeight: FontWeight.bold, color: color)),
         ],
       ),
     );

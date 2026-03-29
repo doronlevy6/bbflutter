@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -95,11 +96,16 @@ class _AuthCheckState extends State<AuthCheck> {
     if (token != null) {
       final api = ApiService();
       final username = prefs.getString('user') ?? '';
-      final teamId = prefs.getInt('team_id') ?? 1;
-      await api.processQueue();
+      final teamId = prefs.getInt('team_id');
+      final isAdmin = prefs.getBool('is_admin') ?? false;
+      unawaited(api.processQueue());
       if (username.isNotEmpty) {
-        // Fire-and-forget preload for all offline data (do not block navigation)
-        api.preloadAll(username: username, teamId: teamId);
+        // Fire-and-forget preload (do not block navigation)
+        unawaited(api.preloadAll(
+          username: username,
+          teamId: teamId,
+          isAdmin: isAdmin,
+        ));
       }
       return true;
     }

@@ -10,6 +10,7 @@ import 'interactive_playground_page.dart';
 import 'financial_summary_page.dart';
 import 'scoreboard_page.dart';
 import 'draw_page.dart';
+import '../services/api_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:responsive_builder/responsive_builder.dart';
 
@@ -24,6 +25,7 @@ class _HomePageState extends State<HomePage> {
   String _appBarTitle = 'Teams and Averages';
   bool _isHebrew = false;
   bool _isAdmin = false;
+  final ApiService _apiService = ApiService();
 
   @override
   void initState() {
@@ -59,19 +61,94 @@ class _HomePageState extends State<HomePage> {
     String? email = prefs.getString('email');
     return {
       'username': username ?? 'Guest',
-      'email': email ?? 'doron@gmail.com',//?
+      'email': email ?? 'doron@gmail.com', //?
     };
+  }
+
+  Future<void> _clearSessionPrefs() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.remove('token');
+    await prefs.remove('user');
+    await prefs.remove('email');
+    await prefs.remove('team_id');
+    await prefs.remove('is_admin');
+  }
+
+  Future<void> _handleLogout() async {
+    final stats = await _apiService.getQueueStats();
+    final pending = stats['pending'] ?? 0;
+
+    if (pending > 0 && mounted) {
+      final action = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('Pending offline updates'),
+          content: Text(
+            'You have $pending pending actions not synced yet.\n\n'
+            'Sync before logout to avoid losing updates.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, 'cancel'),
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, 'discard'),
+              child: Text(
+                'Discard & Logout',
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, 'sync'),
+              child: Text('Sync & Logout'),
+            ),
+          ],
+        ),
+      );
+
+      if (action == null || action == 'cancel') {
+        return;
+      }
+
+      if (action == 'sync') {
+        await _apiService.processQueue();
+        final updatedStats = await _apiService.getQueueStats();
+        final stillPending = updatedStats['pending'] ?? 0;
+        if (stillPending > 0 && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '$stillPending items are still pending. Try again with connection or discard.',
+              ),
+            ),
+          );
+          return;
+        }
+      } else if (action == 'discard') {
+        await _apiService.clearQueue();
+      }
+    }
+
+    await _apiService.clearFailedQueue();
+    await _clearSessionPrefs();
+    if (!mounted) return;
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      '/login',
+      (Route<dynamic> route) => false,
+    );
   }
 
   // Build a drawer icon item with tooltip and navigation functionality
   Widget _buildDrawerIcon(
-      BuildContext context, {
-        required IconData icon,
-        required Color? color,
-        required String tooltip,
-        required Widget page,
-        required String title,
-      }) {
+    BuildContext context, {
+    required IconData icon,
+    required Color? color,
+    required String tooltip,
+    required Widget page,
+    required String title,
+  }) {
     return Tooltip(
       message: tooltip,
       child: InkWell(
@@ -173,14 +250,19 @@ class _HomePageState extends State<HomePage> {
 
                   // Define localized text based on _isHebrew flag
                   final loginTitle = _isHebrew ? 'התחברות/רישום' : 'Login';
-                  final loginTooltip = _isHebrew ? 'התחברות/רישום' : 'Login/Register';
-                  final homeTitle = _isHebrew ? 'רשימת נרשמים' : 'enlisted playres';
-                  final gradeTitle = _isHebrew ? 'ציוני  $username ' : "$username's Grades";
+                  final loginTooltip =
+                      _isHebrew ? 'התחברות/רישום' : 'Login/Register';
+                  final homeTitle =
+                      _isHebrew ? 'רשימת נרשמים' : 'enlisted playres';
+                  final gradeTitle =
+                      _isHebrew ? 'ציוני  $username ' : "$username's Grades";
                   final gradeTooltip = _isHebrew ? 'ציונים' : 'Grade Page';
-                  final playgroundTitle = _isHebrew ? 'מגרש משחקים' : 'Playground';
+                  final playgroundTitle =
+                      _isHebrew ? 'מגרש משחקים' : 'Playground';
                   final settingsTitle = _isHebrew ? 'הגדרות' : 'Settings';
                   final drawTitle = _isHebrew ? 'הגרלה' : 'Draw';
-                  final drawTooltip = _isHebrew ? 'הגרלת כדורסל' : 'Basketball Draw';
+                  final drawTooltip =
+                      _isHebrew ? 'הגרלת כדורסל' : 'Basketball Draw';
                   final logoutTitle = _isHebrew ? 'התנתק' : 'Logout';
 
                   return Column(
@@ -251,9 +333,13 @@ class _HomePageState extends State<HomePage> {
                               context,
                               icon: Icons.drag_indicator,
                               color: Colors.indigo[300],
-                              tooltip: _isHebrew ? 'בנייה אינטראקטיבית' : 'Interactive Builder',
+                              tooltip: _isHebrew
+                                  ? 'בנייה אינטראקטיבית'
+                                  : 'Interactive Builder',
                               page: InteractivePlaygroundPage(),
-                              title: _isHebrew ? 'בנייה אינטראקטיבית' : 'Interactive Builder',
+                              title: _isHebrew
+                                  ? 'בנייה אינטראקטיבית'
+                                  : 'Interactive Builder',
                             ),
                             _buildDrawerIcon(
                               context,
@@ -264,25 +350,32 @@ class _HomePageState extends State<HomePage> {
                               title: _isHebrew ? 'סקורבורד' : 'Scoreboard',
                             ),
                             // ADMIN SECTION - at the bottom
-                            if (_isAdmin)
-                              Divider(height: 20),
+                            if (_isAdmin) Divider(height: 20),
                             if (_isAdmin)
                               _buildDrawerIcon(
                                 context,
                                 icon: Icons.manage_accounts,
                                 color: Colors.purple[300],
-                                tooltip: _isHebrew ? 'ניהול שחקנים' : 'Player Management',
+                                tooltip: _isHebrew
+                                    ? 'ניהול שחקנים'
+                                    : 'Player Management',
                                 page: PlayerManagementPage(),
-                                title: _isHebrew ? 'ניהול שחקנים' : 'Player Management',
+                                title: _isHebrew
+                                    ? 'ניהול שחקנים'
+                                    : 'Player Management',
                               ),
                             if (_isAdmin)
                               _buildDrawerIcon(
                                 context,
                                 icon: Icons.account_balance_wallet,
                                 color: Colors.teal[400],
-                                tooltip: _isHebrew ? 'סיכום פיננסי' : 'Financial Summary',
+                                tooltip: _isHebrew
+                                    ? 'סיכום פיננסי'
+                                    : 'Financial Summary',
                                 page: FinancialSummaryPage(),
-                                title: _isHebrew ? 'סיכום פיננסי' : 'Financial Summary',
+                                title: _isHebrew
+                                    ? 'סיכום פיננסי'
+                                    : 'Financial Summary',
                               ),
                             if (_isAdmin)
                               _buildDrawerIcon(
@@ -314,10 +407,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
                         onTap: () async {
-                          SharedPreferences prefs = await SharedPreferences.getInstance();
-                          await prefs.clear();
-                          Navigator.pushNamedAndRemoveUntil(
-                              context, '/login', (Route<dynamic> route) => false);
+                          await _handleLogout();
                         },
                       ),
                     ],

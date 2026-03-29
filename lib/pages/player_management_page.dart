@@ -3,6 +3,7 @@ import '../services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/basketball_spinner.dart';
 import 'dart:async';
+import 'dart:math';
 
 enum PlayerSortMode {
   nameAsc,
@@ -1041,7 +1042,6 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                     Navigator.pop(context);
                     // Call Backend
                     try {
-                      int teamId = 1; // Fallback
                       int? baseCost = int.tryParse(costController.text);
 
                       // Format date and time
@@ -1051,7 +1051,6 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
 
                       final response =
                           await apiService.postQueued('finance/record-game', {
-                        'team_id': teamId,
                         'date': selectedDate.toIso8601String(),
                         'time': timeStr,
                         'enlistedPlayers': selectedUsernames,
@@ -1791,8 +1790,12 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
   String errorMessage = '';
   bool fromCache = false;
   int pendingQueue = 0;
+  int failedQueue = 0;
   int lastSyncedCount = 0;
   String? lastSyncedAt;
+  bool _isSyncing = false;
+  StreamSubscription<bool>? _syncSub;
+  final Random _random = Random();
 
   // Filter State: 'all', 'games', 'payments'
   String _filter = 'all';
@@ -1805,7 +1808,20 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
   @override
   void initState() {
     super.initState();
+    _startSyncListener();
     _fetchData();
+  }
+
+  void _startSyncListener() {
+    _syncSub = widget.apiService.isSyncing.listen((isSyncing) {
+      if (!mounted) return;
+      setState(() {
+        _isSyncing = isSyncing;
+      });
+      if (!isSyncing) {
+        _loadQueueStats();
+      }
+    });
   }
 
   Future<void> _fetchData() async {
@@ -1813,10 +1829,21 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
       loading = true;
       errorMessage = '';
     });
+
+    final cacheKey = 'cache_player_financials_${widget.username}';
+    final cached = await widget.apiService.getFromCacheOnly(cacheKey);
+    if (cached != null && cached['success'] == true && mounted) {
+      setState(() {
+        data = cached;
+        fromCache = true;
+        loading = false;
+      });
+    }
+
     try {
       final response = await widget.apiService.getWithCache(
           'finance/player-financials/${widget.username}',
-          cacheKey: 'cache_player_financials_${widget.username}');
+          cacheKey: cacheKey);
       if (response['success'] == true) {
         setState(() {
           data = response;
@@ -1824,16 +1851,26 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
           fromCache = response['_cached'] == true;
         });
       } else {
+        if (data == null) {
+          setState(() {
+            errorMessage = response['message'];
+            loading = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (data == null) {
         setState(() {
-          errorMessage = response['message'];
+          errorMessage = e.toString();
           loading = false;
         });
       }
-    } catch (e) {
-      setState(() {
-        errorMessage = e.toString();
-        loading = false;
-      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          loading = false;
+        });
+      }
     }
     _loadQueueStats();
   }
@@ -1843,10 +1880,17 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
       final stats = await widget.apiService.getQueueStats();
       setState(() {
         pendingQueue = stats['pending'] ?? 0;
+        failedQueue = stats['failed'] ?? 0;
         lastSyncedCount = stats['last_synced_count'] ?? 0;
         lastSyncedAt = stats['last_synced_at'] as String?;
       });
     } catch (_) {}
+  }
+
+  String _generateClientPaymentId() {
+    final ts = DateTime.now().microsecondsSinceEpoch;
+    final r = _random.nextInt(1 << 32);
+    return '${widget.username}_${ts}_$r';
   }
 
   Future<void> _addPayment() async {
@@ -1855,7 +1899,7 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
       final response =
           await widget.apiService.postQueued('finance/add-payment', {
         'username': widget.username,
-        'team_id': 1, // Default team
+        'client_payment_id': _generateClientPaymentId(),
         'amount': int.tryParse(amountController.text) ?? 0,
         'method': paymentMethod,
         'notes': notesController.text,
@@ -2154,8 +2198,18 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text('Queue: $pendingQueue pending',
-              style: TextStyle(fontSize: 12, color: Colors.grey[800])),
+          Row(
+            children: [
+              if (_isSyncing) ...[
+                BasketballSpinner(size: 14),
+                SizedBox(width: 6),
+              ],
+              Text(
+                'Queue: $pendingQueue pending${failedQueue > 0 ? " | $failedQueue failed" : ""}',
+                style: TextStyle(fontSize: 12, color: Colors.grey[800]),
+              ),
+            ],
+          ),
           Text(syncedInfo,
               style: TextStyle(fontSize: 12, color: Colors.grey[600])),
         ],
@@ -2172,5 +2226,13 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
     } catch (_) {
       return iso;
     }
+  }
+
+  @override
+  void dispose() {
+    _syncSub?.cancel();
+    amountController.dispose();
+    notesController.dispose();
+    super.dispose();
   }
 }
