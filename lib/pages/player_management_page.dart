@@ -1457,6 +1457,30 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
     });
   }
 
+  String _displayName(String username) {
+    if (username.length <= 5) return username;
+    return '${username.substring(0, 5)}…';
+  }
+
+  void _showFullPlayerName(String username) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Player Name'),
+        content: SelectableText(
+          username,
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPlayerCard(Map<String, dynamic> player) {
     final username = (player['username'] ?? '').toString();
     final isEnlisted = selectedUsernames.contains(username);
@@ -1482,11 +1506,22 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
               ),
             ),
             Expanded(
-              child: Text(
-                username,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+              child: Tooltip(
+                message: username,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () => _showFullPlayerName(username),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Text(
+                      _displayName(username),
+                      maxLines: 1,
+                      overflow: TextOverflow.clip,
+                      style:
+                          TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
               ),
             ),
             Tooltip(
