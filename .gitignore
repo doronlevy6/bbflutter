@@ -32,6 +32,8 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+.logs/
+lib/generated/runtime_mode.g.dart
 
 # Symbolication related
 app.*.symbols
