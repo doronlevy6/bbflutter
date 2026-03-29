@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'welcome_page.dart';
 import 'login_page.dart';
@@ -275,29 +276,32 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
               actions: [
-                Tooltip(
-                  message: 'API: ${_apiService.apiUrl}',
-                  child: Container(
-                    margin: EdgeInsets.symmetric(vertical: 10, horizontal: 10),
-                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _appEnv.toUpperCase() == 'LOCAL'
-                          ? Colors.green[900]
-                          : Colors.blueGrey[800],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Center(
-                      child: Text(
-                        'FE: ${_appEnv.toUpperCase()}',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
+                if (kDebugMode)
+                  Tooltip(
+                    message: 'API: ${_apiService.apiUrl}',
+                    child: Container(
+                      margin:
+                          EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _appEnv.toUpperCase() == 'LOCAL'
+                            ? Colors.green[900]
+                            : Colors.blueGrey[800],
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'FE: ${_appEnv.toUpperCase()}',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
               ],
               backgroundColor: Colors.green[700],
             ),
