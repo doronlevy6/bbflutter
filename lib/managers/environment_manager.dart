@@ -15,8 +15,21 @@ class EnvironmentManager {
   EnvironmentManager._internal();
 
   Environment _currentEnvironment = Environment.PROD;
-  // Getter for the current environment
-  Environment get currentEnvironment => _currentEnvironment;
+  // Getter for the effective environment currently in use.
+  // Priority:
+  // 1) APP_ENV build define
+  // 2) Web release fallback (PROD)
+  // 3) Runtime in-app selection fallback
+  Environment get currentEnvironment {
+    final definedEnv = _environmentFromBuildDefine();
+    if (definedEnv != null) return definedEnv;
+
+    if (kIsWeb && kReleaseMode) {
+      return Environment.PROD;
+    }
+
+    return _currentEnvironment;
+  }
 
   // Setter to change the environment
   void setEnvironment(Environment environment) {
@@ -62,25 +75,14 @@ class EnvironmentManager {
       return directOverride;
     }
 
-    final definedEnv = _environmentFromBuildDefine();
-    if (definedEnv != null) {
-      return _urlForEnvironment(definedEnv);
-    }
-
-    // If running on web, always use the production URL or a specific web URL
-    if (kIsWeb && kReleaseMode) {
-      // Check for build-time injected environment variable first (Vercel/CI support)
-      // Usage: flutter build web --dart-define=PROD_API_URL=https://...
+    // In release web builds we still allow PROD_API_URL override for CI/deploy pipelines.
+    if (kIsWeb && kReleaseMode && currentEnvironment == Environment.PROD) {
       const buildTimeUrl = String.fromEnvironment('PROD_API_URL');
       if (buildTimeUrl.isNotEmpty) {
         return buildTimeUrl;
       }
-
-      // In release (deployed) web builds we always use the remote server.
-      return dotenv.env['PROD_API_URL'] ??
-          'https://renderbbserver.onrender.com';
     }
 
-    return _urlForEnvironment(_currentEnvironment);
+    return _urlForEnvironment(currentEnvironment);
   }
 }
