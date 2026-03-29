@@ -33,6 +33,7 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
   bool _autoRefreshing = false;
   String _preloadStatus = 'idle';
   String? _preloadUpdatedAt;
+  String? _lastServerRefreshAt;
 
   // Sorting state
   String _sortBy = 'name'; // 'name' or 'balance'
@@ -136,6 +137,7 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
       players = response['summary'] ?? [];
       defaultCost = response['defaultGameCost'] ?? 0;
       fromCache = response['_cached'] == true;
+      _lastServerRefreshAt = response['_cache_updated_at'] as String?;
 
       // Calculate totals
       totalDebt = 0;
@@ -214,28 +216,39 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
   }
 
   Widget _buildQueueInfo() {
-    final syncedInfo = lastSyncedAt != null
-        ? 'Last synced: $lastSyncedCount at ${DateTime.tryParse(lastSyncedAt!) != null ? _fmtTime(DateTime.parse(lastSyncedAt!)) : lastSyncedAt}'
-        : 'No sync yet';
+    final queueInfo = lastSyncedAt != null
+        ? 'Queue synced: $lastSyncedCount at ${DateTime.tryParse(lastSyncedAt!) != null ? _fmtDateTime(DateTime.parse(lastSyncedAt!)) : lastSyncedAt}'
+        : 'Queue not synced yet';
+    final serverInfo = _lastServerRefreshAt != null
+        ? 'Server data updated: ${DateTime.tryParse(_lastServerRefreshAt!) != null ? _fmtDateTime(DateTime.parse(_lastServerRefreshAt!)) : _lastServerRefreshAt}'
+        : 'Server data not loaded yet';
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Offline queue: $pendingQueue pending${failedQueue > 0 ? " | $failedQueue failed" : ""}',
             style: TextStyle(fontSize: 12, color: Colors.grey[800]),
           ),
-          Text(syncedInfo,
-              style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+          SizedBox(height: 2),
+          Text(
+            queueInfo,
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          ),
+          SizedBox(height: 2),
+          Text(
+            serverInfo,
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          ),
         ],
       ),
     );
   }
 
-  String _fmtTime(DateTime d) {
+  String _fmtDateTime(DateTime d) {
     final two = (int n) => n.toString().padLeft(2, '0');
-    return '${two(d.hour)}:${two(d.minute)}';
+    return '${two(d.day)}/${two(d.month)}/${d.year} ${two(d.hour)}:${two(d.minute)}';
   }
 
   Widget _buildPreloadStatus() {
@@ -516,6 +529,7 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
             ],
           ),
         ),
+        _buildQueueInfo(),
 
         Divider(height: 1),
 

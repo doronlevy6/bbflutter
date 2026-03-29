@@ -1828,6 +1828,7 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
   int failedQueue = 0;
   int lastSyncedCount = 0;
   String? lastSyncedAt;
+  String? lastServerRefreshAt;
   bool _isSyncing = false;
   StreamSubscription<bool>? _syncSub;
   final Random _random = Random();
@@ -1871,6 +1872,7 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
       setState(() {
         data = cached;
         fromCache = true;
+        lastServerRefreshAt = cached['_cache_updated_at'] as String?;
         loading = false;
       });
     }
@@ -1884,6 +1886,7 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
           data = response;
           loading = false;
           fromCache = response['_cached'] == true;
+          lastServerRefreshAt = response['_cache_updated_at'] as String?;
         });
       } else {
         if (data == null) {
@@ -2225,13 +2228,16 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
   }
 
   Widget _buildQueueInfo() {
-    final syncedInfo = lastSyncedAt != null
-        ? 'Last synced: $lastSyncedCount at ${_fmtTime(lastSyncedAt)}'
-        : 'No sync yet';
+    final queueInfo = lastSyncedAt != null
+        ? 'Queue synced: $lastSyncedCount at ${_fmtDateTime(lastSyncedAt)}'
+        : 'Queue not synced yet';
+    final serverInfo = lastServerRefreshAt != null
+        ? 'Server data updated: ${_fmtDateTime(lastServerRefreshAt)}'
+        : 'Server data not loaded yet';
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
@@ -2245,19 +2251,27 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
               ),
             ],
           ),
-          Text(syncedInfo,
-              style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+          SizedBox(height: 4),
+          Text(
+            queueInfo,
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          ),
+          SizedBox(height: 2),
+          Text(
+            serverInfo,
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          ),
         ],
       ),
     );
   }
 
-  String _fmtTime(String? iso) {
+  String _fmtDateTime(String? iso) {
     if (iso == null) return '';
     try {
       final d = DateTime.parse(iso);
       String two(int n) => n.toString().padLeft(2, '0');
-      return '${two(d.hour)}:${two(d.minute)}';
+      return '${two(d.day)}/${two(d.month)}/${d.year} ${two(d.hour)}:${two(d.minute)}';
     } catch (_) {
       return iso;
     }

@@ -23,6 +23,35 @@ class OfflineService {
   static const String _metricsKey = 'pending_api_metrics_v1';
   static const int _maxAttempts = 8;
 
+  String _cacheMetaKey(String cacheKey) => '${cacheKey}_meta_v1';
+
+  Future<String?> _getCacheUpdatedAt(
+    SharedPreferences prefs,
+    String cacheKey,
+  ) async {
+    final raw = prefs.getString(_cacheMetaKey(cacheKey));
+    if (raw == null) return null;
+    try {
+      final meta = jsonDecode(raw) as Map<String, dynamic>;
+      return meta['updated_at'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _saveCache(
+    SharedPreferences prefs,
+    String cacheKey,
+    Map<String, dynamic> data,
+  ) async {
+    final updatedAt = DateTime.now().toIso8601String();
+    await prefs.setString(cacheKey, jsonEncode(data));
+    await prefs.setString(
+      _cacheMetaKey(cacheKey),
+      jsonEncode({'updated_at': updatedAt}),
+    );
+  }
+
   /// Start periodic retry for queued actions (no-op if already started).
   void ensureBackgroundSync(
       Future<Map<String, dynamic>> Function(
@@ -41,7 +70,12 @@ class OfflineService {
     if (cachedString != null) {
       try {
         final data = jsonDecode(cachedString) as Map<String, dynamic>;
-        return {...data, '_cached': true};
+        final updatedAt = await _getCacheUpdatedAt(prefs, cacheKey);
+        return {
+          ...data,
+          '_cached': true,
+          '_cache_updated_at': updatedAt,
+        };
       } catch (_) {}
     }
     return null;
@@ -57,10 +91,12 @@ class OfflineService {
   }) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     Map<String, dynamic>? cached;
+    String? cachedUpdatedAt;
     final cachedString = prefs.getString(cacheKey);
     if (cachedString != null) {
       try {
         cached = jsonDecode(cachedString) as Map<String, dynamic>;
+        cachedUpdatedAt = await _getCacheUpdatedAt(prefs, cacheKey);
       } catch (_) {}
     }
 
@@ -69,15 +105,25 @@ class OfflineService {
       final status = result['statusCode'] as int? ?? 500;
       final data = result['data'];
       if (status >= 200 && status < 300 && data is Map<String, dynamic>) {
-        await prefs.setString(cacheKey, jsonEncode(data));
-        return {...data, '_cached': false};
+        await _saveCache(prefs, cacheKey, data);
+        final updatedAt = await _getCacheUpdatedAt(prefs, cacheKey);
+        return {
+          ...data,
+          '_cached': false,
+          '_cache_updated_at': updatedAt,
+        };
       }
       // Non-200: surface payload
       if (data is Map<String, dynamic>) return data;
       return {'success': false, 'message': 'Failed to fetch ($status)'};
     } catch (e) {
       if (cached != null) {
-        return {...cached, '_cached': true, '_cache_error': e.toString()};
+        return {
+          ...cached,
+          '_cached': true,
+          '_cache_error': e.toString(),
+          '_cache_updated_at': cachedUpdatedAt,
+        };
       }
       rethrow;
     }
@@ -86,7 +132,7 @@ class OfflineService {
   /// Manually inject data into the cache (used for bulk loading).
   Future<void> manuallyCache(String cacheKey, Map<String, dynamic> data) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString(cacheKey, jsonEncode(data));
+    await _saveCache(prefs, cacheKey, data);
   }
 
   /// Send write action, queue on connectivity issues. Returns payload; when queued adds `queued: true`.
