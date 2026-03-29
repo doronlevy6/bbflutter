@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'welcome_page.dart';
 import 'login_page.dart';
@@ -29,6 +28,9 @@ class _HomePageState extends State<HomePage> {
   final ApiService _apiService = ApiService();
   static const String _appEnv =
       String.fromEnvironment('APP_ENV', defaultValue: 'PROD');
+  static const String _deploymentTarget =
+      String.fromEnvironment('DEPLOY_TARGET', defaultValue: 'local');
+  bool get _showEnvBadge => _deploymentTarget != 'github_pages';
 
   @override
   void initState() {
@@ -276,7 +278,7 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
               actions: [
-                if (kDebugMode)
+                if (_showEnvBadge)
                   Tooltip(
                     message: 'API: ${_apiService.apiUrl}',
                     child: Container(

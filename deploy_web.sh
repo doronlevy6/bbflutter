@@ -33,8 +33,8 @@ if [ ! -d "${WEB_REPO_DIR}/.git" ]; then
   exit 1
 fi
 
-echo "[deploy] Building Flutter web (release)"
-(cd "${FLUTTER_PROJECT_DIR}" && flutter build web --release)
+echo "[deploy] Building Flutter web (release, deployment target: github_pages)"
+(cd "${FLUTTER_PROJECT_DIR}" && flutter build web --release --dart-define=APP_ENV=PROD --dart-define=DEPLOY_TARGET=github_pages)
 
 BUILD_DIR="${FLUTTER_PROJECT_DIR}/build/web"
 if [ ! -d "${BUILD_DIR}" ]; then
