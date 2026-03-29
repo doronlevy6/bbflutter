@@ -67,11 +67,8 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _clearSessionPrefs() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.remove('token');
-    await prefs.remove('user');
-    await prefs.remove('email');
-    await prefs.remove('team_id');
-    await prefs.remove('is_admin');
+    // Full reset on logout: token + all cached/offline app data.
+    await prefs.clear();
   }
 
   Future<void> _handleLogout() async {
