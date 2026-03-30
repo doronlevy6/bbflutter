@@ -1516,7 +1516,7 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                     child: Text(
                       _displayName(username),
                       maxLines: 1,
-                      overflow: TextOverflow.clip,
+                      overflow: TextOverflow.ellipsis,
                       style:
                           TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
                     ),
@@ -1572,7 +1572,7 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
   Widget _buildPlayersGrid() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        const minCardWidth = 200.0;
+        const minCardWidth = 235.0;
         int crossAxisCount = (constraints.maxWidth / minCardWidth).floor();
         if (crossAxisCount < 1) crossAxisCount = 1;
         if (crossAxisCount > 6) crossAxisCount = 6;
