@@ -472,19 +472,20 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                       Divider(),
-                      ListTile(
-                        leading: Icon(Icons.cleaning_services,
-                            color: Colors.orange[700]),
-                        title: Text(
-                          resetTitle,
-                          style: TextStyle(
-                            fontSize: 14,
+                      if (_showEnvBadge)
+                        ListTile(
+                          leading: Icon(Icons.cleaning_services,
+                              color: Colors.orange[700]),
+                          title: Text(
+                            resetTitle,
+                            style: TextStyle(
+                              fontSize: 14,
+                            ),
                           ),
+                          onTap: () async {
+                            await _handleDebugReset();
+                          },
                         ),
-                        onTap: () async {
-                          await _handleDebugReset();
-                        },
-                      ),
                       ListTile(
                         leading: Icon(Icons.logout, color: Colors.red),
                         title: Text(
