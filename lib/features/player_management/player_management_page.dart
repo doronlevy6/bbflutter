@@ -3,7 +3,6 @@ import '../../services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../widgets/basketball_spinner.dart';
 import 'dart:async';
-import 'dart:math';
 
 enum PlayerSortMode {
   nameAsc,
@@ -1831,7 +1830,7 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
   String? lastServerRefreshAt;
   bool _isSyncing = false;
   StreamSubscription<bool>? _syncSub;
-  final Random _random = Random();
+  static int _paymentSequence = 0;
 
   // Filter State: 'all', 'games', 'payments'
   String _filter = 'all';
@@ -1927,8 +1926,8 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
 
   String _generateClientPaymentId() {
     final ts = DateTime.now().microsecondsSinceEpoch;
-    final r = _random.nextInt(1 << 31);
-    return '${widget.username}_${ts}_$r';
+    final seq = _paymentSequence++;
+    return '${widget.username}_${ts}_$seq';
   }
 
   Future<void> _addPayment() async {
