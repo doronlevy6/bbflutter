@@ -75,6 +75,9 @@ class _HomePageState extends State<HomePage> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     // Regular logout: clear sensitive session only.
     await prefs.remove('token');
+    await prefs.remove('refresh_token');
+    await prefs.remove('token_expires_in');
+    await prefs.remove('refresh_token_expires_in');
     await prefs.remove('user');
     await prefs.remove('email');
     await prefs.remove('team_id');
@@ -173,6 +176,7 @@ class _HomePageState extends State<HomePage> {
       }
     }
 
+    await _apiService.logout();
     await _apiService.clearFailedQueue();
     await _clearSessionPrefs();
     if (!mounted) return;

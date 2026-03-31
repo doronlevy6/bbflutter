@@ -231,7 +231,20 @@ class _LoginPageState extends State<LoginPage> {
       if (data['success']) {
         SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', data['token']);
+        if (data['refresh_token'] is String) {
+          await prefs.setString('refresh_token', data['refresh_token']);
+        }
+        if (data['token_expires_in'] is String) {
+          await prefs.setString('token_expires_in', data['token_expires_in']);
+        }
+        if (data['refresh_token_expires_in'] is String) {
+          await prefs.setString(
+              'refresh_token_expires_in', data['refresh_token_expires_in']);
+        }
         await prefs.setString('user', data['user']['username']);
+        if (data['user']['email'] is String) {
+          await prefs.setString('email', data['user']['email']);
+        }
         if (data['user']['team_type'] != null) {
           await prefs.setString('team_type', data['user']['team_type']);
         }

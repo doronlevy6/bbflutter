@@ -5,6 +5,7 @@ import 'dart:async';
 import '../../widgets/basketball_spinner.dart';
 import '../../pages/player_management_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/services.dart';
 
 class FinancialSummaryPage extends StatefulWidget {
   @override
@@ -269,6 +270,57 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
     return '${two(d.day)}/${two(d.month)}/${d.year} ${two(d.hour)}:${two(d.minute)}';
   }
 
+  String _buildDebtStatusText() {
+    final snapshot = List<Map<String, dynamic>>.from(
+      players.map((p) => Map<String, dynamic>.from(p as Map)),
+    );
+    snapshot.sort((a, b) {
+      final aBalance = (a['balance'] as int? ?? 0);
+      final bBalance = (b['balance'] as int? ?? 0);
+      return aBalance.compareTo(bBalance); // debt first
+    });
+
+    final lines = <String>[
+      '🏀 סטטוס תשלומים לקבוצה',
+      'עודכן: ${_fmtDateTime(DateTime.now())}',
+      '',
+    ];
+
+    for (final p in snapshot) {
+      final username = (p['username'] ?? '').toString();
+      final balance = p['balance'] as int? ?? 0;
+      final paid = p['paid'] as int? ?? 0;
+      final debt = p['debt'] as int? ?? 0;
+
+      String status;
+      if (balance < 0) {
+        status = 'חוב ${-balance}₪';
+      } else if (balance > 0) {
+        status = 'זכות ${balance}₪';
+      } else {
+        status = 'מאוזן';
+      }
+
+      lines.add('• $username: $status | שולם ${paid}₪ | חיוב ${debt}₪');
+    }
+
+    lines.add('');
+    lines.add('סה"כ חוב: ${totalDebt}₪ | סה"כ שולם: ${totalPaid}₪');
+    return lines.join('\n');
+  }
+
+  Future<void> _copyDebtStatus() async {
+    final text = _buildDebtStatusText();
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Debt status copied. Ready to paste to WhatsApp.'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
   Widget _buildPreloadStatus() {
     String text;
     Color color;
@@ -291,7 +343,8 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
     final updatedAt = _preloadUpdatedAt != null
         ? DateTime.tryParse(_preloadUpdatedAt!)
         : null;
-    final suffix = updatedAt != null ? ' (${_fmtDateTime(updatedAt.toLocal())})' : '';
+    final suffix =
+        updatedAt != null ? ' (${_fmtDateTime(updatedAt.toLocal())})' : '';
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4),
       child: Row(
@@ -484,15 +537,15 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
                   child: Text('Access Denied',
                       style: TextStyle(
                           color: Colors.red, fontWeight: FontWeight.bold)))
-          : errorMessage != null
-              ? Center(
-                  child: Text(
-                      'Offline/no cache yet. Connect once to load data.',
-                      style: TextStyle(color: Colors.orange[700])))
-              : RefreshIndicator(
-                  onRefresh: _loadData,
-                  child: _buildContent(),
-                ),
+              : errorMessage != null
+                  ? Center(
+                      child: Text(
+                          'Offline/no cache yet. Connect once to load data.',
+                          style: TextStyle(color: Colors.orange[700])))
+                  : RefreshIndicator(
+                      onRefresh: _loadData,
+                      child: _buildContent(),
+                    ),
     );
   }
 
@@ -553,6 +606,18 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
                   style: TextStyle(fontSize: 11, color: Colors.grey)),
               Text('Game: $defaultCost₪',
                   style: TextStyle(fontSize: 11, color: Colors.grey)),
+            ],
+          ),
+        ),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          child: Row(
+            children: [
+              OutlinedButton.icon(
+                onPressed: _copyDebtStatus,
+                icon: Icon(Icons.copy, size: 16),
+                label: Text('Copy Debt Status'),
+              ),
             ],
           ),
         ),

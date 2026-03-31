@@ -1947,10 +1947,21 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
         notesController.clear();
         _fetchData(); // Reload
         final queued = response['queued'] == true;
+        final emailStatus = response['email_status'] as String?;
+        String emailHint = '';
+        if (!queued) {
+          if (emailStatus == 'sent') {
+            emailHint = ' | confirmation email sent';
+          } else if (emailStatus == 'skipped') {
+            emailHint = ' | no email sent (missing player email / SMTP)';
+          } else if (emailStatus == 'failed') {
+            emailHint = ' | email send failed';
+          }
+        }
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(queued
                 ? 'Payment saved offline, will sync later'
-                : 'Payment added!'),
+                : 'Payment added!$emailHint'),
             backgroundColor: queued ? Colors.orange : Colors.green));
       } else {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
