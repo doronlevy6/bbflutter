@@ -4,7 +4,7 @@ import 'dart:convert';
 import '../model/player.dart';
 import '../utils/calc.dart';
 import '../services/rankings_service.dart';
-import '../widgets/icon_butten_with_label.dart';
+import '../widgets/icon_button_with_label.dart';
 
 class InteractivePlaygroundPage extends StatefulWidget {
   const InteractivePlaygroundPage({Key? key}) : super(key: key);
