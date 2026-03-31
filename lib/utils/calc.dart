@@ -1,4 +1,4 @@
-import '../model/player.dart';
+import '../models/player.dart';
 
 double computeTotalRanking(Player p) =>
     p.param1 + p.param2 + p.param3 + p.param4 + p.param5 + p.param6;

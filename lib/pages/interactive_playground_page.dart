@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import '../model/player.dart';
+import '../models/player.dart';
 import '../utils/calc.dart';
 import '../services/rankings_service.dart';
 import '../widgets/icon_button_with_label.dart';

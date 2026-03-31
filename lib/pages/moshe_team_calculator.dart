@@ -3,7 +3,7 @@ import 'dart:math';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../model/player.dart';
+import '../models/player.dart';
 
 final Random _mosheRandom = Random();
 

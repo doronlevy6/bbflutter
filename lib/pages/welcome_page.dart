@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../managers/asset_manager.dart';
-import '/model/player.dart'; // Adjust the path accordingly
+import '/models/player.dart'; // Adjust the path accordingly
 import 'legend_page.dart';
 import '../services/api_service.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;

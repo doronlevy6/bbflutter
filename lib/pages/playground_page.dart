@@ -4,7 +4,7 @@ import 'dart:convert';
 import '../config/legend_config.dart';
 import '../managers/asset_manager.dart';
 import '../widgets/icon_button_with_label.dart';
-import '../model/player.dart'; // Adjust the path according to your project structure.
+import '../models/player.dart'; // Adjust the path according to your project structure.
 import 'legend_page.dart'; // Assuming you have a Legend widget similar to WelcomePage
 import 'package:responsive_builder/responsive_builder.dart';
 import '../utils/calc.dart';
