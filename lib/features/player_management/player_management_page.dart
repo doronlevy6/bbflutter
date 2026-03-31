@@ -3,6 +3,7 @@ import '../../services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../widgets/basketball_spinner.dart';
 import 'dart:async';
+import 'dart:convert';
 
 enum PlayerSortMode {
   nameAsc,
@@ -1831,6 +1832,12 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
   bool _isSyncing = false;
   StreamSubscription<bool>? _syncSub;
   static int _paymentSequence = 0;
+  static const String _lastPaymentDebugKeyPrefix = 'last_payment_debug_';
+  String? _lastPaymentStatus;
+  String? _lastPaymentTraceId;
+  String? _lastPaymentEmailStatus;
+  String? _lastPaymentMessage;
+  String? _lastPaymentAtIso;
 
   // Filter State: 'all', 'games', 'payments'
   String _filter = 'all';
@@ -1844,7 +1851,58 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
   void initState() {
     super.initState();
     _startSyncListener();
+    _loadLastPaymentDebug();
     _fetchData();
+  }
+
+  String get _lastPaymentDebugKey =>
+      '$_lastPaymentDebugKeyPrefix${widget.username}';
+
+  Future<void> _persistLastPaymentDebug({
+    required String status,
+    required String message,
+    bool? queued,
+    String? traceId,
+    String? emailStatus,
+  }) async {
+    final payload = <String, dynamic>{
+      'status': status,
+      'message': message,
+      'queued': queued,
+      'trace_id': traceId,
+      'email_status': emailStatus,
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_lastPaymentDebugKey, jsonEncode(payload));
+    if (!mounted) return;
+    setState(() {
+      _lastPaymentStatus = status;
+      _lastPaymentMessage = message;
+      _lastPaymentTraceId = traceId;
+      _lastPaymentEmailStatus = emailStatus;
+      _lastPaymentAtIso = payload['updated_at'] as String;
+    });
+  }
+
+  Future<void> _loadLastPaymentDebug() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_lastPaymentDebugKey);
+      if (raw == null || raw.isEmpty) return;
+      final parsed = jsonDecode(raw);
+      if (parsed is! Map<String, dynamic>) return;
+      if (!mounted) return;
+      setState(() {
+        _lastPaymentStatus = parsed['status'] as String?;
+        _lastPaymentMessage = parsed['message'] as String?;
+        _lastPaymentTraceId = parsed['trace_id'] as String?;
+        _lastPaymentEmailStatus = parsed['email_status'] as String?;
+        _lastPaymentAtIso = parsed['updated_at'] as String?;
+      });
+    } catch (_) {
+      // Keep UI stable even if debug payload is malformed.
+    }
   }
 
   void _startSyncListener() {
@@ -1943,8 +2001,8 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
       debugPrint(
         '[payment:add] sending payload for ${widget.username}: $paymentPayload',
       );
-      final response =
-          await widget.apiService.postQueued('finance/add-payment', paymentPayload);
+      final response = await widget.apiService
+          .postQueued('finance/add-payment', paymentPayload);
       debugPrint('[payment:add] response for ${widget.username}: $response');
       if (response['success'] == true) {
         amountController.clear();
@@ -1962,17 +2020,42 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
             emailHint = ' | email send failed';
           }
         }
+        final traceId = response['trace_id']?.toString();
+        await _persistLastPaymentDebug(
+          status: queued ? 'queued' : 'success',
+          message: queued
+              ? 'Saved offline, waiting for sync'
+              : 'Payment saved on server',
+          queued: queued,
+          traceId: traceId,
+          emailStatus: emailStatus,
+        );
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(queued
                 ? 'Payment saved offline, will sync later'
                 : 'Payment added!$emailHint'),
             backgroundColor: queued ? Colors.orange : Colors.green));
       } else {
+        final traceId = response['trace_id']?.toString();
+        final failureMessage =
+            response['message']?.toString() ?? 'Payment failed';
+        await _persistLastPaymentDebug(
+          status: 'failed',
+          message: failureMessage,
+          queued: false,
+          traceId: traceId,
+          emailStatus: response['email_status']?.toString(),
+        );
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(response['message'] ?? 'Failed'),
             backgroundColor: Colors.red));
       }
     } catch (e) {
+      await _persistLastPaymentDebug(
+        status: 'error',
+        message: e.toString(),
+        queued: false,
+      );
       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
     }
@@ -2209,7 +2292,11 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
                           onPressed: _addPayment,
                           child: Text('Submit Payment'),
                           style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue[800]))
+                              backgroundColor: Colors.blue[800])),
+                      if (_lastPaymentStatus != null) ...[
+                        SizedBox(height: 10),
+                        _buildLastPaymentDebugCard(),
+                      ],
                     ],
                   ),
                 )
@@ -2290,6 +2377,54 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
     } catch (_) {
       return iso;
     }
+  }
+
+  Widget _buildLastPaymentDebugCard() {
+    Color color;
+    if (_lastPaymentStatus == 'success') {
+      color = Colors.green[700]!;
+    } else if (_lastPaymentStatus == 'queued') {
+      color = Colors.orange[700]!;
+    } else {
+      color = Colors.red[700]!;
+    }
+
+    final emailText = _lastPaymentEmailStatus != null
+        ? 'Email: $_lastPaymentEmailStatus'
+        : 'Email: n/a';
+    final traceText = _lastPaymentTraceId != null
+        ? 'Trace: $_lastPaymentTraceId'
+        : 'Trace: n/a';
+    final atText = _fmtDateTime(_lastPaymentAtIso);
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Last Payment Attempt: ${_lastPaymentStatus?.toUpperCase()}',
+            style: TextStyle(color: color, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 4),
+          Text(_lastPaymentMessage ?? '', style: TextStyle(fontSize: 12)),
+          SizedBox(height: 2),
+          Text(emailText, style: TextStyle(fontSize: 12)),
+          SizedBox(height: 2),
+          Text(traceText, style: TextStyle(fontSize: 12)),
+          if (atText.isNotEmpty) ...[
+            SizedBox(height: 2),
+            Text('Updated: $atText', style: TextStyle(fontSize: 12)),
+          ],
+        ],
+      ),
+    );
   }
 
   @override
