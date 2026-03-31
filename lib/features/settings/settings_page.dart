@@ -12,6 +12,9 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   String _selectedSport = 'bb';
   bool _isHebrew = false;
+  bool accessDenied = false;
+  bool _accessChecked = false;
+  bool _didLoadPlayersOnce = false;
   final TextEditingController _costController = TextEditingController();
   final ApiService apiService = ApiService();
   bool _isLoading = false;
@@ -26,8 +29,33 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void initState() {
     super.initState();
+    _initializeAccess();
+  }
+
+  Future<void> _initializeAccess() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final isAdmin = prefs.getBool('is_admin') ?? false;
+
+    if (!isAdmin) {
+      if (!mounted) return;
+      setState(() {
+        accessDenied = true;
+        _accessChecked = true;
+      });
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      accessDenied = false;
+      _accessChecked = true;
+    });
     _loadSettings();
     _loadTeamSettings();
+    if (!_didLoadPlayersOnce) {
+      _didLoadPlayersOnce = true;
+      _loadPlayers();
+    }
   }
 
   Future<void> _loadSettings() async {
@@ -106,6 +134,17 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_accessChecked) {
+      return Center(child: CircularProgressIndicator());
+    }
+
+    if (accessDenied) {
+      return Center(
+        child: Text('Access Denied',
+            style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+      );
+    }
+
     return SingleChildScrollView(
       padding: EdgeInsets.all(16.0),
       child: Column(
@@ -264,7 +303,10 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _loadPlayers();
+    if (_accessChecked && !accessDenied && !_didLoadPlayersOnce) {
+      _didLoadPlayersOnce = true;
+      _loadPlayers();
+    }
   }
 
   Future<void> _loadPlayers() async {

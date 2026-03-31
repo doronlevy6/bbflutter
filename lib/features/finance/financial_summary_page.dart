@@ -14,6 +14,7 @@ class FinancialSummaryPage extends StatefulWidget {
 class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
   final ApiService apiService = ApiService();
   bool isLoading = true;
+  bool accessDenied = false;
   List<dynamic> players = [];
   int defaultCost = 0;
   String? errorMessage;
@@ -42,6 +43,22 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
   @override
   void initState() {
     super.initState();
+    _initializeAccess();
+  }
+
+  Future<void> _initializeAccess() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final isAdmin = prefs.getBool('is_admin') ?? false;
+
+    if (!isAdmin) {
+      if (!mounted) return;
+      setState(() {
+        accessDenied = true;
+        isLoading = false;
+      });
+      return;
+    }
+
     _loadData();
     _loadQueueStats();
     _startConnectivityListener();
@@ -74,6 +91,7 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
   }
 
   Future<void> _handleOnlineRefresh() async {
+    if (accessDenied) return;
     if (_autoRefreshing) return;
     _autoRefreshing = true;
     try {
@@ -270,6 +288,10 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
     } else {
       return SizedBox.shrink();
     }
+    final updatedAt = _preloadUpdatedAt != null
+        ? DateTime.tryParse(_preloadUpdatedAt!)
+        : null;
+    final suffix = updatedAt != null ? ' (${_fmtDateTime(updatedAt.toLocal())})' : '';
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4),
       child: Row(
@@ -277,7 +299,7 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
         children: [
           Icon(icon, size: 16, color: color),
           SizedBox(width: 6),
-          Text(text, style: TextStyle(fontSize: 12, color: color)),
+          Text('$text$suffix', style: TextStyle(fontSize: 12, color: color)),
         ],
       ),
     );
@@ -457,6 +479,11 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
     return Scaffold(
       body: isLoading
           ? Center(child: BasketballSpinner(size: 80))
+          : accessDenied
+              ? Center(
+                  child: Text('Access Denied',
+                      style: TextStyle(
+                          color: Colors.red, fontWeight: FontWeight.bold)))
           : errorMessage != null
               ? Center(
                   child: Text(
@@ -530,6 +557,7 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
           ),
         ),
         _buildQueueInfo(),
+        _buildPreloadStatus(),
 
         Divider(height: 1),
 
