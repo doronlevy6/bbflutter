@@ -1,5 +1,6 @@
 // lib/services/api_service.dart
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -27,13 +28,32 @@ class ApiService {
   static const String _preloadStatusKey = 'cache_preload_status_v1';
   static const String _preloadUpdatedAtKey = 'cache_preload_updated_at_v1';
 
-  Future<Map<String, dynamic>> _dispatch(
-      String method, String endpoint, Map<String, dynamic>? body) async {
+  bool _isAuthEndpoint(String endpoint) {
+    return endpoint == 'login' ||
+        endpoint == 'register' ||
+        endpoint == 'create-team' ||
+        endpoint == 'teams' ||
+        endpoint == 'refresh-token' ||
+        endpoint == 'logout';
+  }
+
+  Future<Map<String, dynamic>> _dispatchRaw(
+    String method,
+    String endpoint,
+    Map<String, dynamic>? body, {
+    bool includeAuth = true,
+  }) async {
+    final isPaymentEndpoint =
+        endpoint.contains('add-payment') || endpoint.contains('delete-payment');
+    if (isPaymentEndpoint) {
+      debugPrint('[api:$method] -> $endpoint body=$body includeAuth=$includeAuth');
+    }
+
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? token = prefs.getString('token');
     final headers = {
       'Content-Type': 'application/json',
-      if (token != null) 'Authorization': 'Bearer $token',
+      if (includeAuth && token != null) 'Authorization': 'Bearer $token',
     };
 
     final uri = Uri.parse('$apiUrl/$endpoint');
@@ -55,7 +75,89 @@ class ApiService {
     }
 
     final decoded = response.body.isNotEmpty ? jsonDecode(response.body) : {};
+    if (isPaymentEndpoint) {
+      debugPrint(
+        '[api:$method] <- $endpoint status=${response.statusCode} body=$decoded',
+      );
+    }
     return {'statusCode': response.statusCode, 'data': decoded};
+  }
+
+  Future<bool> _tryRefreshSession() async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      final refreshToken = prefs.getString('refresh_token');
+      if (refreshToken == null || refreshToken.isEmpty) {
+        return false;
+      }
+
+      final refreshRes = await _dispatchRaw(
+        'POST',
+        'refresh-token',
+        {'refresh_token': refreshToken},
+        includeAuth: false,
+      );
+
+      final status = refreshRes['statusCode'] as int? ?? 500;
+      final data = refreshRes['data'];
+      if (status != 200 || data is! Map<String, dynamic>) {
+        return false;
+      }
+      if (data['success'] != true || data['token'] == null) {
+        return false;
+      }
+
+      await prefs.setString('token', data['token'] as String);
+      if (data['token_expires_in'] is String) {
+        await prefs.setString('token_expires_in', data['token_expires_in']);
+      }
+      final newRefreshToken = data['refresh_token'];
+      if (newRefreshToken is String && newRefreshToken.isNotEmpty) {
+        await prefs.setString('refresh_token', newRefreshToken);
+      }
+      if (data['refresh_token_expires_in'] is String) {
+        await prefs.setString(
+            'refresh_token_expires_in', data['refresh_token_expires_in']);
+      }
+
+      final user = data['user'];
+      if (user is Map<String, dynamic>) {
+        if (user['username'] is String) {
+          await prefs.setString('user', user['username']);
+        }
+        if (user['email'] is String) {
+          await prefs.setString('email', user['email']);
+        }
+        if (user['team_id'] is int) {
+          await prefs.setInt('team_id', user['team_id']);
+        }
+        if (user['team_type'] is String) {
+          await prefs.setString('team_type', user['team_type']);
+        }
+      }
+      if (data['is_admin'] is bool) {
+        await prefs.setBool('is_admin', data['is_admin']);
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>> _dispatch(
+    String method,
+    String endpoint,
+    Map<String, dynamic>? body,
+  ) async {
+    final firstTry = await _dispatchRaw(method, endpoint, body);
+    final status = firstTry['statusCode'] as int? ?? 500;
+    if (status == 401 && !_isAuthEndpoint(endpoint)) {
+      final refreshed = await _tryRefreshSession();
+      if (refreshed) {
+        return _dispatchRaw(method, endpoint, body);
+      }
+    }
+    return firstTry;
   }
 
   // Generic GET request
@@ -195,6 +297,30 @@ class ApiService {
 
   Future<void> clearFailedQueue() async {
     await _offline.clearFailedQueue();
+  }
+
+  Future<bool> ensureSession() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    if (token != null && token.isNotEmpty) return true;
+    return _tryRefreshSession();
+  }
+
+  Future<void> logout() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final refreshToken = prefs.getString('refresh_token');
+    if (refreshToken == null || refreshToken.isEmpty) return;
+
+    try {
+      await _dispatchRaw(
+        'POST',
+        'logout',
+        {'refresh_token': refreshToken},
+        includeAuth: false,
+      );
+    } catch (_) {
+      // Best effort only.
+    }
   }
 
   Future<void> _setPreloadStatus(String status) async {

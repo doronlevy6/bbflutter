@@ -91,10 +91,10 @@ class AuthCheck extends StatefulWidget {
 
 class _AuthCheckState extends State<AuthCheck> {
   Future<bool> _checkLoginStatus() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? token = prefs.getString('token');
-    if (token != null) {
-      final api = ApiService();
+    final api = ApiService();
+    final hasSession = await api.ensureSession();
+    if (hasSession) {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
       final username = prefs.getString('user') ?? '';
       final teamId = prefs.getInt('team_id');
       final isAdmin = prefs.getBool('is_admin') ?? false;
