@@ -1,5 +1,6 @@
 // lib/services/api_service.dart
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -42,6 +43,12 @@ class ApiService {
     Map<String, dynamic>? body, {
     bool includeAuth = true,
   }) async {
+    final isPaymentEndpoint =
+        endpoint.contains('add-payment') || endpoint.contains('delete-payment');
+    if (isPaymentEndpoint) {
+      debugPrint('[api:$method] -> $endpoint body=$body includeAuth=$includeAuth');
+    }
+
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? token = prefs.getString('token');
     final headers = {
@@ -68,6 +75,11 @@ class ApiService {
     }
 
     final decoded = response.body.isNotEmpty ? jsonDecode(response.body) : {};
+    if (isPaymentEndpoint) {
+      debugPrint(
+        '[api:$method] <- $endpoint status=${response.statusCode} body=$decoded',
+      );
+    }
     return {'statusCode': response.statusCode, 'data': decoded};
   }
 

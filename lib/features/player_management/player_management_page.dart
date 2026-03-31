@@ -1927,21 +1927,26 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
 
   String _generateClientPaymentId() {
     final ts = DateTime.now().microsecondsSinceEpoch;
-    final r = _random.nextInt(1 << 32);
+    final r = _random.nextInt(1 << 31);
     return '${widget.username}_${ts}_$r';
   }
 
   Future<void> _addPayment() async {
     if (amountController.text.isEmpty) return;
     try {
-      final response =
-          await widget.apiService.postQueued('finance/add-payment', {
+      final paymentPayload = {
         'username': widget.username,
         'client_payment_id': _generateClientPaymentId(),
         'amount': int.tryParse(amountController.text) ?? 0,
         'method': paymentMethod,
         'notes': notesController.text,
-      });
+      };
+      debugPrint(
+        '[payment:add] sending payload for ${widget.username}: $paymentPayload',
+      );
+      final response =
+          await widget.apiService.postQueued('finance/add-payment', paymentPayload);
+      debugPrint('[payment:add] response for ${widget.username}: $response');
       if (response['success'] == true) {
         amountController.clear();
         notesController.clear();
