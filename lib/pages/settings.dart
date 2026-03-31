@@ -16,6 +16,12 @@ class _SettingsPageState extends State<SettingsPage> {
   final ApiService apiService = ApiService();
   bool _isLoading = false;
   bool _teamSettingsCached = false;
+  static const String _appVersion =
+      String.fromEnvironment('APP_VERSION', defaultValue: 'dev');
+  static const String _deployedAtRaw =
+      String.fromEnvironment('DEPLOYED_AT', defaultValue: '');
+  static const String _buildGitSha =
+      String.fromEnvironment('BUILD_GIT_SHA', defaultValue: '');
 
   @override
   void initState() {
@@ -83,6 +89,19 @@ class _SettingsPageState extends State<SettingsPage> {
     } finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  String _formatDeployedAt() {
+    if (_deployedAtRaw.isEmpty) {
+      return 'Not available (local/dev build)';
+    }
+    final parsed = DateTime.tryParse(_deployedAtRaw);
+    if (parsed == null) {
+      return _deployedAtRaw;
+    }
+    final local = parsed.toLocal();
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${local.year}-${two(local.month)}-${two(local.day)} ${two(local.hour)}:${two(local.minute)}:${two(local.second)}';
   }
 
   @override
@@ -179,6 +198,42 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               Text('עברית'),
             ],
+          ),
+          Divider(height: 40),
+          Text(
+            'App Version',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          ),
+          SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Version: $_appVersion',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Last Deploy: ${_formatDeployedAt()}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                ),
+                if (_buildGitSha.isNotEmpty) ...[
+                  SizedBox(height: 4),
+                  Text(
+                    'Build SHA: $_buildGitSha',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                  ),
+                ],
+              ],
+            ),
           ),
           Divider(height: 40),
           Text(

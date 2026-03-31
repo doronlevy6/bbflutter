@@ -13,10 +13,16 @@ FLUTTER_PROJECT_DIR="${SCRIPT_DIR}"
 WEB_REPO_DIR="${WEB_REPO_DIR:-${SCRIPT_DIR}/../BB_web}"
 WEB_BRANCH="${WEB_BRANCH:-main}"
 NO_PUSH="${NO_PUSH:-0}"
+APP_VERSION="$(awk -F': ' '/^version:/{print $2; exit}' "${FLUTTER_PROJECT_DIR}/pubspec.yaml" | tr -d '\r')"
+DEPLOYED_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+BUILD_GIT_SHA="$(git -C "${FLUTTER_PROJECT_DIR}" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 
 echo "[deploy] Starting web deployment"
 echo "[deploy] Flutter project: ${FLUTTER_PROJECT_DIR}"
 echo "[deploy] Web repo: ${WEB_REPO_DIR}"
+echo "[deploy] App version: ${APP_VERSION}"
+echo "[deploy] Build SHA: ${BUILD_GIT_SHA}"
+echo "[deploy] Deployed at (UTC): ${DEPLOYED_AT}"
 
 if ! command -v flutter >/dev/null 2>&1; then
   echo "[deploy] ERROR: flutter command not found in PATH"
@@ -34,7 +40,12 @@ if [ ! -d "${WEB_REPO_DIR}/.git" ]; then
 fi
 
 echo "[deploy] Building Flutter web (release, deployment target: github_pages)"
-(cd "${FLUTTER_PROJECT_DIR}" && flutter build web --release --dart-define=APP_ENV=PROD --dart-define=DEPLOY_TARGET=github_pages)
+(cd "${FLUTTER_PROJECT_DIR}" && flutter build web --release \
+  --dart-define=APP_ENV=PROD \
+  --dart-define=DEPLOY_TARGET=github_pages \
+  --dart-define=APP_VERSION="${APP_VERSION}" \
+  --dart-define=DEPLOYED_AT="${DEPLOYED_AT}" \
+  --dart-define=BUILD_GIT_SHA="${BUILD_GIT_SHA}")
 
 BUILD_DIR="${FLUTTER_PROJECT_DIR}/build/web"
 if [ ! -d "${BUILD_DIR}" ]; then
