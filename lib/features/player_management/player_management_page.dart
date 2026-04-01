@@ -11,6 +11,13 @@ enum PlayerSortMode {
   enlistedFirst,
   notEnlistedFirst,
   managerFirst,
+  guestFirst,
+}
+
+enum PlayerRoleFilter {
+  all,
+  noGuests,
+  guestsOnly,
 }
 
 class PlayerManagementPage extends StatefulWidget {
@@ -38,6 +45,7 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
 
   // For sorting
   PlayerSortMode _sortMode = PlayerSortMode.nameAsc;
+  PlayerRoleFilter _roleFilter = PlayerRoleFilter.all;
   bool _playersFromCache = false;
   String _preloadStatus = 'idle';
   String? _preloadUpdatedAt;
@@ -139,9 +147,14 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
       players = data['users'];
       _playersFromCache = data['_cached'] == true;
       // Initialize role maps
+      playerRoles.clear();
+      initialRoles.clear();
       for (var player in players) {
         String username = player['username'];
-        String role = player['role'] ?? 'player';
+        String role = (player['role'] ?? 'player').toString().toLowerCase();
+        if (role != 'manager' && role != 'guest') {
+          role = 'player';
+        }
         playerRoles[username] = role;
         initialRoles[username] = role;
       }
@@ -195,8 +208,8 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
         }
 
         // Check for role changes
-        String initialRole = initialRoles[username] ?? 'player';
-        String currentRole = playerRoles[username] ?? 'player';
+        String initialRole = (initialRoles[username] ?? 'player').toLowerCase();
+        String currentRole = _roleOf(username);
         if (initialRole != currentRole) {
           roleUpdates.add({'username': username, 'role': currentRole});
         }
@@ -255,6 +268,25 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
     return (player['username'] ?? '').toString().toLowerCase();
   }
 
+  String _roleOf(String username) {
+    final raw = (playerRoles[username] ?? 'player').toLowerCase();
+    if (raw == 'manager' || raw == 'guest') return raw;
+    return 'player';
+  }
+
+  bool _isGuest(String username) => _roleOf(username) == 'guest';
+
+  List<dynamic> _visiblePlayers() {
+    if (_roleFilter == PlayerRoleFilter.all) return players;
+    return players.where((p) {
+      final map = p as Map;
+      final username = (map['username'] ?? '').toString();
+      final isGuest = _isGuest(username);
+      if (_roleFilter == PlayerRoleFilter.noGuests) return !isGuest;
+      return isGuest;
+    }).toList();
+  }
+
   int _compareByName(Map a, Map b) {
     return _playerName(a).compareTo(_playerName(b));
   }
@@ -286,11 +318,20 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
           return firstName;
         case PlayerSortMode.managerFirst:
           final firstManager =
-              (playerRoles[first['username']] ?? 'player') == 'manager';
+              _roleOf((first['username'] ?? '').toString()) == 'manager';
           final secondManager =
-              (playerRoles[second['username']] ?? 'player') == 'manager';
+              _roleOf((second['username'] ?? '').toString()) == 'manager';
           if (firstManager != secondManager) {
             return firstManager ? -1 : 1;
+          }
+          return firstName;
+        case PlayerSortMode.guestFirst:
+          final firstGuest =
+              _roleOf((first['username'] ?? '').toString()) == 'guest';
+          final secondGuest =
+              _roleOf((second['username'] ?? '').toString()) == 'guest';
+          if (firstGuest != secondGuest) {
+            return firstGuest ? -1 : 1;
           }
           return firstName;
       }
@@ -309,6 +350,8 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
         return 'Not Enlisted First';
       case PlayerSortMode.managerFirst:
         return 'Managers First';
+      case PlayerSortMode.guestFirst:
+        return 'Guests First';
     }
   }
 
@@ -316,109 +359,144 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
     final usernameController = TextEditingController();
     final emailController = TextEditingController();
     final passwordController = TextEditingController();
+    String selectedRole = 'player';
 
     await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Container(
-              padding: EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.deepPurple.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(Icons.person_add_rounded,
-                  color: Colors.deepPurple, size: 28),
-            ),
-            SizedBox(width: 12),
-            Text(
-              'Add New Player',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
-            ),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: usernameController,
-                decoration: InputDecoration(
-                  labelText: 'Username',
-                  prefixIcon: Icon(Icons.person, color: Colors.deepPurple),
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12)),
+      builder: (context) => StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20)),
+                title: Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.deepPurple.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(Icons.person_add_rounded,
+                          color: Colors.deepPurple, size: 28),
+                    ),
+                    SizedBox(width: 12),
+                    Text(
+                      'Add New Player',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                    ),
+                  ],
                 ),
-              ),
-              SizedBox(height: 16),
-              TextField(
-                controller: emailController,
-                decoration: InputDecoration(
-                  labelText: 'Email (Optional)',
-                  prefixIcon: Icon(Icons.email, color: Colors.deepPurple),
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: usernameController,
+                        decoration: InputDecoration(
+                          labelText: 'Username',
+                          prefixIcon:
+                              Icon(Icons.person, color: Colors.deepPurple),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                      SizedBox(height: 16),
+                      TextField(
+                        controller: emailController,
+                        decoration: InputDecoration(
+                          labelText: 'Email (Optional)',
+                          prefixIcon:
+                              Icon(Icons.email, color: Colors.deepPurple),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                      SizedBox(height: 16),
+                      TextField(
+                        controller: passwordController,
+                        decoration: InputDecoration(
+                          labelText: 'Password (Default: 123456)',
+                          prefixIcon:
+                              Icon(Icons.lock, color: Colors.deepPurple),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        obscureText: true,
+                      ),
+                      SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        value: selectedRole,
+                        decoration: InputDecoration(
+                          labelText: 'Role',
+                          prefixIcon:
+                              Icon(Icons.badge, color: Colors.deepPurple),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                              value: 'player', child: Text('Player')),
+                          DropdownMenuItem(
+                              value: 'guest', child: Text('Guest')),
+                          DropdownMenuItem(
+                              value: 'manager', child: Text('Manager')),
+                        ],
+                        onChanged: (value) {
+                          setDialogState(() {
+                            selectedRole = value ?? 'player';
+                          });
+                        },
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              SizedBox(height: 16),
-              TextField(
-                controller: passwordController,
-                decoration: InputDecoration(
-                  labelText: 'Password (Default: 123456)',
-                  prefixIcon: Icon(Icons.lock, color: Colors.deepPurple),
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                obscureText: true,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: TextStyle(color: Colors.grey[600])),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepPurple,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            ),
-            onPressed: () async {
-              final username = usernameController.text.trim();
-              final email = emailController.text.trim();
-              final password = passwordController.text.trim();
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text('Cancel',
+                        style: TextStyle(color: Colors.grey[600])),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepPurple,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                    onPressed: () async {
+                      final username = usernameController.text.trim();
+                      final email = emailController.text.trim();
+                      final password = passwordController.text.trim();
 
-              if (username.isEmpty) {
-                _showError('Username is required');
-                return;
-              }
+                      if (username.isEmpty) {
+                        _showError('Username is required');
+                        return;
+                      }
 
-              try {
-                final response = await apiService.post('add-player', {
-                  'username': username,
-                  'email': email,
-                  'password': password.isNotEmpty ? password : null,
-                });
-                if (response['success']) {
-                  Navigator.pop(context);
-                  _showSuccess('Player added successfully');
-                  await fetchPlayers();
-                } else {
-                  _showError(response['message']);
-                }
-              } catch (e) {
-                _showError('Error adding player: $e');
-              }
-            },
-            child: Text('Add', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
+                      try {
+                        final response = await apiService.post('add-player', {
+                          'username': username,
+                          'email': email,
+                          'password': password.isNotEmpty ? password : null,
+                          'role': selectedRole,
+                        });
+                        if (response['success']) {
+                          Navigator.pop(context);
+                          _showSuccess('Player added successfully');
+                          await fetchPlayers();
+                        } else {
+                          _showError(response['message']);
+                        }
+                      } catch (e) {
+                        _showError('Error adding player: $e');
+                      }
+                    },
+                    child: Text('Add',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              )),
     );
   }
 
@@ -427,106 +505,150 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
     final emailController = TextEditingController(text: player['email']);
     final passwordController =
         TextEditingController(text: player['password'] ?? '');
+    String selectedRole = _roleOf((player['username'] ?? '').toString());
 
     await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Container(
-              padding: EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child:
-                  Icon(Icons.edit_rounded, color: Colors.blue[700], size: 28),
-            ),
-            SizedBox(width: 12),
-            Text(
-              'Edit Player',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
-            ),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: usernameController,
-                decoration: InputDecoration(
-                  labelText: 'Username',
-                  prefixIcon: Icon(Icons.person, color: Colors.blue[700]),
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12)),
+      builder: (context) => StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20)),
+                title: Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(Icons.edit_rounded,
+                          color: Colors.blue[700], size: 28),
+                    ),
+                    SizedBox(width: 12),
+                    Text(
+                      'Edit Player',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                    ),
+                  ],
                 ),
-              ),
-              SizedBox(height: 16),
-              TextField(
-                controller: emailController,
-                decoration: InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: Icon(Icons.email, color: Colors.blue[700]),
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: usernameController,
+                        decoration: InputDecoration(
+                          labelText: 'Username',
+                          prefixIcon:
+                              Icon(Icons.person, color: Colors.blue[700]),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                      SizedBox(height: 16),
+                      TextField(
+                        controller: emailController,
+                        decoration: InputDecoration(
+                          labelText: 'Email',
+                          prefixIcon:
+                              Icon(Icons.email, color: Colors.blue[700]),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                      SizedBox(height: 16),
+                      TextField(
+                        controller: passwordController,
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          prefixIcon: Icon(Icons.lock, color: Colors.blue[700]),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        obscureText: false,
+                      ),
+                      SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        value: selectedRole,
+                        decoration: InputDecoration(
+                          labelText: 'Role',
+                          prefixIcon:
+                              Icon(Icons.badge, color: Colors.blue[700]),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                              value: 'player', child: Text('Player')),
+                          DropdownMenuItem(
+                              value: 'guest', child: Text('Guest')),
+                          DropdownMenuItem(
+                              value: 'manager', child: Text('Manager')),
+                        ],
+                        onChanged: (value) {
+                          setDialogState(() {
+                            selectedRole = value ?? 'player';
+                          });
+                        },
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              SizedBox(height: 16),
-              TextField(
-                controller: passwordController,
-                decoration: InputDecoration(
-                  labelText: 'Password',
-                  prefixIcon: Icon(Icons.lock, color: Colors.blue[700]),
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                obscureText: false,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: TextStyle(color: Colors.grey[600])),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue[700],
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            ),
-            onPressed: () async {
-              Navigator.pop(context);
-              try {
-                final updateData = {
-                  'newUsername': usernameController.text,
-                  'newEmail': emailController.text,
-                };
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text('Cancel',
+                        style: TextStyle(color: Colors.grey[600])),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue[700],
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                    onPressed: () async {
+                      Navigator.pop(context);
+                      try {
+                        final updateData = {
+                          'newUsername': usernameController.text,
+                          'newEmail': emailController.text,
+                        };
 
-                if (passwordController.text.isNotEmpty) {
-                  updateData['newPassword'] = passwordController.text;
-                }
+                        if (passwordController.text.isNotEmpty) {
+                          updateData['newPassword'] = passwordController.text;
+                        }
 
-                final response = await apiService.put(
-                    'update-player/${player['username']}', updateData);
-                if (response['success']) {
-                  _showSuccess('Player updated successfully');
-                  fetchPlayers();
-                } else {
-                  _showError(response['message']);
-                }
-              } catch (e) {
-                _showError('Error updating player: $e');
-              }
-            },
-            child: Text('Save', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
+                        final response = await apiService.put(
+                            'update-player/${player['username']}', updateData);
+                        if (response['success']) {
+                          final usernameToUse = usernameController.text.trim();
+                          if (usernameToUse.isNotEmpty) {
+                            await apiService.put('update-player-roles', {
+                              'roleUpdates': [
+                                {
+                                  'username': usernameToUse,
+                                  'role': selectedRole
+                                }
+                              ],
+                            });
+                          }
+                          _showSuccess('Player updated successfully');
+                          fetchPlayers();
+                        } else {
+                          _showError(response['message']);
+                        }
+                      } catch (e) {
+                        _showError('Error updating player: $e');
+                      }
+                    },
+                    child: Text('Save',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              )),
     );
   }
 
@@ -1449,17 +1571,23 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
     });
   }
 
-  void _toggleManagerRole(String username) {
+  void _cycleRole(String username) {
     setState(() {
-      final currentRole = playerRoles[username] ?? 'player';
-      playerRoles[username] = currentRole == 'manager' ? 'player' : 'manager';
+      final currentRole = _roleOf(username);
+      if (currentRole == 'manager') {
+        playerRoles[username] = 'player';
+      } else if (currentRole == 'player') {
+        playerRoles[username] = 'guest';
+      } else {
+        playerRoles[username] = 'manager';
+      }
       _sortPlayersInternal();
     });
   }
 
   String _displayName(String username) {
-    if (username.length <= 5) return username;
-    return '${username.substring(0, 5)}…';
+    if (username.length <= 10) return username;
+    return '${username.substring(0, 10)}…';
   }
 
   void _showFullPlayerName(String username) {
@@ -1484,7 +1612,22 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
   Widget _buildPlayerCard(Map<String, dynamic> player) {
     final username = (player['username'] ?? '').toString();
     final isEnlisted = selectedUsernames.contains(username);
-    final isManager = (playerRoles[username] ?? 'player') == 'manager';
+    final role = _roleOf(username);
+    final isManager = role == 'manager';
+    final isGuest = role == 'guest';
+    final roleLabel = isManager
+        ? 'Manager'
+        : isGuest
+            ? 'Guest'
+            : 'Player';
+    final roleIcon = isManager
+        ? Icons.emoji_events
+        : isGuest
+            ? Icons.visibility_outlined
+            : Icons.sports_basketball;
+    final roleColor = isManager
+        ? Colors.amber
+        : (isGuest ? Colors.blueGrey : Colors.grey[500]);
 
     return Card(
       margin: EdgeInsets.zero,
@@ -1525,17 +1668,17 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
               ),
             ),
             Tooltip(
-              message: isManager ? 'Manager' : 'Player',
+              message: 'Role: $roleLabel (tap to cycle)',
               child: IconButton(
                 constraints: BoxConstraints.tightFor(width: 28, height: 28),
                 padding: EdgeInsets.zero,
                 visualDensity: VisualDensity.compact,
                 icon: Icon(
-                  Icons.emoji_events,
+                  roleIcon,
                   size: 18,
-                  color: isManager ? Colors.amber : Colors.grey[400],
+                  color: roleColor,
                 ),
-                onPressed: () => _toggleManagerRole(username),
+                onPressed: () => _cycleRole(username),
               ),
             ),
             IconButton(
@@ -1570,6 +1713,7 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
   }
 
   Widget _buildPlayersGrid() {
+    final visiblePlayers = _visiblePlayers();
     return LayoutBuilder(
       builder: (context, constraints) {
         const minCardWidth = 235.0;
@@ -1579,7 +1723,7 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
 
         return GridView.builder(
           padding: EdgeInsets.all(12),
-          itemCount: players.length,
+          itemCount: visiblePlayers.length,
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
             crossAxisSpacing: 8,
@@ -1587,7 +1731,8 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
             mainAxisExtent: 74,
           ),
           itemBuilder: (context, index) {
-            final player = Map<String, dynamic>.from(players[index] as Map);
+            final player =
+                Map<String, dynamic>.from(visiblePlayers[index] as Map);
             return _buildPlayerCard(player);
           },
         );
@@ -1596,6 +1741,21 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
   }
 
   Widget _buildContent() {
+    final visibleCount = _visiblePlayers().length;
+    final totalCount = players.length;
+    String roleFilterLabel;
+    switch (_roleFilter) {
+      case PlayerRoleFilter.noGuests:
+        roleFilterLabel = 'No Guests';
+        break;
+      case PlayerRoleFilter.guestsOnly:
+        roleFilterLabel = 'Guests Only';
+        break;
+      case PlayerRoleFilter.all:
+        roleFilterLabel = 'All Roles';
+        break;
+    }
+
     return Container(
       decoration: BoxDecoration(
         image: DecorationImage(
@@ -1668,7 +1828,7 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                       decoration: BoxDecoration(
                           color: Colors.amber[600],
                           borderRadius: BorderRadius.circular(20)),
-                      child: Text('Manager',
+                      child: Text('Show: $visibleCount/$totalCount',
                           style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold)),
@@ -1708,6 +1868,10 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                           value: PlayerSortMode.managerFirst,
                           child: Text('Managers First'),
                         ),
+                        PopupMenuItem(
+                          value: PlayerSortMode.guestFirst,
+                          child: Text('Guests First'),
+                        ),
                       ],
                       child: Container(
                         padding:
@@ -1724,6 +1888,55 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                             SizedBox(width: 6),
                             Text(
                               _sortLabel(),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
+                            ),
+                            SizedBox(width: 4),
+                            Icon(Icons.arrow_drop_down, color: Colors.white),
+                          ],
+                        ),
+                      ),
+                    ),
+                    PopupMenuButton<PlayerRoleFilter>(
+                      tooltip: 'Role Filter',
+                      onSelected: (mode) {
+                        setState(() {
+                          _roleFilter = mode;
+                        });
+                      },
+                      itemBuilder: (context) => const [
+                        PopupMenuItem(
+                          value: PlayerRoleFilter.all,
+                          child: Text('All Roles'),
+                        ),
+                        PopupMenuItem(
+                          value: PlayerRoleFilter.noGuests,
+                          child: Text('Hide Guests'),
+                        ),
+                        PopupMenuItem(
+                          value: PlayerRoleFilter.guestsOnly,
+                          child: Text('Guests Only'),
+                        ),
+                      ],
+                      child: Container(
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.white54),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.filter_alt_outlined,
+                                color: Colors.white, size: 18),
+                            SizedBox(width: 6),
+                            Text(
+                              roleFilterLabel,
                               style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,

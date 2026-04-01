@@ -18,6 +18,8 @@ NO_PUSH="${NO_PUSH:-0}"
 FLUTTER_PROD_BRANCH="${FLUTTER_PROD_BRANCH:-master}"
 MERGE_TO_PROD_BRANCH_FIRST="${MERGE_TO_PROD_BRANCH_FIRST:-1}"
 RETURN_TO_SOURCE_BRANCH="${RETURN_TO_SOURCE_BRANCH:-1}"
+AUTO_COMMIT_SOURCE_CHANGES="${AUTO_COMMIT_SOURCE_CHANGES:-1}"
+AUTO_COMMIT_MESSAGE_PREFIX="${AUTO_COMMIT_MESSAGE_PREFIX:-chore: auto-commit before web deploy}"
 APP_VERSION="$(awk -F': ' '/^version:/{print $2; exit}' "${FLUTTER_PROJECT_DIR}/pubspec.yaml" | tr -d '\r')"
 DEPLOYED_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 SOURCE_BRANCH="$(git -C "${FLUTTER_PROJECT_DIR}" rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
@@ -31,6 +33,28 @@ echo "[deploy] Web repo: ${WEB_REPO_DIR}"
 echo "[deploy] App version: ${APP_VERSION}"
 echo "[deploy] Build SHA: ${BUILD_GIT_SHA}"
 echo "[deploy] Deployed at (UTC): ${DEPLOYED_AT}"
+
+auto_commit_flutter_if_dirty() {
+  if [ -z "$(git -C "${FLUTTER_PROJECT_DIR}" status --porcelain)" ]; then
+    return 0
+  fi
+
+  if [ "${AUTO_COMMIT_SOURCE_CHANGES}" != "1" ]; then
+    echo "[deploy] ERROR: BB_flutter has uncommitted changes. Commit or stash first."
+    exit 1
+  fi
+
+  local ts msg
+  ts="$(date +"%Y-%m-%d %H:%M:%S %Z")"
+  msg="${AUTO_COMMIT_MESSAGE_PREFIX} (${ts})"
+
+  echo "[deploy] Dirty BB_flutter worktree detected. Creating auto-commit..."
+  git -C "${FLUTTER_PROJECT_DIR}" add -A
+  if ! git -C "${FLUTTER_PROJECT_DIR}" diff --cached --quiet; then
+    git -C "${FLUTTER_PROJECT_DIR}" commit -m "${msg}"
+    echo "[deploy] Auto-commit created."
+  fi
+}
 
 if ! command -v flutter >/dev/null 2>&1; then
   echo "[deploy] ERROR: flutter command not found in PATH"
@@ -48,10 +72,7 @@ if [ ! -d "${WEB_REPO_DIR}/.git" ]; then
 fi
 
 if [ "${MERGE_TO_PROD_BRANCH_FIRST}" = "1" ]; then
-  if [ -n "$(git -C "${FLUTTER_PROJECT_DIR}" status --porcelain)" ]; then
-    echo "[deploy] ERROR: BB_flutter has uncommitted changes. Commit or stash first."
-    exit 1
-  fi
+  auto_commit_flutter_if_dirty
 
   if ! git -C "${FLUTTER_PROJECT_DIR}" show-ref --verify --quiet "refs/heads/${FLUTTER_PROD_BRANCH}"; then
     echo "[deploy] ERROR: Branch '${FLUTTER_PROD_BRANCH}' does not exist in BB_flutter."
