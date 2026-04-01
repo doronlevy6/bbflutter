@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 import '../../config/theme.dart';
+import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 enum RoleVisibilityFilter {
   all,
@@ -46,6 +47,10 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
   String _preloadStatus = 'idle';
   String? _preloadUpdatedAt;
   String? _lastServerRefreshAt;
+  IO.Socket? _socket;
+  Timer? _liveRefreshTimer;
+  int? _teamId;
+  DateTime? _lastLiveRefreshAt;
 
   // Sorting state
   String _sortBy = 'name'; // 'name' or 'balance'
@@ -62,6 +67,7 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
   Future<void> _initializeAccess() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final isAdmin = prefs.getBool('is_admin') ?? false;
+    _teamId = prefs.getInt('team_id');
 
     if (!isAdmin) {
       if (!mounted) return;
@@ -76,6 +82,8 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
     _loadQueueStats();
     _startConnectivityListener();
     _startSyncListener();
+    _startRealtimeFinanceListener();
+    _startPeriodicRefresh();
     _loadPreloadStatus();
   }
 
@@ -98,9 +106,63 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
         if (!isSyncing) {
           // Sync finished, reload queue stats
           _loadQueueStats();
+          _loadData();
         }
       }
     });
+  }
+
+  void _startRealtimeFinanceListener() {
+    final teamId = _teamId;
+    if (teamId == null) return;
+
+    _socket?.dispose();
+    final socket = IO.io(apiService.apiUrl, <String, dynamic>{
+      'transports': ['websocket'],
+      'autoConnect': false,
+    });
+    _socket = socket;
+
+    socket.on('connect', (_) {
+      socket.emit('joinTeam', {'team_id': teamId});
+    });
+
+    socket.on('financeSummaryUpdated', (payload) {
+      if (!_belongsToCurrentTeam(payload)) return;
+      _handleRealtimeFinanceUpdate();
+    });
+
+    socket.connect();
+  }
+
+  bool _belongsToCurrentTeam(dynamic payload) {
+    final teamId = _teamId;
+    if (teamId == null) return true;
+    if (payload is Map) {
+      final raw = payload['team_id'];
+      if (raw is int) return raw == teamId;
+      if (raw is String) return int.tryParse(raw) == teamId;
+    }
+    return true;
+  }
+
+  void _startPeriodicRefresh() {
+    _liveRefreshTimer?.cancel();
+    _liveRefreshTimer = Timer.periodic(const Duration(seconds: 35), (_) {
+      _handleRealtimeFinanceUpdate();
+    });
+  }
+
+  Future<void> _handleRealtimeFinanceUpdate() async {
+    if (!mounted || accessDenied || _autoRefreshing) return;
+
+    final now = DateTime.now();
+    if (_lastLiveRefreshAt != null &&
+        now.difference(_lastLiveRefreshAt!) < const Duration(seconds: 1)) {
+      return;
+    }
+    _lastLiveRefreshAt = now;
+    await _loadData();
   }
 
   Future<void> _handleOnlineRefresh() async {
@@ -140,8 +202,9 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
 
     // 3. Update from Network (background)
     try {
+      final ts = DateTime.now().millisecondsSinceEpoch;
       final response = await apiService.getWithCache(
-          'finance/team-financial-summary/$teamId',
+          'finance/team-financial-summary/$teamId?ts=$ts',
           cacheKey: cacheKey);
       if (mounted) {
         if (response['success'] == true) {
@@ -810,6 +873,11 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
   void dispose() {
     _connSub?.cancel();
     _syncSub?.cancel();
+    _liveRefreshTimer?.cancel();
+    if (_teamId != null) {
+      _socket?.emit('leaveTeam', {'team_id': _teamId});
+    }
+    _socket?.dispose();
     super.dispose();
   }
 

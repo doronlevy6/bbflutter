@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../widgets/basketball_spinner.dart';
 import 'dart:async';
 import 'dart:convert';
+import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 enum PlayerSortMode {
   nameAsc,
@@ -2096,6 +2097,10 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
   String? lastServerRefreshAt;
   bool _isSyncing = false;
   StreamSubscription<bool>? _syncSub;
+  IO.Socket? _socket;
+  Timer? _liveRefreshTimer;
+  int? _teamId;
+  DateTime? _lastLiveRefreshAt;
   static int _paymentSequence = 0;
   static const String _lastPaymentDebugKeyPrefix = 'last_payment_debug_';
   String? _lastPaymentStatus;
@@ -2117,6 +2122,7 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
     super.initState();
     _startSyncListener();
     _loadLastPaymentDebug();
+    _initLiveUpdates();
     _fetchData();
   }
 
@@ -2178,8 +2184,68 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
       });
       if (!isSyncing) {
         _loadQueueStats();
+        _fetchData();
       }
     });
+  }
+
+  Future<void> _initLiveUpdates() async {
+    final prefs = await SharedPreferences.getInstance();
+    _teamId = prefs.getInt('team_id');
+    _startRealtimeListener();
+    _startPeriodicRefresh();
+  }
+
+  void _startRealtimeListener() {
+    final teamId = _teamId;
+    if (teamId == null) return;
+
+    _socket?.dispose();
+    final socket = IO.io(widget.apiService.apiUrl, <String, dynamic>{
+      'transports': ['websocket'],
+      'autoConnect': false,
+    });
+    _socket = socket;
+
+    socket.on('connect', (_) {
+      socket.emit('joinTeam', {'team_id': teamId});
+    });
+
+    socket.on('financeSummaryUpdated', (payload) {
+      if (!_belongsToMyTeam(payload)) return;
+      _handleRealtimeUpdate();
+    });
+
+    socket.connect();
+  }
+
+  bool _belongsToMyTeam(dynamic payload) {
+    final teamId = _teamId;
+    if (teamId == null) return true;
+    if (payload is Map) {
+      final raw = payload['team_id'];
+      if (raw is int) return raw == teamId;
+      if (raw is String) return int.tryParse(raw) == teamId;
+    }
+    return true;
+  }
+
+  void _startPeriodicRefresh() {
+    _liveRefreshTimer?.cancel();
+    _liveRefreshTimer = Timer.periodic(const Duration(seconds: 35), (_) {
+      _handleRealtimeUpdate();
+    });
+  }
+
+  Future<void> _handleRealtimeUpdate() async {
+    if (!mounted) return;
+    final now = DateTime.now();
+    if (_lastLiveRefreshAt != null &&
+        now.difference(_lastLiveRefreshAt!) < const Duration(seconds: 1)) {
+      return;
+    }
+    _lastLiveRefreshAt = now;
+    await _fetchData();
   }
 
   Future<void> _fetchData() async {
@@ -2200,8 +2266,9 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
     }
 
     try {
+      final ts = DateTime.now().millisecondsSinceEpoch;
       final response = await widget.apiService.getWithCache(
-          'finance/player-financials/${widget.username}',
+          'finance/player-financials/${widget.username}?ts=$ts',
           cacheKey: cacheKey);
       if (response['success'] == true) {
         setState(() {
@@ -2695,6 +2762,11 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
   @override
   void dispose() {
     _syncSub?.cancel();
+    _liveRefreshTimer?.cancel();
+    if (_teamId != null) {
+      _socket?.emit('leaveTeam', {'team_id': _teamId});
+    }
+    _socket?.dispose();
     amountController.dispose();
     notesController.dispose();
     super.dispose();
