@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui' as ui;
 import '../../services/api_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:async';
@@ -6,6 +7,15 @@ import '../../widgets/basketball_spinner.dart';
 import '../../pages/player_management_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/rendering.dart';
+import 'package:super_clipboard/super_clipboard.dart';
+import '../../config/theme.dart';
+
+enum RoleVisibilityFilter {
+  all,
+  hideGuests,
+  guestsOnly,
+}
 
 class FinancialSummaryPage extends StatefulWidget {
   @override
@@ -40,6 +50,8 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
   // Sorting state
   String _sortBy = 'name'; // 'name' or 'balance'
   bool _sortAscending = true;
+  RoleVisibilityFilter _roleFilter = RoleVisibilityFilter.hideGuests;
+  final Set<String> _manuallyHiddenPlayers = <String>{};
 
   @override
   void initState() {
@@ -157,18 +169,47 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
       defaultCost = response['defaultGameCost'] ?? 0;
       fromCache = response['_cached'] == true;
       _lastServerRefreshAt = response['_cache_updated_at'] as String?;
-
-      // Calculate totals
-      totalDebt = 0;
-      totalPaid = 0;
-      totalBalance = 0;
-      for (var p in players) {
-        totalDebt += (p['debt'] as int? ?? 0);
-        totalPaid += (p['paid'] as int? ?? 0);
-        totalBalance += (p['balance'] as int? ?? 0);
-      }
       _applySorting();
+      _recalculateTotals();
     });
+  }
+
+  String _roleOf(Map<String, dynamic> player) {
+    final role = (player['role'] ?? 'player').toString().toLowerCase();
+    if (role == 'manager' || role == 'guest') return role;
+    return 'player';
+  }
+
+  bool _isVisibleByRole(Map<String, dynamic> player) {
+    final username = (player['username'] ?? '').toString();
+    if (_manuallyHiddenPlayers.contains(username)) return false;
+    final role = _roleOf(player);
+    switch (_roleFilter) {
+      case RoleVisibilityFilter.hideGuests:
+        return role != 'guest';
+      case RoleVisibilityFilter.guestsOnly:
+        return role == 'guest';
+      case RoleVisibilityFilter.all:
+        return true;
+    }
+  }
+
+  List<Map<String, dynamic>> _visiblePlayers() {
+    return players
+        .map((p) => Map<String, dynamic>.from(p as Map))
+        .where(_isVisibleByRole)
+        .toList();
+  }
+
+  void _recalculateTotals() {
+    totalDebt = 0;
+    totalPaid = 0;
+    totalBalance = 0;
+    for (final p in _visiblePlayers()) {
+      totalDebt += (p['debt'] as int? ?? 0);
+      totalPaid += (p['paid'] as int? ?? 0);
+      totalBalance += (p['balance'] as int? ?? 0);
+    }
   }
 
   Future<void> _loadQueueStats() async {
@@ -207,6 +248,7 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
       }
       return _sortAscending ? cmp : -cmp;
     });
+    _recalculateTotals();
   }
 
   Future<void> _openPlayerFinancials(String username) async {
@@ -222,16 +264,36 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
 
   Widget _buildSortChip(String label, String field) {
     final bool active = _sortBy == field;
+    final String dirSuffix = active ? (_sortAscending ? ' ↑' : ' ↓') : '';
     return ChoiceChip(
-      label: Text(label),
+      label: Text('$label$dirSuffix'),
       selected: active,
       onSelected: (_) {
         setState(() {
-          _sortBy = field;
+          if (_sortBy == field) {
+            _sortAscending = !_sortAscending;
+          } else {
+            _sortBy = field;
+            _sortAscending = true;
+          }
           _applySorting();
         });
       },
     );
+  }
+
+  void _hidePlayerFromSummary(String username) {
+    setState(() {
+      _manuallyHiddenPlayers.add(username);
+      _recalculateTotals();
+    });
+  }
+
+  void _restoreHiddenPlayers() {
+    setState(() {
+      _manuallyHiddenPlayers.clear();
+      _recalculateTotals();
+    });
   }
 
   Widget _buildQueueInfo() {
@@ -270,15 +332,50 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
     return '${two(d.day)}/${two(d.month)}/${d.year} ${two(d.hour)}:${two(d.minute)}';
   }
 
+  String _formatMaybeIsoDate(String raw) {
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) return raw;
+    final d = parsed.toLocal();
+    final two = (int n) => n.toString().padLeft(2, '0');
+    return '${two(d.day)}/${two(d.month)}/${d.year}';
+  }
+
+  Map<String, int> _computeGamesAndRemainder(Map<String, dynamic> player) {
+    final balance = player['balance'] as int? ?? 0;
+    final customCost = player['custom_game_cost'] as int?;
+    final playerCost = customCost ?? defaultCost;
+
+    final int games;
+    final int remainder;
+    if (playerCost > 0) {
+      if (balance >= 0) {
+        games = balance ~/ playerCost;
+      } else {
+        final debtAbs = -balance;
+        final debtGames = (debtAbs + playerCost - 1) ~/ playerCost;
+        games = -debtGames;
+      }
+      remainder = balance - (games * playerCost);
+    } else {
+      games = 0;
+      remainder = balance;
+    }
+
+    return {'games': games, 'remainder': remainder};
+  }
+
+  String _formatGamesValue(int games) {
+    final prefix = games >= 0 ? (games > 0 ? '+' : '') : '';
+    return '$prefix$games games';
+  }
+
+  String _formatRemainderValue(int remainder) {
+    final prefix = remainder > 0 ? '+' : '';
+    return '$prefix$remainder₪';
+  }
+
   String _buildDebtStatusText() {
-    final snapshot = List<Map<String, dynamic>>.from(
-      players.map((p) => Map<String, dynamic>.from(p as Map)),
-    );
-    snapshot.sort((a, b) {
-      final aBalance = (a['balance'] as int? ?? 0);
-      final bBalance = (b['balance'] as int? ?? 0);
-      return aBalance.compareTo(bBalance); // debt first
-    });
+    final snapshot = _visiblePlayers();
 
     final lines = <String>[
       '🏀 סטטוס תשלומים לקבוצה',
@@ -288,20 +385,16 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
 
     for (final p in snapshot) {
       final username = (p['username'] ?? '').toString();
-      final balance = p['balance'] as int? ?? 0;
+      final breakdown = _computeGamesAndRemainder(p);
+      final games = breakdown['games'] ?? 0;
+      final remainder = breakdown['remainder'] ?? 0;
       final paid = p['paid'] as int? ?? 0;
       final debt = p['debt'] as int? ?? 0;
-
-      String status;
-      if (balance < 0) {
-        status = 'חוב ${-balance}₪';
-      } else if (balance > 0) {
-        status = 'זכות ${balance}₪';
-      } else {
-        status = 'מאוזן';
-      }
-
-      lines.add('• $username: $status | שולם ${paid}₪ | חיוב ${debt}₪');
+      final gamesText = _formatGamesValue(games);
+      final remainderText =
+          remainder == 0 ? '' : ' | ${_formatRemainderValue(remainder)}';
+      lines.add(
+          '• $username: $gamesText$remainderText | שולם ${paid}₪ | חיוב ${debt}₪');
     }
 
     lines.add('');
@@ -317,6 +410,199 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
       SnackBar(
         content: Text('Debt status copied. Ready to paste to WhatsApp.'),
         backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  Future<Uint8List?> _captureCardPng(GlobalKey boundaryKey) async {
+    await Future<void>.delayed(const Duration(milliseconds: 16));
+    final renderObject = boundaryKey.currentContext?.findRenderObject();
+    if (renderObject is! RenderRepaintBoundary) return null;
+    final image = await renderObject.toImage(pixelRatio: 3);
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    image.dispose();
+    return byteData?.buffer.asUint8List();
+  }
+
+  Future<bool> _copyImageToClipboard(
+      Uint8List pngBytes, String fallbackText) async {
+    try {
+      final clipboard = SystemClipboard.instance;
+      if (clipboard == null) return false;
+      final item = DataWriterItem();
+      item.add(Formats.png(pngBytes));
+      item.add(Formats.plainText(fallbackText));
+      await clipboard.write([item]);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Widget _buildSharePlayerCard(Map<String, dynamic> p) {
+    final username = (p['username'] ?? '').toString();
+    final balance = p['balance'] as int? ?? 0;
+    final breakdown = _computeGamesAndRemainder(p);
+    final games = breakdown['games'] ?? 0;
+    final remainder = breakdown['remainder'] ?? 0;
+    final lastPaymentAmount = p['last_payment_amount'] as int?;
+    final lastPaymentDate = p['last_payment_date']?.toString();
+
+    final bool isDebt = balance < 0;
+    final Color tone = isDebt ? Colors.red : Colors.green;
+    final String gamesText = _formatGamesValue(games);
+    final String lastPaymentText = (lastPaymentAmount == null ||
+            lastPaymentDate == null ||
+            lastPaymentDate.isEmpty)
+        ? 'תשלום אחרון: אין'
+        : 'תשלום אחרון: ${lastPaymentAmount}₪ • ${_formatMaybeIsoDate(lastPaymentDate)}';
+
+    return Container(
+      width: 154,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: tone.withValues(alpha: 0.35), width: 1),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x11000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            username,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                decoration: BoxDecoration(
+                  color: isDebt
+                      ? Colors.red.withValues(alpha: 0.08)
+                      : Colors.green.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  gamesText,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    color: isDebt ? Colors.red.shade800 : Colors.green.shade800,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              if (remainder != 0)
+                Text(
+                  _formatRemainderValue(remainder),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey.shade700,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            lastPaymentText,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 10.5,
+              color: Colors.grey.shade700,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShareBoard() {
+    final visibleInCurrentOrder = _visiblePlayers();
+    return Container(
+      width: 1060,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.green.shade50, Colors.white],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppTheme.outlineSoft),
+      ),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: visibleInCurrentOrder.map(_buildSharePlayerCard).toList(),
+      ),
+    );
+  }
+
+  Future<void> _showShareImageDialog() async {
+    final boardKey = GlobalKey();
+    final fallbackText = _buildDebtStatusText();
+
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        title: const Text('שיתוף יתרות וחובות'),
+        content: SizedBox(
+          width: 1120,
+          child: SingleChildScrollView(
+            child: RepaintBoundary(
+              key: boardKey,
+              child: _buildShareBoard(),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('סגור'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              final pngBytes = await _captureCardPng(boardKey);
+              final imageCopied = pngBytes != null
+                  ? await _copyImageToClipboard(pngBytes, fallbackText)
+                  : false;
+
+              if (!imageCopied) {
+                await Clipboard.setData(ClipboardData(text: fallbackText));
+              }
+              if (!mounted) return;
+              if (Navigator.of(dialogContext).canPop()) {
+                Navigator.pop(dialogContext);
+              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    imageCopied
+                        ? 'הכרטיס הועתק כתמונה. אפשר להדביק בוואטסאפ.'
+                        : 'לא נתמכה העתקת תמונה בדפדפן זה. הועתק טקסט כגיבוי.',
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.copy),
+            label: const Text('העתק כתמונה'),
+          ),
+        ],
       ),
     );
   }
@@ -550,9 +836,21 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
   }
 
   Widget _buildContent() {
+    final visiblePlayers = _visiblePlayers();
+    String roleFilterLabel;
+    switch (_roleFilter) {
+      case RoleVisibilityFilter.hideGuests:
+        roleFilterLabel = 'Hide Guests';
+        break;
+      case RoleVisibilityFilter.guestsOnly:
+        roleFilterLabel = 'Guests Only';
+        break;
+      case RoleVisibilityFilter.all:
+        roleFilterLabel = 'All Roles';
+    }
+
     return Column(
       children: [
-        // SINGLE CACHE/SYNC INDICATOR - only when there are pending items
         if (pendingQueue > 0 || _isSyncing)
           GestureDetector(
             onTap: _showPendingQueueDialog,
@@ -580,177 +878,346 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
               ),
             ),
           ),
-
-        // SUMMARY CARDS - more compact
         Container(
-          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          color: Colors.teal[50], // Light teal bg
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildSummaryCard('Debt', totalDebt, Colors.red),
-              _buildSummaryCard('Paid', totalPaid, Colors.green),
-              _buildSummaryCard('Balance', totalBalance,
-                  totalBalance >= 0 ? Colors.green : Colors.red),
-            ],
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.green.shade50, Colors.white],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            border: Border(
+              bottom: BorderSide(color: AppTheme.outlineSoft),
+            ),
           ),
-        ),
-
-        // INFO ROW
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Column(
             children: [
-              Text('${players.length} players',
-                  style: TextStyle(fontSize: 11, color: Colors.grey)),
-              Text('Game: $defaultCost₪',
-                  style: TextStyle(fontSize: 11, color: Colors.grey)),
-            ],
-          ),
-        ),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          child: Row(
-            children: [
-              OutlinedButton.icon(
-                onPressed: _copyDebtStatus,
-                icon: Icon(Icons.copy, size: 16),
-                label: Text('Copy Debt Status'),
+              Row(
+                children: [
+                  const Icon(Icons.insights, size: 20),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Financial Summary',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  Text(
+                    '${visiblePlayers.length}/${players.length} players',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade700,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  _buildSummaryCard(
+                      'Debt', totalDebt, Colors.red, Icons.remove),
+                  const SizedBox(width: 8),
+                  _buildSummaryCard(
+                      'Paid', totalPaid, Colors.green, Icons.add_circle),
+                  const SizedBox(width: 8),
+                  _buildSummaryCard(
+                    'Balance',
+                    totalBalance,
+                    totalBalance >= 0 ? Colors.green : Colors.red,
+                    Icons.account_balance_wallet,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppTheme.outlineSoft),
+                    ),
+                    child: Text(
+                      'Game cost: $defaultCost₪',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade800,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: _copyDebtStatus,
+                    icon: const Icon(Icons.copy, size: 16),
+                    label: const Text('Copy Text'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: _showShareImageDialog,
+                    icon: const Icon(Icons.image_outlined, size: 16),
+                    label: const Text('Copy Image'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryGreen,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
         _buildQueueInfo(),
         _buildPreloadStatus(),
-
-        Divider(height: 1),
-
-        // SORT CONTROLS
         Padding(
-          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           child: Row(
             children: [
               _buildSortChip('Name', 'name'),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               _buildSortChip('Balance', 'balance'),
-              Spacer(),
-              IconButton(
-                icon: Icon(
-                    _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
-                    size: 18),
-                tooltip: 'Toggle sort direction',
-                onPressed: () {
+              const SizedBox(width: 8),
+              PopupMenuButton<RoleVisibilityFilter>(
+                onSelected: (value) {
                   setState(() {
-                    _sortAscending = !_sortAscending;
-                    _applySorting();
+                    _roleFilter = value;
+                    _recalculateTotals();
                   });
                 },
+                itemBuilder: (context) => const [
+                  PopupMenuItem(
+                    value: RoleVisibilityFilter.all,
+                    child: Text('All Roles'),
+                  ),
+                  PopupMenuItem(
+                    value: RoleVisibilityFilter.hideGuests,
+                    child: Text('Hide Guests'),
+                  ),
+                  PopupMenuItem(
+                    value: RoleVisibilityFilter.guestsOnly,
+                    child: Text('Guests Only'),
+                  ),
+                ],
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppTheme.outlineSoft),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.filter_alt_outlined, size: 16),
+                      const SizedBox(width: 6),
+                      Text(
+                        roleFilterLabel,
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(width: 2),
+                      const Icon(Icons.arrow_drop_down, size: 18),
+                    ],
+                  ),
+                ),
               ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                onPressed: _manuallyHiddenPlayers.isEmpty
+                    ? null
+                    : _restoreHiddenPlayers,
+                icon: const Icon(Icons.visibility, size: 16),
+                label: Text(
+                  _manuallyHiddenPlayers.isEmpty
+                      ? 'Hidden 0'
+                      : 'Show Hidden (${_manuallyHiddenPlayers.length})',
+                ),
+              ),
+              const Spacer(),
             ],
           ),
         ),
-
-        // PLAYER LIST - ULTRA COMPACT GRID
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
               final width = constraints.maxWidth;
-              // Always at least 3 columns as requested
-              final crossAxisCount = width > 1200 ? 5 : (width > 900 ? 4 : 3);
-              // Taller cards (30% increase): previously 4.0, now reduced to ~2.8 to make them taller
-              final childAspectRatio = 2.8;
+              final crossAxisCount = width >= 1600
+                  ? 7
+                  : width >= 1300
+                      ? 6
+                      : width >= 1050
+                          ? 5
+                          : width >= 760
+                              ? 4
+                              : 3;
+              final childAspectRatio = width >= 1200 ? 2.75 : 2.25;
 
               return GridView.builder(
-                padding: EdgeInsets.zero,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: crossAxisCount,
                   childAspectRatio: childAspectRatio,
-                  mainAxisSpacing: 0,
-                  crossAxisSpacing: 0,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
                 ),
-                itemCount: players.length,
+                itemCount: visiblePlayers.length,
                 itemBuilder: (context, index) {
-                  final player = players[index];
+                  final player = visiblePlayers[index];
                   final balance = player['balance'] as int? ?? 0;
-                  final customCost = player['custom_game_cost'] as int?;
-                  final playerCost = customCost ?? defaultCost;
-                  final isCached = fromCache;
-                  final tileColor = isCached ? Colors.orange[50] : Colors.white;
-
-                  // Calculate games and remainder
-                  int games = 0;
-                  int remainder = balance;
-                  if (playerCost > 0) {
-                    games = balance ~/ playerCost; // Floor division
-                    remainder = balance - (games * playerCost);
-                  }
-
+                  final breakdown = _computeGamesAndRemainder(player);
+                  final games = breakdown['games'] ?? 0;
+                  final remainder = breakdown['remainder'] ?? 0;
                   final bool isPositive = balance >= 0;
+                  final role = _roleOf(player);
+                  final lastPaymentAmount =
+                      player['last_payment_amount'] as int?;
+                  final lastPaymentDate =
+                      player['last_payment_date']?.toString();
+                  final lastPaymentText = (lastPaymentAmount == null ||
+                          lastPaymentDate == null ||
+                          lastPaymentDate.isEmpty)
+                      ? 'תשלום אחרון: אין'
+                      : 'תשלום אחרון: ${lastPaymentAmount}₪ • ${_formatMaybeIsoDate(lastPaymentDate)}';
 
                   return InkWell(
                     onTap: () => _openPlayerFinancials(player['username']),
+                    borderRadius: BorderRadius.circular(14),
                     child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
-                        color: tileColor,
-                        border:
-                            Border.all(color: Colors.grey[200]!, width: 0.3),
+                        color: fromCache ? Colors.orange[50] : Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isPositive
+                              ? Colors.green.withValues(alpha: 0.2)
+                              : Colors.red.withValues(alpha: 0.2),
+                        ),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x10000000),
+                            blurRadius: 6,
+                            offset: Offset(0, 1),
+                          ),
+                        ],
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Name
-                          Expanded(
-                            child: Row(
-                              children: [
+                          Row(
+                            children: [
+                              Icon(
+                                isPositive
+                                    ? Icons.arrow_circle_up
+                                    : Icons.arrow_circle_down,
+                                size: 14,
+                                color: isPositive
+                                    ? Colors.green.shade700
+                                    : Colors.red.shade700,
+                              ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  (player['username'] ?? '').toString(),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              if (role == 'guest') ...[
+                                const SizedBox(width: 4),
                                 Container(
-                                  width: 4,
-                                  height: 4,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(
                                     color:
-                                        isPositive ? Colors.green : Colors.red,
-                                    shape: BoxShape.circle,
+                                        Colors.blueGrey.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(8),
                                   ),
-                                ),
-                                SizedBox(width: 3),
-                                Expanded(
-                                  child: Text(
-                                    player['username'],
+                                  child: const Text(
+                                    'Guest',
                                     style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600),
-                                    overflow: TextOverflow.ellipsis,
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                 ),
                               ],
-                            ),
-                          ),
-                          // Games & Remainder (Remainder Left, Games Right)
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // Remainder in parens (Left)
-                              if (remainder != 0) ...[
-                                Text(
-                                  '(${remainder > 0 ? '+' : ''}$remainder₪)',
-                                  style: TextStyle(
-                                      fontSize: 9, color: Colors.grey[600]),
-                                ),
-                                SizedBox(width: 2),
-                              ],
-                              // Games count (Right)
-                              Text(
-                                '${games >= 0 ? (games > 0 ? '+' : '') : ''}$games',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: isPositive
-                                      ? Colors.green[700]
-                                      : Colors.red[700],
+                              const SizedBox(width: 2),
+                              Tooltip(
+                                message: 'Hide from summary',
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(8),
+                                  onTap: () => _hidePlayerFromSummary(
+                                    (player['username'] ?? '').toString(),
+                                  ),
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(2),
+                                    child: Icon(
+                                      Icons.visibility_off_outlined,
+                                      size: 16,
+                                      color: Colors.blueGrey,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: isPositive
+                                      ? Colors.green.withValues(alpha: 0.08)
+                                      : Colors.red.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  _formatGamesValue(games),
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: isPositive
+                                        ? Colors.green.shade800
+                                        : Colors.red.shade800,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 3),
+                              if (remainder != 0)
+                                Text(
+                                  _formatRemainderValue(remainder),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey.shade700,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            lastPaymentText,
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              color: Colors.grey.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ],
                       ),
@@ -765,22 +1232,44 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
     );
   }
 
-  Widget _buildSummaryCard(String label, int value, Color color) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
-      ),
-      child: Column(
-        children: [
-          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-          SizedBox(height: 4),
-          Text('$value ₪',
-              style: TextStyle(
-                  fontSize: 18, fontWeight: FontWeight.bold, color: color)),
-        ],
+  Widget _buildSummaryCard(
+      String label, int value, Color color, IconData icon) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withValues(alpha: 0.25), width: 1),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x11000000),
+              blurRadius: 8,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: color),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label,
+                      style: TextStyle(fontSize: 11, color: Colors.grey[700])),
+                  const SizedBox(height: 2),
+                  Text('$value ₪',
+                      style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: color)),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

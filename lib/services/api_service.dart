@@ -46,7 +46,8 @@ class ApiService {
     final isPaymentEndpoint =
         endpoint.contains('add-payment') || endpoint.contains('delete-payment');
     if (isPaymentEndpoint) {
-      debugPrint('[api:$method] -> $endpoint body=$body includeAuth=$includeAuth');
+      debugPrint(
+          '[api:$method] -> $endpoint body=$body includeAuth=$includeAuth');
     }
 
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -320,6 +321,34 @@ class ApiService {
       );
     } catch (_) {
       // Best effort only.
+    }
+  }
+
+  Future<Map<String, dynamic>> updateMyEmail(String email) async {
+    try {
+      final response = await put('update-my-email', {'email': email.trim()});
+      final parsed = response is Map<String, dynamic>
+          ? response
+          : <String, dynamic>{
+              'success': false,
+              'message': 'Unexpected response'
+            };
+
+      if (parsed['success'] == true) {
+        final user = parsed['user'];
+        final updatedEmail = user is Map<String, dynamic>
+            ? (user['email']?.toString() ?? email.trim())
+            : email.trim();
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        await prefs.setString('email', updatedEmail);
+      }
+
+      return parsed;
+    } catch (error) {
+      return {
+        'success': false,
+        'message': 'Failed to update email: $error',
+      };
     }
   }
 
