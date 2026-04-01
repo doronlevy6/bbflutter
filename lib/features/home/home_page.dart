@@ -71,6 +71,107 @@ class _HomePageState extends State<HomePage> {
     };
   }
 
+  bool _isValidEmail(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return false;
+    final basicEmailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
+    return basicEmailRegex.hasMatch(trimmed);
+  }
+
+  Future<void> _showEditEmailDialog(String currentEmail) async {
+    final controller = TextEditingController(text: currentEmail);
+    bool isSaving = false;
+    String? localError;
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setLocalState) {
+            return AlertDialog(
+              title: Text(_isHebrew ? 'עדכון אימייל' : 'Update Email'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: controller,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: InputDecoration(
+                      labelText: _isHebrew ? 'אימייל' : 'Email',
+                      border: OutlineInputBorder(),
+                      errorText: localError,
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSaving ? null : () => Navigator.pop(ctx),
+                  child: Text(_isHebrew ? 'ביטול' : 'Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: isSaving
+                      ? null
+                      : () async {
+                          final nextEmail = controller.text.trim();
+                          if (!_isValidEmail(nextEmail)) {
+                            setLocalState(() {
+                              localError = _isHebrew
+                                  ? 'כתובת אימייל לא תקינה'
+                                  : 'Invalid email address';
+                            });
+                            return;
+                          }
+
+                          setLocalState(() {
+                            isSaving = true;
+                            localError = null;
+                          });
+
+                          final response =
+                              await _apiService.updateMyEmail(nextEmail);
+                          if (!mounted) return;
+
+                          if (response['success'] == true) {
+                            if (Navigator.of(ctx).canPop()) {
+                              Navigator.of(ctx).pop();
+                            }
+                            setState(() {});
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  _isHebrew
+                                      ? 'האימייל עודכן בהצלחה'
+                                      : 'Email updated successfully',
+                                ),
+                                backgroundColor: Colors.green[700],
+                              ),
+                            );
+                            return;
+                          }
+
+                          setLocalState(() {
+                            isSaving = false;
+                            localError = (response['message']?.toString() ??
+                                (_isHebrew ? 'עדכון נכשל' : 'Update failed'));
+                          });
+                        },
+                  child: isSaving
+                      ? SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(_isHebrew ? 'שמור' : 'Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _clearSessionPrefs() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     // Regular logout: clear sensitive session only.
@@ -353,11 +454,35 @@ class _HomePageState extends State<HomePage> {
                             fontSize: 16,
                           ),
                         ),
-                        accountEmail: Text(
-                          email,
-                          style: TextStyle(
-                            fontSize: 14,
-                          ),
+                        accountEmail: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                email,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              tooltip:
+                                  _isHebrew ? 'עריכת אימייל' : 'Edit email',
+                              icon: Icon(
+                                Icons.edit_outlined,
+                                size: 18,
+                                color: Colors.white70,
+                              ),
+                              onPressed: () => _showEditEmailDialog(email),
+                              splashRadius: 18,
+                              padding: EdgeInsets.zero,
+                              constraints: BoxConstraints(
+                                minWidth: 28,
+                                minHeight: 28,
+                              ),
+                            ),
+                          ],
                         ),
                         currentAccountPicture: CircleAvatar(
                           backgroundColor: Colors.white,

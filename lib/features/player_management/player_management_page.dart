@@ -45,7 +45,7 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
 
   // For sorting
   PlayerSortMode _sortMode = PlayerSortMode.nameAsc;
-  PlayerRoleFilter _roleFilter = PlayerRoleFilter.all;
+  PlayerRoleFilter _roleFilter = PlayerRoleFilter.noGuests;
   bool _playersFromCache = false;
   String _preloadStatus = 'idle';
   String? _preloadUpdatedAt;
@@ -285,6 +285,42 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
       if (_roleFilter == PlayerRoleFilter.noGuests) return !isGuest;
       return isGuest;
     }).toList();
+  }
+
+  bool _areAllVisibleSelected() {
+    final visible = _visiblePlayers();
+    if (visible.isEmpty) return false;
+    for (final p in visible) {
+      final map = p as Map;
+      final username = (map['username'] ?? '').toString();
+      if (!selectedUsernames.contains(username)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  void _toggleSelectAllVisible() {
+    final visible = _visiblePlayers();
+    final allSelected = _areAllVisibleSelected();
+    setState(() {
+      if (allSelected) {
+        for (final p in visible) {
+          final map = p as Map;
+          final username = (map['username'] ?? '').toString();
+          selectedUsernames.remove(username);
+        }
+      } else {
+        for (final p in visible) {
+          final map = p as Map;
+          final username = (map['username'] ?? '').toString();
+          if (!selectedUsernames.contains(username)) {
+            selectedUsernames.add(username);
+          }
+        }
+      }
+      _sortPlayersInternal();
+    });
   }
 
   int _compareByName(Map a, Map b) {
@@ -1587,7 +1623,7 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
 
   String _displayName(String username) {
     if (username.length <= 10) return username;
-    return '${username.substring(0, 10)}…';
+    return username.substring(0, 10);
   }
 
   void _showFullPlayerName(String username) {
@@ -1640,7 +1676,7 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
         child: Row(
           children: [
             Transform.scale(
-              scale: 0.9,
+              scale: 0.82,
               child: Checkbox(
                 value: isEnlisted,
                 onChanged: (val) => _toggleEnlist(username, val ?? false),
@@ -1659,9 +1695,10 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                     child: Text(
                       _displayName(username),
                       maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      overflow: TextOverflow.clip,
+                      softWrap: false,
                       style:
-                          TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                          TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                     ),
                   ),
                 ),
@@ -1670,39 +1707,39 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
             Tooltip(
               message: 'Role: $roleLabel (tap to cycle)',
               child: IconButton(
-                constraints: BoxConstraints.tightFor(width: 28, height: 28),
+                constraints: BoxConstraints.tightFor(width: 24, height: 24),
                 padding: EdgeInsets.zero,
                 visualDensity: VisualDensity.compact,
                 icon: Icon(
                   roleIcon,
-                  size: 18,
+                  size: 16,
                   color: roleColor,
                 ),
                 onPressed: () => _cycleRole(username),
               ),
             ),
             IconButton(
-              constraints: BoxConstraints.tightFor(width: 28, height: 28),
+              constraints: BoxConstraints.tightFor(width: 24, height: 24),
               padding: EdgeInsets.zero,
               visualDensity: VisualDensity.compact,
               icon: Icon(Icons.account_balance_wallet,
-                  size: 18, color: Colors.teal[700]),
+                  size: 16, color: Colors.teal[700]),
               onPressed: () => _showPlayerFinancials(player),
               tooltip: 'Wallet',
             ),
             IconButton(
-              constraints: BoxConstraints.tightFor(width: 28, height: 28),
+              constraints: BoxConstraints.tightFor(width: 24, height: 24),
               padding: EdgeInsets.zero,
               visualDensity: VisualDensity.compact,
-              icon: Icon(Icons.edit, size: 18, color: Colors.blue),
+              icon: Icon(Icons.edit, size: 16, color: Colors.blue),
               onPressed: () => _editPlayer(player),
               tooltip: 'Edit',
             ),
             IconButton(
-              constraints: BoxConstraints.tightFor(width: 28, height: 28),
+              constraints: BoxConstraints.tightFor(width: 24, height: 24),
               padding: EdgeInsets.zero,
               visualDensity: VisualDensity.compact,
-              icon: Icon(Icons.delete, size: 18, color: Colors.red),
+              icon: Icon(Icons.delete, size: 16, color: Colors.red),
               onPressed: () => _deletePlayer(username),
               tooltip: 'Delete',
             ),
@@ -1743,6 +1780,7 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
   Widget _buildContent() {
     final visibleCount = _visiblePlayers().length;
     final totalCount = players.length;
+    final allVisibleSelected = _areAllVisibleSelected();
     String roleFilterLabel;
     switch (_roleFilter) {
       case PlayerRoleFilter.noGuests:
@@ -1947,6 +1985,20 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                             Icon(Icons.arrow_drop_down, color: Colors.white),
                           ],
                         ),
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _toggleSelectAllVisible,
+                      icon: Icon(
+                        allVisibleSelected
+                            ? Icons.deselect_outlined
+                            : Icons.select_all,
+                      ),
+                      label: Text(
+                          allVisibleSelected ? 'Deselect All' : 'Select All'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.teal[700],
+                        foregroundColor: Colors.white,
                       ),
                     ),
                     ElevatedButton.icon(

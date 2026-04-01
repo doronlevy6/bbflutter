@@ -50,7 +50,8 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
   // Sorting state
   String _sortBy = 'name'; // 'name' or 'balance'
   bool _sortAscending = true;
-  RoleVisibilityFilter _roleFilter = RoleVisibilityFilter.all;
+  RoleVisibilityFilter _roleFilter = RoleVisibilityFilter.hideGuests;
+  final Set<String> _manuallyHiddenPlayers = <String>{};
 
   @override
   void initState() {
@@ -180,6 +181,8 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
   }
 
   bool _isVisibleByRole(Map<String, dynamic> player) {
+    final username = (player['username'] ?? '').toString();
+    if (_manuallyHiddenPlayers.contains(username)) return false;
     final role = _roleOf(player);
     switch (_roleFilter) {
       case RoleVisibilityFilter.hideGuests:
@@ -261,16 +264,36 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
 
   Widget _buildSortChip(String label, String field) {
     final bool active = _sortBy == field;
+    final String dirSuffix = active ? (_sortAscending ? ' ↑' : ' ↓') : '';
     return ChoiceChip(
-      label: Text(label),
+      label: Text('$label$dirSuffix'),
       selected: active,
       onSelected: (_) {
         setState(() {
-          _sortBy = field;
+          if (_sortBy == field) {
+            _sortAscending = !_sortAscending;
+          } else {
+            _sortBy = field;
+            _sortAscending = true;
+          }
           _applySorting();
         });
       },
     );
+  }
+
+  void _hidePlayerFromSummary(String username) {
+    setState(() {
+      _manuallyHiddenPlayers.add(username);
+      _recalculateTotals();
+    });
+  }
+
+  void _restoreHiddenPlayers() {
+    setState(() {
+      _manuallyHiddenPlayers.clear();
+      _recalculateTotals();
+    });
   }
 
   Widget _buildQueueInfo() {
@@ -312,7 +335,43 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
   String _formatMaybeIsoDate(String raw) {
     final parsed = DateTime.tryParse(raw);
     if (parsed == null) return raw;
-    return _fmtDateTime(parsed.toLocal());
+    final d = parsed.toLocal();
+    final two = (int n) => n.toString().padLeft(2, '0');
+    return '${two(d.day)}/${two(d.month)}/${d.year}';
+  }
+
+  Map<String, int> _computeGamesAndRemainder(Map<String, dynamic> player) {
+    final balance = player['balance'] as int? ?? 0;
+    final customCost = player['custom_game_cost'] as int?;
+    final playerCost = customCost ?? defaultCost;
+
+    final int games;
+    final int remainder;
+    if (playerCost > 0) {
+      if (balance >= 0) {
+        games = balance ~/ playerCost;
+      } else {
+        final debtAbs = -balance;
+        final debtGames = (debtAbs + playerCost - 1) ~/ playerCost;
+        games = -debtGames;
+      }
+      remainder = balance - (games * playerCost);
+    } else {
+      games = 0;
+      remainder = balance;
+    }
+
+    return {'games': games, 'remainder': remainder};
+  }
+
+  String _formatGamesValue(int games) {
+    final prefix = games >= 0 ? (games > 0 ? '+' : '') : '';
+    return '$prefix$games games';
+  }
+
+  String _formatRemainderValue(int remainder) {
+    final prefix = remainder > 0 ? '+' : '';
+    return '$prefix$remainder₪';
   }
 
   String _buildDebtStatusText() {
@@ -326,20 +385,16 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
 
     for (final p in snapshot) {
       final username = (p['username'] ?? '').toString();
-      final balance = p['balance'] as int? ?? 0;
+      final breakdown = _computeGamesAndRemainder(p);
+      final games = breakdown['games'] ?? 0;
+      final remainder = breakdown['remainder'] ?? 0;
       final paid = p['paid'] as int? ?? 0;
       final debt = p['debt'] as int? ?? 0;
-
-      String status;
-      if (balance < 0) {
-        status = 'חוב ${-balance}₪';
-      } else if (balance > 0) {
-        status = 'זכות ${balance}₪';
-      } else {
-        status = 'מאוזן';
-      }
-
-      lines.add('• $username: $status | שולם ${paid}₪ | חיוב ${debt}₪');
+      final gamesText = _formatGamesValue(games);
+      final remainderText =
+          remainder == 0 ? '' : ' | ${_formatRemainderValue(remainder)}';
+      lines.add(
+          '• $username: $gamesText$remainderText | שולם ${paid}₪ | חיוב ${debt}₪');
     }
 
     lines.add('');
@@ -387,12 +442,15 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
   Widget _buildSharePlayerCard(Map<String, dynamic> p) {
     final username = (p['username'] ?? '').toString();
     final balance = p['balance'] as int? ?? 0;
+    final breakdown = _computeGamesAndRemainder(p);
+    final games = breakdown['games'] ?? 0;
+    final remainder = breakdown['remainder'] ?? 0;
     final lastPaymentAmount = p['last_payment_amount'] as int?;
     final lastPaymentDate = p['last_payment_date']?.toString();
 
     final bool isDebt = balance < 0;
     final Color tone = isDebt ? Colors.red : Colors.green;
-    final String status = isDebt ? 'חוב ${-balance}₪' : 'זכות ${balance}₪';
+    final String gamesText = _formatGamesValue(games);
     final String lastPaymentText = (lastPaymentAmount == null ||
             lastPaymentDate == null ||
             lastPaymentDate.isEmpty)
@@ -424,17 +482,42 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 4),
-          Text(
-            status,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: isDebt ? Colors.red.shade700 : Colors.green.shade700,
-            ),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                decoration: BoxDecoration(
+                  color: isDebt
+                      ? Colors.red.withValues(alpha: 0.08)
+                      : Colors.green.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  gamesText,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    color: isDebt ? Colors.red.shade800 : Colors.green.shade800,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              if (remainder != 0)
+                Text(
+                  _formatRemainderValue(remainder),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey.shade700,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 2),
           Text(
             lastPaymentText,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 10.5,
               color: Colors.grey.shade700,
@@ -946,20 +1029,19 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
                   ),
                 ),
               ),
-              const Spacer(),
-              IconButton(
-                icon: Icon(
-                  _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
-                  size: 18,
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                onPressed: _manuallyHiddenPlayers.isEmpty
+                    ? null
+                    : _restoreHiddenPlayers,
+                icon: const Icon(Icons.visibility, size: 16),
+                label: Text(
+                  _manuallyHiddenPlayers.isEmpty
+                      ? 'Hidden 0'
+                      : 'Show Hidden (${_manuallyHiddenPlayers.length})',
                 ),
-                tooltip: 'Toggle sort direction',
-                onPressed: () {
-                  setState(() {
-                    _sortAscending = !_sortAscending;
-                    _applySorting();
-                  });
-                },
               ),
+              const Spacer(),
             ],
           ),
         ),
@@ -976,7 +1058,7 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
                           : width >= 760
                               ? 4
                               : 3;
-              final childAspectRatio = width >= 1200 ? 2.45 : 2.05;
+              final childAspectRatio = width >= 1200 ? 2.75 : 2.25;
 
               return GridView.builder(
                 padding:
@@ -991,24 +1073,9 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
                 itemBuilder: (context, index) {
                   final player = visiblePlayers[index];
                   final balance = player['balance'] as int? ?? 0;
-                  final customCost = player['custom_game_cost'] as int?;
-                  final playerCost = customCost ?? defaultCost;
-                  final int games;
-                  final int remainder;
-                  if (playerCost > 0) {
-                    if (balance >= 0) {
-                      games = balance ~/ playerCost;
-                    } else {
-                      final debtAbs = -balance;
-                      final debtGames =
-                          (debtAbs + playerCost - 1) ~/ playerCost;
-                      games = -debtGames;
-                    }
-                    remainder = balance - (games * playerCost);
-                  } else {
-                    games = 0;
-                    remainder = balance;
-                  }
+                  final breakdown = _computeGamesAndRemainder(player);
+                  final games = breakdown['games'] ?? 0;
+                  final remainder = breakdown['remainder'] ?? 0;
                   final bool isPositive = balance >= 0;
                   final role = _roleOf(player);
                   final lastPaymentAmount =
@@ -1088,6 +1155,24 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
                                   ),
                                 ),
                               ],
+                              const SizedBox(width: 2),
+                              Tooltip(
+                                message: 'Hide from summary',
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(8),
+                                  onTap: () => _hidePlayerFromSummary(
+                                    (player['username'] ?? '').toString(),
+                                  ),
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(2),
+                                    child: Icon(
+                                      Icons.visibility_off_outlined,
+                                      size: 16,
+                                      color: Colors.blueGrey,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 4),
@@ -1103,7 +1188,7 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Text(
-                                  '${games >= 0 ? (games > 0 ? '+' : '') : ''}$games games',
+                                  _formatGamesValue(games),
                                   style: TextStyle(
                                     fontSize: 10.5,
                                     fontWeight: FontWeight.w700,
@@ -1116,7 +1201,7 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
                               const SizedBox(width: 3),
                               if (remainder != 0)
                                 Text(
-                                  '${remainder > 0 ? '+' : ''}$remainder₪',
+                                  _formatRemainderValue(remainder),
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: Colors.grey.shade700,
