@@ -72,9 +72,14 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _loadTeamSettings() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final teamId = prefs.getInt('team_id');
+      final cacheKey = teamId == null
+          ? 'cache_team_settings'
+          : 'cache_team_settings_$teamId';
       final response = await apiService.getWithCache(
         'finance/team-settings',
-        cacheKey: 'cache_team_settings',
+        cacheKey: cacheKey,
       );
       if (response['success'] == true) {
         setState(() {

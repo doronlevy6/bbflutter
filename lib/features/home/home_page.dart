@@ -279,6 +279,7 @@ class _HomePageState extends State<HomePage> {
 
     await _apiService.logout();
     await _apiService.clearFailedQueue();
+    await _apiService.clearUserScopedLocalState();
     await _clearSessionPrefs();
     if (!mounted) return;
     Navigator.pushNamedAndRemoveUntil(

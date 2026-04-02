@@ -387,6 +387,34 @@ class OfflineService {
     await _saveFailedQueue([]);
   }
 
+  /// Clear user-scoped local state (cache + queues + debug traces).
+  /// Keeps unrelated app preferences (language/theme) intact.
+  Future<void> clearUserScopedState() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final keys = prefs.getKeys();
+    final keysToRemove = <String>{};
+
+    for (final key in keys) {
+      if (key.startsWith('cache_') ||
+          key.endsWith('_meta_v1') ||
+          key.startsWith('last_payment_debug_') ||
+          key.startsWith('playersRankings_') ||
+          key == 'overallPlayersRankings' ||
+          key == 'playersRankings' ||
+          key == 'enlistedPlayers' ||
+          key.startsWith('enlistedPlayers_') ||
+          key == _queueKey ||
+          key == _failedQueueKey ||
+          key == _metricsKey) {
+        keysToRemove.add(key);
+      }
+    }
+
+    for (final key in keysToRemove) {
+      await prefs.remove(key);
+    }
+  }
+
   bool _isRetryableStatus(int statusCode) {
     return statusCode == 408 ||
         statusCode == 425 ||
