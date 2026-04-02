@@ -26,6 +26,7 @@ class FinancialSummaryPage extends StatefulWidget {
 class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
   final ApiService apiService = ApiService();
   bool isLoading = true;
+  bool _isRefreshingData = false;
   bool accessDenied = false;
   List<dynamic> players = [];
   int defaultCost = 0;
@@ -260,18 +261,28 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
       return;
     }
     String cacheKey = 'cache_team_summary_$teamId';
+    final hasExistingData = players.isNotEmpty;
 
     // 2. Try to load from cache immediately (Stale-while-revalidate)
     if (preferCache) {
       final cachedData = await apiService.getFromCacheOnly(cacheKey);
       if (cachedData != null && mounted) {
         _processData(cachedData);
-        setState(() => isLoading = false);
+        setState(() {
+          isLoading = false;
+          _isRefreshingData = true;
+        });
       } else {
-        setState(() => isLoading = true);
+        setState(() {
+          isLoading = !hasExistingData;
+          _isRefreshingData = hasExistingData;
+        });
       }
     } else {
-      setState(() => isLoading = true);
+      setState(() {
+        isLoading = !hasExistingData;
+        _isRefreshingData = hasExistingData;
+      });
     }
 
     // 3. Update from Network (background)
@@ -295,7 +306,12 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
         setState(() => errorMessage = 'Offline and no cached data yet.');
       }
     } finally {
-      if (mounted) setState(() => isLoading = false);
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          _isRefreshingData = false;
+        });
+      }
     }
     _loadQueueStats();
   }
@@ -1054,6 +1070,34 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+                  if (_isRefreshingData) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: const [
+                          SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            'Updating...',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
               const SizedBox(height: 10),
