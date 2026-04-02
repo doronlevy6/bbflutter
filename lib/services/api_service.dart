@@ -258,6 +258,10 @@ class ApiService {
     await _offline.manuallyCache(cacheKey, data);
   }
 
+  Future<void> clearCache(String cacheKey) async {
+    await _offline.removeCache(cacheKey);
+  }
+
   /// Offline-capable write operations
   Future<Map<String, dynamic>> postQueued(
       String endpoint, Map<String, dynamic> data) async {
