@@ -2109,6 +2109,7 @@ class PlayerFinancialDialog extends StatefulWidget {
 
 class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
   bool loading = true;
+  bool _isRefreshingData = false;
   Map<String, dynamic>? data;
   String errorMessage = '';
   bool fromCache = false;
@@ -2206,7 +2207,7 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
       });
       if (!isSyncing) {
         _loadQueueStats();
-        _fetchData(preferCache: false);
+        _fetchData(preferCache: false, keepDialogVisible: true);
       }
     });
   }
@@ -2267,12 +2268,19 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
       return;
     }
     _lastLiveRefreshAt = now;
-    await _fetchData(preferCache: false);
+    await _fetchData(preferCache: false, keepDialogVisible: true);
   }
 
-  Future<void> _fetchData({bool preferCache = true}) async {
+  Future<void> _fetchData(
+      {bool preferCache = true, bool keepDialogVisible = false}) async {
+    final hasCurrentData = data != null;
+    final shouldKeepVisible = keepDialogVisible || hasCurrentData;
     setState(() {
-      loading = true;
+      if (shouldKeepVisible) {
+        _isRefreshingData = true;
+      } else {
+        loading = true;
+      }
       errorMessage = '';
     });
 
@@ -2284,7 +2292,9 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
           data = cached;
           fromCache = true;
           lastServerRefreshAt = cached['_cache_updated_at'] as String?;
-          loading = false;
+          if (!shouldKeepVisible) {
+            loading = false;
+          }
         });
       }
     }
@@ -2297,7 +2307,6 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
       if (response['success'] == true) {
         setState(() {
           data = response;
-          loading = false;
           fromCache = response['_cached'] == true;
           lastServerRefreshAt = response['_cache_updated_at'] as String?;
         });
@@ -2305,7 +2314,6 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
         if (data == null) {
           setState(() {
             errorMessage = response['message'];
-            loading = false;
           });
         }
       }
@@ -2313,13 +2321,13 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
       if (data == null) {
         setState(() {
           errorMessage = e.toString();
-          loading = false;
         });
       }
     } finally {
       if (mounted) {
         setState(() {
           loading = false;
+          _isRefreshingData = false;
         });
       }
     }
@@ -2367,7 +2375,7 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
         final emailStatus = response['email_status'] as String?;
         String emailHint = '';
         if (!queued) {
-          await _fetchData(preferCache: false);
+          await _fetchData(preferCache: false, keepDialogVisible: true);
         } else {
           await _loadQueueStats();
         }
@@ -2452,7 +2460,7 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
       if (response['success'] == true) {
         final queued = response['queued'] == true;
         if (!queued) {
-          await _fetchData(preferCache: false);
+          await _fetchData(preferCache: false, keepDialogVisible: true);
         } else {
           await _loadQueueStats();
         }
@@ -2483,11 +2491,11 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
 
   @override
   Widget build(BuildContext context) {
-    if (loading)
+    if (loading && data == null)
       return AlertDialog(
           content: SizedBox(
               height: 100, child: Center(child: CircularProgressIndicator())));
-    if (errorMessage.isNotEmpty)
+    if (errorMessage.isNotEmpty && data == null)
       return AlertDialog(content: Text('Error: $errorMessage'), actions: [
         TextButton(
             onPressed: () => Navigator.pop(context), child: Text('Close'))
@@ -2533,7 +2541,19 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        Text('${widget.username} Wallet'),
+        Row(
+          children: [
+            Text('${widget.username} Wallet'),
+            if (_isRefreshingData) ...[
+              SizedBox(width: 8),
+              SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ],
+          ],
+        ),
         Container(
             padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
