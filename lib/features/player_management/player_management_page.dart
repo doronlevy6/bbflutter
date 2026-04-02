@@ -89,12 +89,20 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
 
   Future<void> _saveEnlistedPlayers(List<String> players) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(kEnlistedPlayersKey, players);
+    final teamId = prefs.getInt('team_id');
+    final key =
+        teamId == null ? kEnlistedPlayersKey : '${kEnlistedPlayersKey}_$teamId';
+    await prefs.setStringList(key, players);
   }
 
   Future<void> _loadEnlistedPlayers() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String> savedPlayers = prefs.getStringList(kEnlistedPlayersKey) ?? [];
+    final teamId = prefs.getInt('team_id');
+    final key =
+        teamId == null ? kEnlistedPlayersKey : '${kEnlistedPlayersKey}_$teamId';
+    List<String> savedPlayers = prefs.getStringList(key) ??
+        prefs.getStringList(kEnlistedPlayersKey) ??
+        [];
     setState(() {
       selectedUsernames = savedPlayers;
       // Initialize initialSelections after players are loaded
@@ -111,7 +119,10 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
   Future<void> fetchPlayers() async {
     if (accessDenied) return;
 
-    const String cacheKey = 'cache_players';
+    final prefs = await SharedPreferences.getInstance();
+    final teamId = prefs.getInt('team_id');
+    final cacheKey =
+        teamId == null ? 'cache_players' : 'cache_players_team_$teamId';
 
     // 1. Try Cache Immediately
     final cached = await apiService.getFromCacheOnly(cacheKey);
@@ -2184,7 +2195,7 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
       });
       if (!isSyncing) {
         _loadQueueStats();
-        _fetchData();
+        _fetchData(preferCache: false);
       }
     });
   }
@@ -2245,24 +2256,26 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
       return;
     }
     _lastLiveRefreshAt = now;
-    await _fetchData();
+    await _fetchData(preferCache: false);
   }
 
-  Future<void> _fetchData() async {
+  Future<void> _fetchData({bool preferCache = true}) async {
     setState(() {
       loading = true;
       errorMessage = '';
     });
 
     final cacheKey = 'cache_player_financials_${widget.username}';
-    final cached = await widget.apiService.getFromCacheOnly(cacheKey);
-    if (cached != null && cached['success'] == true && mounted) {
-      setState(() {
-        data = cached;
-        fromCache = true;
-        lastServerRefreshAt = cached['_cache_updated_at'] as String?;
-        loading = false;
-      });
+    if (preferCache) {
+      final cached = await widget.apiService.getFromCacheOnly(cacheKey);
+      if (cached != null && cached['success'] == true && mounted) {
+        setState(() {
+          data = cached;
+          fromCache = true;
+          lastServerRefreshAt = cached['_cache_updated_at'] as String?;
+          loading = false;
+        });
+      }
     }
 
     try {
@@ -2339,10 +2352,14 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
       if (response['success'] == true) {
         amountController.clear();
         notesController.clear();
-        _fetchData(); // Reload
         final queued = response['queued'] == true;
         final emailStatus = response['email_status'] as String?;
         String emailHint = '';
+        if (!queued) {
+          await _fetchData(preferCache: false);
+        } else {
+          await _loadQueueStats();
+        }
         if (!queued) {
           if (emailStatus == 'sent') {
             emailHint = ' | confirmation email sent';
@@ -2422,8 +2439,13 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
       final response = await widget.apiService.deleteQueued(endpoint);
 
       if (response['success'] == true) {
-        _fetchData(); // Reload
-        if (response['queued'] == true) {
+        final queued = response['queued'] == true;
+        if (!queued) {
+          await _fetchData(preferCache: false);
+        } else {
+          await _loadQueueStats();
+        }
+        if (queued) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               content: Text('Deletion queued (offline)'),
               backgroundColor: Colors.orange));

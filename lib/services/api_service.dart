@@ -254,6 +254,10 @@ class ApiService {
     return _offline.getFromCacheOnly(cacheKey);
   }
 
+  Future<void> upsertCache(String cacheKey, Map<String, dynamic> data) async {
+    await _offline.manuallyCache(cacheKey, data);
+  }
+
   /// Offline-capable write operations
   Future<Map<String, dynamic>> postQueued(
       String endpoint, Map<String, dynamic> data) async {
@@ -298,6 +302,10 @@ class ApiService {
 
   Future<void> clearFailedQueue() async {
     await _offline.clearFailedQueue();
+  }
+
+  Future<void> clearUserScopedLocalState() async {
+    await _offline.clearUserScopedState();
   }
 
   Future<bool> ensureSession() async {
@@ -425,7 +433,9 @@ class ApiService {
     }
 
     final loadedPlayers = await _safePreloadStep(() async {
-      await getWithCache('players', cacheKey: 'cache_players');
+      final playersCacheKey =
+          teamId == null ? 'cache_players' : 'cache_players_team_$teamId';
+      await getWithCache('players', cacheKey: playersCacheKey);
     });
     if (loadedPlayers) successSteps += 1;
 

@@ -44,6 +44,7 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
   StreamSubscription<bool>? _syncSub;
   bool _isSyncing = false;
   bool _autoRefreshing = false;
+  bool _isForceRefreshing = false;
   String _preloadStatus = 'idle';
   String? _preloadUpdatedAt;
   String? _lastServerRefreshAt;
@@ -106,7 +107,7 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
         if (!isSyncing) {
           // Sync finished, reload queue stats
           _loadQueueStats();
-          _loadData();
+          _loadData(preferCache: false);
         }
       }
     });
@@ -162,7 +163,7 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
       return;
     }
     _lastLiveRefreshAt = now;
-    await _loadData();
+    await _loadData(preferCache: false);
   }
 
   Future<void> _handleOnlineRefresh() async {
@@ -171,14 +172,83 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
     _autoRefreshing = true;
     try {
       await apiService.processQueue();
-      await _loadData();
+      await _loadData(preferCache: false);
       await _loadPreloadStatus();
     } finally {
       _autoRefreshing = false;
     }
   }
 
-  Future<void> _loadData() async {
+  Future<void> _forceRefreshFromServer() async {
+    if (_isForceRefreshing || accessDenied) return;
+    setState(() {
+      _isForceRefreshing = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final teamId = prefs.getInt('team_id');
+      if (teamId == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Missing team id. Please login again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      final ts = DateTime.now().millisecondsSinceEpoch;
+      final response =
+          await apiService.get('finance/team-financial-summary/$teamId?ts=$ts');
+      if (response is Map<String, dynamic> && response['success'] == true) {
+        final cacheKey = 'cache_team_summary_$teamId';
+        await apiService.upsertCache(cacheKey, response);
+        final normalized = Map<String, dynamic>.from(response);
+        normalized['_cached'] = false;
+        normalized['_cache_updated_at'] = DateTime.now().toIso8601String();
+        _processData(normalized);
+        await _loadQueueStats();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Pulled latest data from server.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              (response is Map<String, dynamic> && response['message'] != null)
+                  ? response['message'].toString()
+                  : 'Failed to pull latest server data.',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Refresh failed: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isForceRefreshing = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadData({bool preferCache = true}) async {
     // 1. Get Team ID
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final teamId = prefs.getInt('team_id');
@@ -192,10 +262,14 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
     String cacheKey = 'cache_team_summary_$teamId';
 
     // 2. Try to load from cache immediately (Stale-while-revalidate)
-    final cachedData = await apiService.getFromCacheOnly(cacheKey);
-    if (cachedData != null && mounted) {
-      _processData(cachedData);
-      setState(() => isLoading = false);
+    if (preferCache) {
+      final cachedData = await apiService.getFromCacheOnly(cacheKey);
+      if (cachedData != null && mounted) {
+        _processData(cachedData);
+        setState(() => isLoading = false);
+      } else {
+        setState(() => isLoading = true);
+      }
     } else {
       setState(() => isLoading = true);
     }
@@ -321,7 +395,7 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
           PlayerFinancialDialog(username: username, apiService: apiService),
     ).then((_) {
       // Refresh data after dialog closes
-      _loadData();
+      _loadData(preferCache: false);
     });
   }
 
@@ -897,7 +971,7 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
                           'Offline/no cache yet. Connect once to load data.',
                           style: TextStyle(color: Colors.orange[700])))
                   : RefreshIndicator(
-                      onRefresh: _loadData,
+                      onRefresh: () => _loadData(preferCache: false),
                       child: _buildContent(),
                     ),
     );
@@ -1036,6 +1110,20 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 10),
                     ),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed:
+                        _isForceRefreshing ? null : _forceRefreshFromServer,
+                    icon: _isForceRefreshing
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.cloud_download_outlined, size: 16),
+                    label: Text(
+                        _isForceRefreshing ? 'Refreshing...' : 'Pull From DB'),
                   ),
                 ],
               ),
