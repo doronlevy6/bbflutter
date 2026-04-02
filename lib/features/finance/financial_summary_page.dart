@@ -3,7 +3,6 @@ import 'dart:ui' as ui;
 import '../../services/api_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:async';
-import '../../widgets/basketball_spinner.dart';
 import '../../pages/player_management_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
@@ -973,23 +972,46 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (accessDenied) {
+      return Scaffold(
+        body: Center(
+          child: Text('Access Denied',
+              style:
+                  TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+        ),
+      );
+    }
+
+    if (errorMessage != null && players.isEmpty) {
+      return Scaffold(
+        body: Center(
+          child: Text(
+            'Offline/no cache yet. Connect once to load data.',
+            style: TextStyle(color: Colors.orange[700]),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
-      body: isLoading
-          ? Center(child: BasketballSpinner(size: 80))
-          : accessDenied
-              ? Center(
-                  child: Text('Access Denied',
-                      style: TextStyle(
-                          color: Colors.red, fontWeight: FontWeight.bold)))
-              : errorMessage != null
-                  ? Center(
-                      child: Text(
-                          'Offline/no cache yet. Connect once to load data.',
-                          style: TextStyle(color: Colors.orange[700])))
-                  : RefreshIndicator(
-                      onRefresh: () => _loadData(preferCache: false),
-                      child: _buildContent(),
-                    ),
+      body: Stack(
+        children: [
+          RefreshIndicator(
+            onRefresh: () => _loadData(preferCache: false),
+            child: _buildContent(),
+          ),
+          if (isLoading && players.isEmpty)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: LinearProgressIndicator(
+                minHeight: 2,
+                backgroundColor: Colors.transparent,
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -1020,7 +1042,11 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   if (_isSyncing) ...[
-                    BasketballSpinner(size: 16),
+                    SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
                     SizedBox(width: 8),
                     Text('Syncing...',
                         style:
