@@ -8,6 +8,7 @@ import '../../pages/settings.dart';
 import '../../pages/playground_page.dart';
 import '../../pages/interactive_playground_page.dart';
 import '../../pages/financial_summary_page.dart';
+import '../../pages/wallet_page.dart';
 import '../../pages/scoreboard_page.dart';
 import '../../pages/draw_page.dart';
 import '../../services/api_service.dart';
@@ -434,6 +435,9 @@ class _HomePageState extends State<HomePage> {
                   final gradeTitle =
                       _isHebrew ? 'ציוני  $username ' : "$username's Grades";
                   final gradeTooltip = _isHebrew ? 'ציונים' : 'Grade Page';
+                  final walletTitle = _isHebrew ? 'הארנק שלי' : 'My Wallet';
+                  final walletTooltip =
+                      _isHebrew ? 'ארנק אישי' : 'Personal Wallet';
                   final playgroundTitle =
                       _isHebrew ? 'מגרש משחקים' : 'Playground';
                   final settingsTitle = _isHebrew ? 'הגדרות' : 'Settings';
@@ -524,6 +528,14 @@ class _HomePageState extends State<HomePage> {
                               tooltip: gradeTooltip,
                               page: GradePage(),
                               title: gradeTitle,
+                            ),
+                            _buildDrawerIcon(
+                              context,
+                              icon: Icons.account_balance_wallet,
+                              color: Colors.teal[400],
+                              tooltip: walletTooltip,
+                              page: MyWalletPage(),
+                              title: walletTitle,
                             ),
                             _buildDrawerIcon(
                               context,
