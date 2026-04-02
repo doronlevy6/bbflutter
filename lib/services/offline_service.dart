@@ -135,6 +135,12 @@ class OfflineService {
     await _saveCache(prefs, cacheKey, data);
   }
 
+  Future<void> removeCache(String cacheKey) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.remove(cacheKey);
+    await prefs.remove(_cacheMetaKey(cacheKey));
+  }
+
   /// Send write action, queue on connectivity issues. Returns payload; when queued adds `queued: true`.
   Future<Map<String, dynamic>> sendOrQueue({
     required String method,

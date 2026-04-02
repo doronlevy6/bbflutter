@@ -95,6 +95,13 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
     await prefs.setStringList(key, players);
   }
 
+  Future<void> _invalidateTeamSummaryCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    final teamId = prefs.getInt('team_id');
+    if (teamId == null) return;
+    await apiService.clearCache('cache_team_summary_$teamId');
+  }
+
   Future<void> _loadEnlistedPlayers() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final teamId = prefs.getInt('team_id');
@@ -252,6 +259,7 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
         await apiService.put('update-player-roles', {
           'roleUpdates': roleUpdates,
         });
+        await _invalidateTeamSummaryCache();
       }
 
       _showSuccess('Players enlistment and roles updated successfully!');
@@ -532,6 +540,7 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                         if (response['success']) {
                           Navigator.pop(context);
                           _showSuccess('Player added successfully');
+                          await _invalidateTeamSummaryCache();
                           await fetchPlayers();
                         } else {
                           _showError(response['message']);
@@ -683,6 +692,7 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                               ],
                             });
                           }
+                          await _invalidateTeamSummaryCache();
                           _showSuccess('Player updated successfully');
                           fetchPlayers();
                         } else {
@@ -729,6 +739,7 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
       final response = await apiService.delete('delete-player/$username');
       if (response['success']) {
         _showSuccess('Player deleted successfully');
+        await _invalidateTeamSummaryCache();
         fetchPlayers();
       } else {
         _showError(response['message']);

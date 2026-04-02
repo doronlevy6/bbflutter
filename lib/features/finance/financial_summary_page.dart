@@ -1284,7 +1284,11 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
                           : width >= 760
                               ? 4
                               : 3;
-              final childAspectRatio = width >= 1200 ? 2.75 : 2.25;
+              final childAspectRatio = width >= 1200
+                  ? 2.75
+                  : width >= 760
+                      ? 2.25
+                      : 1.9;
 
               return GridView.builder(
                 padding:
@@ -1439,6 +1443,8 @@ class _FinancialSummaryPageState extends State<FinancialSummaryPage> {
                           const SizedBox(height: 2),
                           Text(
                             lastPaymentText,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: 10.5,
                               color: Colors.grey.shade700,
