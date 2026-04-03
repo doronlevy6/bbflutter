@@ -132,6 +132,43 @@ class _CoachBoardPageState extends State<CoachBoardPage> {
       ],
     ),
     _CoachQuickPlayTemplate(
+      id: 'handoff',
+      labelHe: 'הנדאוף',
+      labelEn: 'Handoff',
+      descriptionHe:
+          '1) מוביל הכדור מכדרר לשחקן הכנף.\n2) מתבצע הנדאוף (מסירה מיד ליד בתנועה).\n3) המקבל תוקף לסל, והשחקן שמסר ממשיך פנימה.',
+      descriptionEn:
+          '1) Ball handler dribbles toward the wing.\n2) Execute a dribble handoff in motion.\n3) Receiver attacks the lane, while the giver continues inside.',
+      markers: <_CoachQuickMarker>[
+        _CoachQuickMarker(_CoachMarkerType.offense, Offset(0.50, 0.82)),
+        _CoachQuickMarker(_CoachMarkerType.offense, Offset(0.68, 0.68)),
+        _CoachQuickMarker(_CoachMarkerType.offense, Offset(0.30, 0.69)),
+        _CoachQuickMarker(_CoachMarkerType.offense, Offset(0.50, 0.56)),
+        _CoachQuickMarker(_CoachMarkerType.defense, Offset(0.50, 0.75)),
+        _CoachQuickMarker(_CoachMarkerType.defense, Offset(0.66, 0.61)),
+        _CoachQuickMarker(_CoachMarkerType.defense, Offset(0.32, 0.61)),
+        _CoachQuickMarker(_CoachMarkerType.defense, Offset(0.50, 0.47)),
+        _CoachQuickMarker(_CoachMarkerType.ball, Offset(0.50, 0.82)),
+      ],
+      strokes: <_CoachQuickStroke>[
+        _CoachQuickStroke(_CoachStrokeType.dribble, <Offset>[
+          Offset(0.50, 0.82),
+          Offset(0.56, 0.75),
+          Offset(0.60, 0.68),
+        ]),
+        _CoachQuickStroke(_CoachStrokeType.movement, <Offset>[
+          Offset(0.68, 0.68),
+          Offset(0.60, 0.68),
+          Offset(0.66, 0.52),
+        ]),
+        _CoachQuickStroke(_CoachStrokeType.movement, <Offset>[
+          Offset(0.50, 0.56),
+          Offset(0.53, 0.42),
+          Offset(0.52, 0.27),
+        ]),
+      ],
+    ),
+    _CoachQuickPlayTemplate(
       id: 'backdoor',
       labelHe: 'בק דור',
       labelEn: 'Backdoor',
