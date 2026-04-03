@@ -48,6 +48,8 @@ class _CoachBoardPageState extends State<CoachBoardPage> {
   List<Offset> _activeStrokePoints = <Offset>[];
   _CoachStrokeType? _activeStrokeType;
   bool _isRefreshing = false;
+  _CoachQuickPlayTemplate? _infoPlay;
+  Offset _infoPanelOffset = const Offset(12, 140);
 
   int? _draggingMarkerId;
   int _nextEntityId = 1;
@@ -55,6 +57,185 @@ class _CoachBoardPageState extends State<CoachBoardPage> {
   int _nextDefenseLabel = 1;
 
   static const int _maxUndoSteps = 80;
+  static const double _markerDragHitRadius = 30.0;
+  static const List<_CoachQuickPlayTemplate> _quickPlayTemplates =
+      <_CoachQuickPlayTemplate>[
+    _CoachQuickPlayTemplate(
+      id: 'give_go',
+      labelHe: 'גיב אנד גו',
+      labelEn: 'Give & Go',
+      descriptionHe:
+          '1) מוביל הכדור מוסר לאגף.\n2) מיד חותך חזק לסל.\n3) האגף מחזיר מסירה לחיתוך.',
+      descriptionEn:
+          '1) Ball handler passes to wing.\n2) Immediately cuts hard to the rim.\n3) Wing returns the pass to the cutter.',
+      markers: <_CoachQuickMarker>[
+        _CoachQuickMarker(_CoachMarkerType.offense, Offset(0.50, 0.82)),
+        _CoachQuickMarker(_CoachMarkerType.offense, Offset(0.72, 0.68)),
+        _CoachQuickMarker(_CoachMarkerType.offense, Offset(0.28, 0.68)),
+        _CoachQuickMarker(_CoachMarkerType.offense, Offset(0.50, 0.54)),
+        _CoachQuickMarker(_CoachMarkerType.defense, Offset(0.50, 0.75)),
+        _CoachQuickMarker(_CoachMarkerType.defense, Offset(0.72, 0.60)),
+        _CoachQuickMarker(_CoachMarkerType.defense, Offset(0.28, 0.60)),
+        _CoachQuickMarker(_CoachMarkerType.defense, Offset(0.50, 0.46)),
+        _CoachQuickMarker(_CoachMarkerType.ball, Offset(0.50, 0.82)),
+      ],
+      strokes: <_CoachQuickStroke>[
+        _CoachQuickStroke(_CoachStrokeType.pass, <Offset>[
+          Offset(0.50, 0.82),
+          Offset(0.72, 0.68),
+        ]),
+        _CoachQuickStroke(_CoachStrokeType.movement, <Offset>[
+          Offset(0.50, 0.82),
+          Offset(0.58, 0.63),
+          Offset(0.54, 0.23),
+        ]),
+        _CoachQuickStroke(_CoachStrokeType.movement, <Offset>[
+          Offset(0.50, 0.54),
+          Offset(0.45, 0.75),
+        ]),
+      ],
+    ),
+    _CoachQuickPlayTemplate(
+      id: 'pick_roll',
+      labelHe: 'פיק אנד רול',
+      labelEn: 'Pick & Roll',
+      descriptionHe:
+          '1) הגבוה מציב חסימה למוביל.\n2) המוביל חודר סביב החסימה.\n3) הגבוה מתגלגל לסל לקבלת מסירה.',
+      descriptionEn:
+          '1) Big sets a screen for the ball handler.\n2) Handler drives off the screen.\n3) Big rolls to the basket for a pass.',
+      markers: <_CoachQuickMarker>[
+        _CoachQuickMarker(_CoachMarkerType.offense, Offset(0.50, 0.81)),
+        _CoachQuickMarker(_CoachMarkerType.offense, Offset(0.58, 0.64)),
+        _CoachQuickMarker(_CoachMarkerType.offense, Offset(0.26, 0.71)),
+        _CoachQuickMarker(_CoachMarkerType.offense, Offset(0.76, 0.71)),
+        _CoachQuickMarker(_CoachMarkerType.defense, Offset(0.50, 0.74)),
+        _CoachQuickMarker(_CoachMarkerType.defense, Offset(0.58, 0.56)),
+        _CoachQuickMarker(_CoachMarkerType.defense, Offset(0.26, 0.64)),
+        _CoachQuickMarker(_CoachMarkerType.defense, Offset(0.76, 0.64)),
+        _CoachQuickMarker(_CoachMarkerType.ball, Offset(0.50, 0.81)),
+      ],
+      strokes: <_CoachQuickStroke>[
+        _CoachQuickStroke(_CoachStrokeType.dribble, <Offset>[
+          Offset(0.50, 0.81),
+          Offset(0.57, 0.73),
+          Offset(0.64, 0.62),
+        ]),
+        _CoachQuickStroke(_CoachStrokeType.movement, <Offset>[
+          Offset(0.58, 0.64),
+          Offset(0.54, 0.50),
+          Offset(0.52, 0.30),
+        ]),
+        _CoachQuickStroke(_CoachStrokeType.pass, <Offset>[
+          Offset(0.64, 0.62),
+          Offset(0.52, 0.30),
+        ]),
+      ],
+    ),
+    _CoachQuickPlayTemplate(
+      id: 'backdoor',
+      labelHe: 'בק דור',
+      labelEn: 'Backdoor',
+      descriptionHe:
+          '1) שחקן אגף עושה הטעיה לקבל כדור החוצה.\n2) חותך מאחורי ההגנה לסל.\n3) מוביל הכדור מוסר ללייאפ קל.',
+      descriptionEn:
+          '1) Wing fakes high to receive.\n2) Cuts backdoor behind defense.\n3) Ball handler feeds for an easy layup.',
+      markers: <_CoachQuickMarker>[
+        _CoachQuickMarker(_CoachMarkerType.offense, Offset(0.50, 0.82)),
+        _CoachQuickMarker(_CoachMarkerType.offense, Offset(0.72, 0.69)),
+        _CoachQuickMarker(_CoachMarkerType.offense, Offset(0.28, 0.69)),
+        _CoachQuickMarker(_CoachMarkerType.offense, Offset(0.50, 0.57)),
+        _CoachQuickMarker(_CoachMarkerType.defense, Offset(0.50, 0.75)),
+        _CoachQuickMarker(_CoachMarkerType.defense, Offset(0.70, 0.63)),
+        _CoachQuickMarker(_CoachMarkerType.defense, Offset(0.30, 0.62)),
+        _CoachQuickMarker(_CoachMarkerType.defense, Offset(0.50, 0.48)),
+        _CoachQuickMarker(_CoachMarkerType.ball, Offset(0.50, 0.82)),
+      ],
+      strokes: <_CoachQuickStroke>[
+        _CoachQuickStroke(_CoachStrokeType.movement, <Offset>[
+          Offset(0.72, 0.69),
+          Offset(0.62, 0.54),
+          Offset(0.54, 0.22),
+        ]),
+        _CoachQuickStroke(_CoachStrokeType.pass, <Offset>[
+          Offset(0.50, 0.82),
+          Offset(0.54, 0.22),
+        ]),
+        _CoachQuickStroke(_CoachStrokeType.dribble, <Offset>[
+          Offset(0.50, 0.82),
+          Offset(0.45, 0.77),
+        ]),
+      ],
+    ),
+    _CoachQuickPlayTemplate(
+      id: 'drive_kick',
+      labelHe: 'דרייב וקיק',
+      labelEn: 'Drive & Kick',
+      descriptionHe:
+          '1) מוביל הכדור חודר פנימה.\n2) ההגנה סוגרת עליו.\n3) מסירה החוצה לקלע הפנוי באגף.',
+      descriptionEn:
+          '1) Ball handler drives into the lane.\n2) Defense collapses.\n3) Kick out pass to the open wing shooter.',
+      markers: <_CoachQuickMarker>[
+        _CoachQuickMarker(_CoachMarkerType.offense, Offset(0.50, 0.82)),
+        _CoachQuickMarker(_CoachMarkerType.offense, Offset(0.74, 0.67)),
+        _CoachQuickMarker(_CoachMarkerType.offense, Offset(0.26, 0.67)),
+        _CoachQuickMarker(_CoachMarkerType.offense, Offset(0.46, 0.44)),
+        _CoachQuickMarker(_CoachMarkerType.defense, Offset(0.50, 0.75)),
+        _CoachQuickMarker(_CoachMarkerType.defense, Offset(0.72, 0.60)),
+        _CoachQuickMarker(_CoachMarkerType.defense, Offset(0.28, 0.60)),
+        _CoachQuickMarker(_CoachMarkerType.defense, Offset(0.50, 0.37)),
+        _CoachQuickMarker(_CoachMarkerType.ball, Offset(0.50, 0.82)),
+      ],
+      strokes: <_CoachQuickStroke>[
+        _CoachQuickStroke(_CoachStrokeType.dribble, <Offset>[
+          Offset(0.50, 0.82),
+          Offset(0.51, 0.68),
+          Offset(0.53, 0.55),
+        ]),
+        _CoachQuickStroke(_CoachStrokeType.pass, <Offset>[
+          Offset(0.53, 0.55),
+          Offset(0.74, 0.67),
+        ]),
+        _CoachQuickStroke(_CoachStrokeType.movement, <Offset>[
+          Offset(0.26, 0.67),
+          Offset(0.18, 0.56),
+        ]),
+      ],
+    ),
+    _CoachQuickPlayTemplate(
+      id: 'high_low',
+      labelHe: 'היי לו',
+      labelEn: 'High-Low',
+      descriptionHe:
+          '1) הכדור נכנס לגבוה בעמדה גבוהה.\n2) השחקן בצבע משיג מיקום עמוק.\n3) מסירה גבוהה-נמוכה לסיום ליד הטבעת.',
+      descriptionEn:
+          '1) Enter to the high post.\n2) Low player seals deep.\n3) High-to-low pass for a finish near the rim.',
+      markers: <_CoachQuickMarker>[
+        _CoachQuickMarker(_CoachMarkerType.offense, Offset(0.50, 0.82)),
+        _CoachQuickMarker(_CoachMarkerType.offense, Offset(0.50, 0.59)),
+        _CoachQuickMarker(_CoachMarkerType.offense, Offset(0.42, 0.37)),
+        _CoachQuickMarker(_CoachMarkerType.offense, Offset(0.74, 0.70)),
+        _CoachQuickMarker(_CoachMarkerType.defense, Offset(0.50, 0.75)),
+        _CoachQuickMarker(_CoachMarkerType.defense, Offset(0.50, 0.52)),
+        _CoachQuickMarker(_CoachMarkerType.defense, Offset(0.44, 0.31)),
+        _CoachQuickMarker(_CoachMarkerType.defense, Offset(0.72, 0.62)),
+        _CoachQuickMarker(_CoachMarkerType.ball, Offset(0.50, 0.82)),
+      ],
+      strokes: <_CoachQuickStroke>[
+        _CoachQuickStroke(_CoachStrokeType.pass, <Offset>[
+          Offset(0.50, 0.82),
+          Offset(0.50, 0.59),
+        ]),
+        _CoachQuickStroke(_CoachStrokeType.movement, <Offset>[
+          Offset(0.42, 0.37),
+          Offset(0.48, 0.25),
+        ]),
+        _CoachQuickStroke(_CoachStrokeType.pass, <Offset>[
+          Offset(0.50, 0.59),
+          Offset(0.48, 0.25),
+        ]),
+      ],
+    ),
+  ];
 
   @override
   void initState() {
@@ -245,7 +426,7 @@ class _CoachBoardPageState extends State<CoachBoardPage> {
       final marker = _markers[i];
       final markerPoint = _toCanvas(marker.position, size);
       final touchPoint = _toCanvas(normalizedPoint, size);
-      if ((markerPoint - touchPoint).distance <= 22) {
+      if ((markerPoint - touchPoint).distance <= _markerDragHitRadius) {
         return marker.id;
       }
     }
@@ -453,6 +634,288 @@ class _CoachBoardPageState extends State<CoachBoardPage> {
     }
   }
 
+  String _toolShortLabel(_CoachBoardTool tool) {
+    switch (tool) {
+      case _CoachBoardTool.move:
+        return _isHebrew ? 'בחירה' : 'Select';
+      case _CoachBoardTool.offenseMarker:
+        return _isHebrew ? 'התקפה' : 'Offense';
+      case _CoachBoardTool.defenseMarker:
+        return _isHebrew ? 'הגנה' : 'Defense';
+      case _CoachBoardTool.ballMarker:
+        return _isHebrew ? 'כדור' : 'Ball';
+      case _CoachBoardTool.movementArrow:
+        return _isHebrew ? 'ריצה' : 'Cut';
+      case _CoachBoardTool.passArrow:
+        return _isHebrew ? 'מסירה' : 'Pass';
+      case _CoachBoardTool.dribbleArrow:
+        return _isHebrew ? 'כדרור' : 'Dribble';
+      case _CoachBoardTool.eraser:
+        return _isHebrew ? 'מחק' : 'Erase';
+    }
+  }
+
+  String _quickPlayLabel(_CoachQuickPlayTemplate play) {
+    // Play names are always shown in English for consistency.
+    return play.labelEn;
+  }
+
+  String _quickPlayDescription(_CoachQuickPlayTemplate play) {
+    return _isHebrew ? play.descriptionHe : play.descriptionEn;
+  }
+
+  double _infoPanelWidth(Size viewport) {
+    return (viewport.width * 0.56).clamp(220.0, 330.0);
+  }
+
+  double _infoPanelHeight(Size viewport) {
+    return (viewport.height * 0.34).clamp(160.0, 250.0);
+  }
+
+  Offset _clampInfoPanelOffset(Offset offset, Size viewport) {
+    final panelWidth = _infoPanelWidth(viewport);
+    final panelHeight = _infoPanelHeight(viewport);
+    const minX = 8.0;
+    const minY = 90.0;
+    final maxX = math.max(minX, viewport.width - panelWidth - 8);
+    final maxY = math.max(minY, viewport.height - panelHeight - 8);
+    return Offset(
+      offset.dx.clamp(minX, maxX),
+      offset.dy.clamp(minY, maxY),
+    );
+  }
+
+  void _openQuickPlayInfo(_CoachQuickPlayTemplate play) {
+    final viewport = MediaQuery.sizeOf(context);
+    final panelWidth = _infoPanelWidth(viewport);
+    final defaultOffset = Offset(viewport.width - panelWidth - 10, 128);
+    final baseOffset = _infoPlay == null ? defaultOffset : _infoPanelOffset;
+    setState(() {
+      _infoPlay = play;
+      _infoPanelOffset = _clampInfoPanelOffset(baseOffset, viewport);
+    });
+  }
+
+  Widget _buildQuickPlayInfoPanel(Size viewport) {
+    final play = _infoPlay;
+    if (play == null) {
+      return const SizedBox.shrink();
+    }
+
+    final panelWidth = _infoPanelWidth(viewport);
+    final panelHeight = _infoPanelHeight(viewport);
+    final panelOffset = _clampInfoPanelOffset(_infoPanelOffset, viewport);
+    final textDirection = _isHebrew ? TextDirection.rtl : TextDirection.ltr;
+
+    return Positioned(
+      left: panelOffset.dx,
+      top: panelOffset.dy,
+      child: SizedBox(
+        width: panelWidth,
+        height: panelHeight,
+        child: Directionality(
+          textDirection: textDirection,
+          child: Material(
+            elevation: 10,
+            borderRadius: BorderRadius.circular(14),
+            color: Colors.white.withValues(alpha: 0.96),
+            child: Column(
+              children: [
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onPanStart: (_) {},
+                  onPanUpdate: (details) {
+                    setState(() {
+                      _infoPanelOffset = _clampInfoPanelOffset(
+                        _infoPanelOffset + details.delta,
+                        viewport,
+                      );
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: const BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(color: Color(0xFFE0E6EE)),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.drag_indicator, size: 18, color: Colors.black54),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            _quickPlayLabel(play),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _isHebrew ? 'גרור' : 'Drag',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: Colors.grey.shade700,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () {
+                            setState(() {
+                              _infoPlay = null;
+                            });
+                          },
+                          icon: const Icon(Icons.close, size: 18),
+                          tooltip: _isHebrew ? 'סגור הסבר' : 'Close info',
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                    child: Text(
+                      _quickPlayDescription(play),
+                      style: const TextStyle(fontSize: 13, height: 1.4),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _applyQuickPlay(_CoachQuickPlayTemplate play) {
+    if (_markers.isNotEmpty || _strokes.isNotEmpty) {
+      _pushSnapshotForUndo();
+    }
+
+    int offenseLabel = 1;
+    int defenseLabel = 1;
+    final markers = <_CoachMarker>[];
+    final strokes = <_CoachStroke>[];
+
+    for (final marker in play.markers) {
+      String label = '';
+      if (marker.type == _CoachMarkerType.offense) {
+        label = '${offenseLabel++}';
+      } else if (marker.type == _CoachMarkerType.defense) {
+        label = '${defenseLabel++}';
+      }
+
+      markers.add(
+        _CoachMarker(
+          id: markers.length + 1,
+          type: marker.type,
+          position: _safeMarkerPosition(marker.position),
+          label: label,
+        ),
+      );
+    }
+
+    for (final stroke in play.strokes) {
+      if (stroke.points.length < 2) continue;
+      strokes.add(
+        _CoachStroke(
+          id: markers.length + strokes.length + 1,
+          type: stroke.type,
+          points: stroke.points
+              .map((point) => _safeMarkerPosition(point))
+              .toList(growable: false),
+        ),
+      );
+    }
+
+    setState(() {
+      _markers
+        ..clear()
+        ..addAll(markers);
+      _strokes
+        ..clear()
+        ..addAll(strokes);
+      _activeStrokePoints = <Offset>[];
+      _activeStrokeType = null;
+      _draggingMarkerId = null;
+      _selectedTool = _CoachBoardTool.move;
+      _nextEntityId = markers.length + strokes.length + 1;
+      _nextOffenseLabel = offenseLabel;
+      _nextDefenseLabel = defenseLabel;
+    });
+
+    final text = _isHebrew
+        ? 'נטען תרגיל: ${play.labelEn}'
+        : 'Loaded play: ${play.labelEn}';
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(text),
+          duration: const Duration(milliseconds: 1200),
+        ),
+      );
+  }
+
+  Widget _buildQuickPlayButton(_CoachQuickPlayTemplate play) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFDCE0E5)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () => _applyQuickPlay(play),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.playlist_add_check, size: 16),
+                    const SizedBox(width: 6),
+                    Text(
+                      _quickPlayLabel(play),
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 2),
+            Tooltip(
+              message: _isHebrew ? 'הסבר לתרגיל' : 'Play explanation',
+              child: InkWell(
+                borderRadius: BorderRadius.circular(999),
+                onTap: () => _openQuickPlayInfo(play),
+                child: const Padding(
+                  padding: EdgeInsets.all(6),
+                  child: Icon(Icons.info_outline, size: 17),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   IconData _toolIcon(_CoachBoardTool tool) {
     switch (tool) {
       case _CoachBoardTool.move:
@@ -512,8 +975,9 @@ class _CoachBoardPageState extends State<CoachBoardPage> {
             });
           },
           child: Container(
-            width: 52,
-            height: 52,
+            width: 102,
+            height: 44,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
@@ -521,10 +985,28 @@ class _CoachBoardPageState extends State<CoachBoardPage> {
                 width: selected ? 2 : 1,
               ),
             ),
-            child: Icon(
-              _toolIcon(tool),
-              color: color,
-              size: 24,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  _toolIcon(tool),
+                  color: color,
+                  size: 19,
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    _toolShortLabel(tool),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -581,10 +1063,27 @@ class _CoachBoardPageState extends State<CoachBoardPage> {
           ),
           const SizedBox(height: 8),
           SizedBox(
-            height: 60,
+            height: 52,
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: _CoachBoardTool.values.map(_buildToolButton).toList(),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _isHebrew ? 'תרגילים 4x4 מהירים' : 'Quick 4x4 Plays',
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: Colors.grey.shade800,
+            ),
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 38,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: _quickPlayTemplates.map(_buildQuickPlayButton).toList(),
             ),
           ),
           const SizedBox(height: 6),
@@ -681,29 +1180,39 @@ class _CoachBoardPageState extends State<CoachBoardPage> {
   }
 
   Widget _buildBody() {
-    return Column(
-      children: [
-        _buildTopControls(),
-        Expanded(
-          child: Container(
-            margin: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFCCD7E5), width: 1.5),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final viewport = constraints.biggest;
+        return Stack(
+          children: [
+            Column(
+              children: [
+                _buildTopControls(),
+                Expanded(
+                  child: Container(
+                    margin: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFCCD7E5), width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: _buildBoardCanvas(),
+                  ),
                 ),
+                _buildBottomActions(),
               ],
             ),
-            clipBehavior: Clip.antiAlias,
-            child: _buildBoardCanvas(),
-          ),
-        ),
-        _buildBottomActions(),
-      ],
+            _buildQuickPlayInfoPanel(viewport),
+          ],
+        );
+      },
     );
   }
 
@@ -1101,11 +1610,8 @@ class _CoachBoardPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _CoachBoardPainter oldDelegate) {
-    return oldDelegate.markers != markers ||
-        oldDelegate.strokes != strokes ||
-        oldDelegate.activeStrokePoints != activeStrokePoints ||
-        oldDelegate.activeStrokeType != activeStrokeType ||
-        oldDelegate.isHebrew != isHebrew;
+    // Keep canvas updates reliable even when lists are mutated in-place.
+    return true;
   }
 }
 
@@ -1192,5 +1698,39 @@ class _CoachBoardBundle {
     required this.nextEntityId,
     required this.nextOffenseLabel,
     required this.nextDefenseLabel,
+  });
+}
+
+class _CoachQuickMarker {
+  final _CoachMarkerType type;
+  final Offset position;
+
+  const _CoachQuickMarker(this.type, this.position);
+}
+
+class _CoachQuickStroke {
+  final _CoachStrokeType type;
+  final List<Offset> points;
+
+  const _CoachQuickStroke(this.type, this.points);
+}
+
+class _CoachQuickPlayTemplate {
+  final String id;
+  final String labelHe;
+  final String labelEn;
+  final String descriptionHe;
+  final String descriptionEn;
+  final List<_CoachQuickMarker> markers;
+  final List<_CoachQuickStroke> strokes;
+
+  const _CoachQuickPlayTemplate({
+    required this.id,
+    required this.labelHe,
+    required this.labelEn,
+    required this.descriptionHe,
+    required this.descriptionEn,
+    required this.markers,
+    required this.strokes,
   });
 }
