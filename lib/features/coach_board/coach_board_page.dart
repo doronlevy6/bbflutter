@@ -36,6 +36,14 @@ class CoachBoardPage extends StatefulWidget {
 }
 
 class _CoachBoardPageState extends State<CoachBoardPage> {
+  static const List<String> _hebrewFontFallback = <String>[
+    'Arial',
+    'Arial Hebrew',
+    'Helvetica',
+    'Noto Sans Hebrew',
+    'sans-serif',
+  ];
+
   bool _isHebrew = true;
   bool _isLoading = true;
 
@@ -798,6 +806,8 @@ class _CoachBoardPageState extends State<CoachBoardPage> {
                             fontSize: 11.5,
                             color: Colors.grey.shade700,
                             fontWeight: FontWeight.w700,
+                            fontFamilyFallback:
+                                _isHebrew ? _hebrewFontFallback : null,
                           ),
                         ),
                         IconButton(
@@ -819,7 +829,12 @@ class _CoachBoardPageState extends State<CoachBoardPage> {
                     padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
                     child: Text(
                       _quickPlayDescription(play),
-                      style: const TextStyle(fontSize: 13, height: 1.4),
+                      style: TextStyle(
+                        fontSize: 13,
+                        height: 1.4,
+                        fontFamilyFallback:
+                            _isHebrew ? _hebrewFontFallback : null,
+                      ),
                     ),
                   ),
                 ),
@@ -1220,7 +1235,7 @@ class _CoachBoardPageState extends State<CoachBoardPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final viewport = constraints.biggest;
-        return Stack(
+        final body = Stack(
           children: [
             Column(
               children: [
@@ -1248,6 +1263,17 @@ class _CoachBoardPageState extends State<CoachBoardPage> {
             ),
             _buildQuickPlayInfoPanel(viewport),
           ],
+        );
+
+        if (!_isHebrew) {
+          return body;
+        }
+        return DefaultTextStyle.merge(
+          style: const TextStyle(
+            fontFamily: 'Arial',
+            fontFamilyFallback: _hebrewFontFallback,
+          ),
+          child: body,
         );
       },
     );
@@ -1284,6 +1310,14 @@ class _CoachBoardPageState extends State<CoachBoardPage> {
 }
 
 class _CoachBoardPainter extends CustomPainter {
+  static const List<String> _hebrewFontFallback = <String>[
+    'Arial',
+    'Arial Hebrew',
+    'Helvetica',
+    'Noto Sans Hebrew',
+    'sans-serif',
+  ];
+
   final List<_CoachMarker> markers;
   final List<_CoachStroke> strokes;
   final List<Offset> activeStrokePoints;
@@ -1623,6 +1657,7 @@ class _CoachBoardPainter extends CustomPainter {
           fontSize: 11.5,
           color: Colors.white.withValues(alpha: 0.88),
           fontWeight: FontWeight.w600,
+          fontFamilyFallback: isHebrew ? _hebrewFontFallback : null,
         ),
       ),
       textDirection: TextDirection.ltr,
