@@ -11,6 +11,7 @@ import '../../pages/financial_summary_page.dart';
 import '../../pages/wallet_page.dart';
 import '../../pages/scoreboard_page.dart';
 import '../../pages/draw_page.dart';
+import '../../pages/coach_board_page.dart';
 import '../../services/api_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:responsive_builder/responsive_builder.dart';
@@ -23,10 +24,12 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   // Default page and title in English
   Widget _currentPage = WelcomePage();
+  String _currentUsername = 'Guest';
   String _appBarTitle = 'Teams and Averages';
   bool _isHebrew = false;
   bool _isAdmin = false;
   final ApiService _apiService = ApiService();
+  static const String _lastPageKeyPref = 'home_last_page_key_v1';
   // Fallback only. Workspace tasks and GitHub Pages deploy pass APP_ENV explicitly.
   static const String _appEnv =
       String.fromEnvironment('APP_ENV', defaultValue: 'PROD');
@@ -37,28 +40,110 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _loadLanguage();
-    _loadAdminStatus();
+    _initializeHomeState();
   }
 
-  // Load the language setting from SharedPreferences using key 'isHebrew'
-  void _loadLanguage() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    bool isHebrew = prefs.getBool('isHebrew') ?? false;
+  Future<void> _initializeHomeState() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isHebrew = prefs.getBool('isHebrew') ?? false;
+    final isAdmin = prefs.getBool('is_admin') ?? false;
+    final username = prefs.getString('user') ?? 'Guest';
+    final savedPage = prefs.getString(_lastPageKeyPref) ?? 'welcome';
+
+    if (!mounted) return;
     setState(() {
       _isHebrew = isHebrew;
-      // Update AppBar title based on the language
-      _appBarTitle = _isHebrew ? 'רשימת נרשמים' : 'enlisted playres';
+      _isAdmin = isAdmin;
+      _currentUsername = username;
     });
+    await _setPage(savedPage, persist: false);
   }
 
-  // Load admin status from SharedPreferences
-  void _loadAdminStatus() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    bool isAdmin = prefs.getBool('is_admin') ?? false;
+  String _normalizePageKey(String pageKey) {
+    const adminOnlyPages = <String>{
+      'player_management',
+      'financial_summary',
+      'settings',
+    };
+    if (!_isAdmin && adminOnlyPages.contains(pageKey)) {
+      return 'welcome';
+    }
+    return pageKey;
+  }
+
+  Widget _pageForKey(String pageKey) {
+    switch (pageKey) {
+      case 'login':
+        return LoginPage();
+      case 'grade':
+        return GradePage();
+      case 'wallet':
+        return MyWalletPage();
+      case 'playground':
+        return PlayGround();
+      case 'interactive_builder':
+        return InteractivePlaygroundPage();
+      case 'scoreboard':
+        return ScoreboardPage();
+      case 'player_management':
+        return PlayerManagementPage();
+      case 'financial_summary':
+        return FinancialSummaryPage();
+      case 'settings':
+        return SettingsPage();
+      case 'coach_board':
+        return CoachBoardPage();
+      case 'draw':
+        return DrawPage();
+      case 'welcome':
+      default:
+        return WelcomePage();
+    }
+  }
+
+  String _titleForPageKey(String pageKey) {
+    switch (pageKey) {
+      case 'login':
+        return _isHebrew ? 'התחברות/רישום' : 'Login';
+      case 'grade':
+        return _isHebrew
+            ? 'ציוני  $_currentUsername '
+            : "$_currentUsername's Grades";
+      case 'wallet':
+        return _isHebrew ? 'הארנק שלי' : 'My Wallet';
+      case 'playground':
+        return _isHebrew ? 'מגרש משחקים' : 'Playground';
+      case 'interactive_builder':
+        return _isHebrew ? 'בנייה אינטראקטיבית' : 'Interactive Builder';
+      case 'scoreboard':
+        return _isHebrew ? 'סקורבורד' : 'Scoreboard';
+      case 'player_management':
+        return _isHebrew ? 'ניהול שחקנים' : 'Player Management';
+      case 'financial_summary':
+        return _isHebrew ? 'סיכום פיננסי' : 'Financial Summary';
+      case 'settings':
+        return _isHebrew ? 'הגדרות' : 'Settings';
+      case 'coach_board':
+        return _isHebrew ? 'לוח מאמן' : 'Coach Board';
+      case 'draw':
+        return _isHebrew ? 'הגרלה' : 'Draw';
+      case 'welcome':
+      default:
+        return _isHebrew ? 'רשימת נרשמים' : 'enlisted playres';
+    }
+  }
+
+  Future<void> _setPage(String pageKey, {bool persist = true}) async {
+    final normalized = _normalizePageKey(pageKey);
+    if (!mounted) return;
     setState(() {
-      _isAdmin = isAdmin;
+      _currentPage = _pageForKey(normalized);
+      _appBarTitle = _titleForPageKey(normalized);
     });
+    if (persist) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_lastPageKeyPref, normalized);
+    }
   }
 
   // Get user information (username and email) from SharedPreferences
@@ -296,7 +381,7 @@ class _HomePageState extends State<HomePage> {
     required IconData icon,
     required Color? color,
     required String tooltip,
-    required Widget page,
+    required String pageKey,
     required String title,
   }) {
     return Tooltip(
@@ -304,10 +389,7 @@ class _HomePageState extends State<HomePage> {
       child: InkWell(
         onTap: () {
           Navigator.pop(context); // Close the drawer
-          setState(() {
-            _currentPage = page;
-            _appBarTitle = title;
-          });
+          _setPage(pageKey);
         },
         child: Container(
           padding: EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
@@ -444,6 +526,10 @@ class _HomePageState extends State<HomePage> {
                   final drawTitle = _isHebrew ? 'הגרלה' : 'Draw';
                   final drawTooltip =
                       _isHebrew ? 'הגרלת כדורסל' : 'Basketball Draw';
+                  final coachBoardTitle =
+                      _isHebrew ? 'לוח מאמן' : 'Coach Board';
+                  final coachBoardTooltip =
+                      _isHebrew ? 'לוח טקטי לתרגילים' : 'Tactical Coach Board';
                   final logoutTitle = _isHebrew ? 'התנתק' : 'Logout';
                   final resetTitle = _isHebrew
                       ? 'איפוס נתונים מקומיים (דיבוג)'
@@ -510,7 +596,7 @@ class _HomePageState extends State<HomePage> {
                               icon: Icons.login,
                               color: Colors.blue[300],
                               tooltip: loginTooltip,
-                              page: LoginPage(),
+                              pageKey: 'login',
                               title: loginTitle,
                             ),
                             _buildDrawerIcon(
@@ -518,7 +604,7 @@ class _HomePageState extends State<HomePage> {
                               icon: Icons.home,
                               color: Colors.green[300],
                               tooltip: homeTitle,
-                              page: WelcomePage(),
+                              pageKey: 'welcome',
                               title: homeTitle,
                             ),
                             _buildDrawerIcon(
@@ -526,7 +612,7 @@ class _HomePageState extends State<HomePage> {
                               icon: Icons.grade,
                               color: Colors.orange[300],
                               tooltip: gradeTooltip,
-                              page: GradePage(),
+                              pageKey: 'grade',
                               title: gradeTitle,
                             ),
                             _buildDrawerIcon(
@@ -534,7 +620,7 @@ class _HomePageState extends State<HomePage> {
                               icon: Icons.account_balance_wallet,
                               color: Colors.teal[400],
                               tooltip: walletTooltip,
-                              page: MyWalletPage(),
+                              pageKey: 'wallet',
                               title: walletTitle,
                             ),
                             _buildDrawerIcon(
@@ -542,7 +628,7 @@ class _HomePageState extends State<HomePage> {
                               icon: Icons.group,
                               color: Colors.teal[300],
                               tooltip: playgroundTitle,
-                              page: PlayGround(),
+                              pageKey: 'playground',
                               title: playgroundTitle,
                             ),
                             _buildDrawerIcon(
@@ -552,7 +638,7 @@ class _HomePageState extends State<HomePage> {
                               tooltip: _isHebrew
                                   ? 'בנייה אינטראקטיבית'
                                   : 'Interactive Builder',
-                              page: InteractivePlaygroundPage(),
+                              pageKey: 'interactive_builder',
                               title: _isHebrew
                                   ? 'בנייה אינטראקטיבית'
                                   : 'Interactive Builder',
@@ -562,7 +648,7 @@ class _HomePageState extends State<HomePage> {
                               icon: Icons.sports_basketball,
                               color: Colors.orange[400],
                               tooltip: _isHebrew ? 'סקורבורד' : 'Scoreboard',
-                              page: ScoreboardPage(),
+                              pageKey: 'scoreboard',
                               title: _isHebrew ? 'סקורבורד' : 'Scoreboard',
                             ),
                             // ADMIN SECTION - at the bottom
@@ -575,7 +661,7 @@ class _HomePageState extends State<HomePage> {
                                 tooltip: _isHebrew
                                     ? 'ניהול שחקנים'
                                     : 'Player Management',
-                                page: PlayerManagementPage(),
+                                pageKey: 'player_management',
                                 title: _isHebrew
                                     ? 'ניהול שחקנים'
                                     : 'Player Management',
@@ -588,7 +674,7 @@ class _HomePageState extends State<HomePage> {
                                 tooltip: _isHebrew
                                     ? 'סיכום פיננסי'
                                     : 'Financial Summary',
-                                page: FinancialSummaryPage(),
+                                pageKey: 'financial_summary',
                                 title: _isHebrew
                                     ? 'סיכום פיננסי'
                                     : 'Financial Summary',
@@ -599,15 +685,23 @@ class _HomePageState extends State<HomePage> {
                                 icon: Icons.settings,
                                 color: Colors.grey[600],
                                 tooltip: settingsTitle,
-                                page: SettingsPage(),
+                                pageKey: 'settings',
                                 title: settingsTitle,
                               ),
+                            _buildDrawerIcon(
+                              context,
+                              icon: Icons.co_present,
+                              color: Colors.blueGrey[500],
+                              tooltip: coachBoardTooltip,
+                              pageKey: 'coach_board',
+                              title: coachBoardTitle,
+                            ),
                             _buildDrawerIcon(
                               context,
                               icon: Icons.casino,
                               color: Colors.amber[700],
                               tooltip: drawTooltip,
-                              page: DrawPage(),
+                              pageKey: 'draw',
                               title: drawTitle,
                             ),
                           ],
