@@ -65,7 +65,7 @@ class _CoachBoardPageState extends State<CoachBoardPage> {
   int _nextDefenseLabel = 1;
 
   static const int _maxUndoSteps = 80;
-  static const double _markerDragHitRadius = 30.0;
+  static const double _markerDragHitRadius = 34.0;
   static const List<_CoachQuickPlayTemplate> _quickPlayTemplates =
       <_CoachQuickPlayTemplate>[
     _CoachQuickPlayTemplate(
@@ -1010,52 +1010,59 @@ class _CoachBoardPageState extends State<CoachBoardPage> {
     }
   }
 
-  Widget _buildToolButton(_CoachBoardTool tool) {
+  Widget _buildToolButton(_CoachBoardTool tool, {double? width}) {
     final selected = _selectedTool == tool;
     final color = _toolColor(tool);
+    final buttonWidth = width ?? 82.0;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
       child: Material(
-        color: selected ? color.withValues(alpha: 0.15) : Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        color: selected ? color.withValues(alpha: 0.12) : Colors.white,
+        borderRadius: BorderRadius.circular(10),
         child: InkWell(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           onTap: () {
             setState(() {
               _selectedTool = tool;
             });
           },
-          child: Container(
-            width: 102,
-            height: 44,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: selected ? color : const Color(0xFFDCE0E5),
-                width: selected ? 2 : 1,
-              ),
-            ),
-            child: Row(
+          child: SizedBox(
+            width: buttonWidth,
+            height: 58,
+            child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  _toolIcon(tool),
-                  color: color,
-                  size: 19,
-                ),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    _toolShortLabel(tool),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w700,
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? color.withValues(alpha: 0.2)
+                        : const Color(0xFFF3F5F8),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: selected ? color : const Color(0xFFDCE0E5),
+                      width: selected ? 1.8 : 1,
                     ),
+                  ),
+                  child: Icon(
+                    _toolIcon(tool),
+                    color: color,
+                    size: 17,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  _toolShortLabel(tool),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    fontFamilyFallback: _isHebrew ? _hebrewFontFallback : null,
                   ),
                 ),
               ],
@@ -1063,6 +1070,29 @@ class _CoachBoardPageState extends State<CoachBoardPage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildToolsGrid() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const columns = 4;
+        const spacing = 6.0;
+        final totalSpacing = spacing * (columns - 1);
+        final available = (constraints.maxWidth - totalSpacing).clamp(220.0, 900.0);
+        final itemWidth = (available / columns).clamp(66.0, 96.0);
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: 4,
+          children: _CoachBoardTool.values
+              .map((tool) => SizedBox(
+                    width: itemWidth,
+                    child: _buildToolButton(tool, width: itemWidth),
+                  ))
+              .toList(),
+        );
+      },
     );
   }
 
@@ -1114,13 +1144,7 @@ class _CoachBoardPageState extends State<CoachBoardPage> {
             ],
           ),
           const SizedBox(height: 8),
-          SizedBox(
-            height: 52,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: _CoachBoardTool.values.map(_buildToolButton).toList(),
-            ),
-          ),
+          _buildToolsGrid(),
           const SizedBox(height: 8),
           Text(
             _isHebrew ? 'תרגילים 4x4 מהירים' : 'Quick 4x4 Plays',
@@ -1623,8 +1647,8 @@ class _CoachBoardPainter extends CustomPainter {
       ..color = Colors.white
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.2;
-    canvas.drawCircle(center, 16, fill);
-    canvas.drawCircle(center, 16, border);
+    canvas.drawCircle(center, 18, fill);
+    canvas.drawCircle(center, 18, border);
 
     final prefix = marker.type == _CoachMarkerType.offense ? 'O' : 'X';
     final text = '$prefix${marker.label}';
@@ -1634,7 +1658,7 @@ class _CoachBoardPainter extends CustomPainter {
         style: const TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.w800,
-          fontSize: 12,
+          fontSize: 12.5,
         ),
       ),
       textDirection: TextDirection.ltr,
