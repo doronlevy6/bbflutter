@@ -65,7 +65,7 @@ class _CoachBoardPageState extends State<CoachBoardPage> {
   int _nextDefenseLabel = 1;
 
   static const int _maxUndoSteps = 80;
-  static const double _markerDragHitRadius = 34.0;
+  static const double _markerDragHitRadius = 44.0;
   static const List<_CoachQuickPlayTemplate> _quickPlayTemplates =
       <_CoachQuickPlayTemplate>[
     _CoachQuickPlayTemplate(
@@ -1647,8 +1647,8 @@ class _CoachBoardPainter extends CustomPainter {
       ..color = Colors.white
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.2;
-    canvas.drawCircle(center, 18, fill);
-    canvas.drawCircle(center, 18, border);
+    canvas.drawCircle(center, 23.5, fill);
+    canvas.drawCircle(center, 23.5, border);
 
     final prefix = marker.type == _CoachMarkerType.offense ? 'O' : 'X';
     final text = '$prefix${marker.label}';
