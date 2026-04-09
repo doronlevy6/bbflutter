@@ -96,6 +96,8 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
     if (teamId != null) {
       await prefs.setStringList('${kEnlistedPlayersKey}_$teamId', players);
     }
+    // Keep Interactive Builder in sync immediately after manager update.
+    await prefs.setStringList('interactive_selection', players);
   }
 
   Future<void> _invalidateTeamSummaryCache() async {
