@@ -155,7 +155,13 @@ class _PlayGroundState extends State<PlayGround> {
   // Load enlisted players from SharedPreferences and select them (limited to first 12)
   Future<void> _loadEnlistedPlayers() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String>? enlistedPlayerUsernames = prefs.getStringList(kEnlistedPlayersKey);
+    final teamId = prefs.getInt('team_id');
+    List<String>? enlistedPlayerUsernames;
+    if (teamId != null) {
+      enlistedPlayerUsernames =
+          prefs.getStringList('${kEnlistedPlayersKey}_$teamId');
+    }
+    enlistedPlayerUsernames ??= prefs.getStringList(kEnlistedPlayersKey);
     if (enlistedPlayerUsernames != null && enlistedPlayerUsernames.isNotEmpty) {
       List<String> limitedEnlisted = enlistedPlayerUsernames.length > 12
           ? enlistedPlayerUsernames.take(12).toList()

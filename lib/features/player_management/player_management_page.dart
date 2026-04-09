@@ -90,9 +90,12 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
   Future<void> _saveEnlistedPlayers(List<String> players) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final teamId = prefs.getInt('team_id');
-    final key =
-        teamId == null ? kEnlistedPlayersKey : '${kEnlistedPlayersKey}_$teamId';
-    await prefs.setStringList(key, players);
+    // Keep legacy/global key for pages that still read it,
+    // and team-scoped key for correct multi-team isolation.
+    await prefs.setStringList(kEnlistedPlayersKey, players);
+    if (teamId != null) {
+      await prefs.setStringList('${kEnlistedPlayersKey}_$teamId', players);
+    }
   }
 
   Future<void> _invalidateTeamSummaryCache() async {
@@ -1866,196 +1869,204 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
           Container(
             padding: EdgeInsets.all(16),
             color: Colors.green[700]?.withOpacity(0.9),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isNarrow = constraints.maxWidth < 980;
+                final sortButtonLabel = isNarrow ? 'Sort' : _sortLabel();
+                final filterButtonLabel = isNarrow ? 'Role' : roleFilterLabel;
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20)),
-                      child: Text('Playing: ${selectedUsernames.length}',
-                          style: TextStyle(
-                              color: Colors.green[800],
-                              fontWeight: FontWeight.bold)),
-                    ),
-                    SizedBox(width: 8),
-                    Container(
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                          color: Colors.amber[600],
-                          borderRadius: BorderRadius.circular(20)),
-                      child: Text('Show: $visibleCount/$totalCount',
-                          style: TextStyle(
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        Container(
+                          padding:
+                              EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
                               color: Colors.white,
-                              fontWeight: FontWeight.bold)),
-                    ),
-                  ],
-                ),
-                Wrap(
-                  spacing: 4,
-                  runSpacing: 4,
-                  children: [
-                    PopupMenuButton<PlayerSortMode>(
-                      tooltip: 'Sort Players',
-                      onSelected: (mode) {
-                        setState(() {
-                          _sortMode = mode;
-                          _sortPlayersInternal();
-                        });
-                      },
-                      itemBuilder: (context) => [
-                        PopupMenuItem(
-                          value: PlayerSortMode.nameAsc,
-                          child: Text('Name A-Z'),
+                              borderRadius: BorderRadius.circular(20)),
+                          child: Text('Playing: ${selectedUsernames.length}',
+                              style: TextStyle(
+                                  color: Colors.green[800],
+                                  fontWeight: FontWeight.bold)),
                         ),
-                        PopupMenuItem(
-                          value: PlayerSortMode.nameDesc,
-                          child: Text('Name Z-A'),
-                        ),
-                        PopupMenuItem(
-                          value: PlayerSortMode.enlistedFirst,
-                          child: Text('Enlisted First'),
-                        ),
-                        PopupMenuItem(
-                          value: PlayerSortMode.notEnlistedFirst,
-                          child: Text('Not Enlisted First'),
-                        ),
-                        PopupMenuItem(
-                          value: PlayerSortMode.managerFirst,
-                          child: Text('Managers First'),
-                        ),
-                        PopupMenuItem(
-                          value: PlayerSortMode.guestFirst,
-                          child: Text('Guests First'),
+                        Container(
+                          padding:
+                              EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                              color: Colors.amber[600],
+                              borderRadius: BorderRadius.circular(20)),
+                          child: Text('Show: $visibleCount/$totalCount',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold)),
                         ),
                       ],
-                      child: Container(
-                        padding:
-                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.white54),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.sort, color: Colors.white, size: 18),
-                            SizedBox(width: 6),
-                            Text(
-                              _sortLabel(),
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12,
-                              ),
-                            ),
-                            SizedBox(width: 4),
-                            Icon(Icons.arrow_drop_down, color: Colors.white),
-                          ],
-                        ),
-                      ),
                     ),
-                    PopupMenuButton<PlayerRoleFilter>(
-                      tooltip: 'Role Filter',
-                      onSelected: (mode) {
-                        setState(() {
-                          _roleFilter = mode;
-                        });
-                      },
-                      itemBuilder: (context) => const [
-                        PopupMenuItem(
-                          value: PlayerRoleFilter.all,
-                          child: Text('All Roles'),
+                    SizedBox(height: 10),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        PopupMenuButton<PlayerSortMode>(
+                          tooltip: 'Sort Players',
+                          onSelected: (mode) {
+                            setState(() {
+                              _sortMode = mode;
+                              _sortPlayersInternal();
+                            });
+                          },
+                          itemBuilder: (context) => [
+                            PopupMenuItem(
+                              value: PlayerSortMode.nameAsc,
+                              child: Text('Name A-Z'),
+                            ),
+                            PopupMenuItem(
+                              value: PlayerSortMode.nameDesc,
+                              child: Text('Name Z-A'),
+                            ),
+                            PopupMenuItem(
+                              value: PlayerSortMode.enlistedFirst,
+                              child: Text('Enlisted First'),
+                            ),
+                            PopupMenuItem(
+                              value: PlayerSortMode.notEnlistedFirst,
+                              child: Text('Not Enlisted First'),
+                            ),
+                            PopupMenuItem(
+                              value: PlayerSortMode.managerFirst,
+                              child: Text('Managers First'),
+                            ),
+                            PopupMenuItem(
+                              value: PlayerSortMode.guestFirst,
+                              child: Text('Guests First'),
+                            ),
+                          ],
+                          child: Container(
+                            padding:
+                                EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.white54),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.sort, color: Colors.white, size: 18),
+                                SizedBox(width: 6),
+                                Text(
+                                  sortButtonLabel,
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                SizedBox(width: 4),
+                                Icon(Icons.arrow_drop_down, color: Colors.white),
+                              ],
+                            ),
+                          ),
                         ),
-                        PopupMenuItem(
-                          value: PlayerRoleFilter.noGuests,
-                          child: Text('Hide Guests'),
+                        PopupMenuButton<PlayerRoleFilter>(
+                          tooltip: 'Role Filter',
+                          onSelected: (mode) {
+                            setState(() {
+                              _roleFilter = mode;
+                            });
+                          },
+                          itemBuilder: (context) => const [
+                            PopupMenuItem(
+                              value: PlayerRoleFilter.all,
+                              child: Text('All Roles'),
+                            ),
+                            PopupMenuItem(
+                              value: PlayerRoleFilter.noGuests,
+                              child: Text('Hide Guests'),
+                            ),
+                            PopupMenuItem(
+                              value: PlayerRoleFilter.guestsOnly,
+                              child: Text('Guests Only'),
+                            ),
+                          ],
+                          child: Container(
+                            padding:
+                                EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.white54),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.filter_alt_outlined,
+                                    color: Colors.white, size: 18),
+                                SizedBox(width: 6),
+                                Text(
+                                  filterButtonLabel,
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                SizedBox(width: 4),
+                                Icon(Icons.arrow_drop_down, color: Colors.white),
+                              ],
+                            ),
+                          ),
                         ),
-                        PopupMenuItem(
-                          value: PlayerRoleFilter.guestsOnly,
-                          child: Text('Guests Only'),
+                        ElevatedButton.icon(
+                          onPressed: _toggleSelectAllVisible,
+                          icon: Icon(
+                            allVisibleSelected
+                                ? Icons.deselect_outlined
+                                : Icons.select_all,
+                          ),
+                          label: Text(
+                              allVisibleSelected ? 'Deselect All' : 'Select All'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.teal[700],
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: _addPlayer,
+                          icon: Icon(Icons.person_add),
+                          label: Text('Add Player'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.deepPurple[700],
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: _showSaveGameDialog,
+                          icon: Icon(Icons.save_alt),
+                          label: Text('Save Game'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue[800],
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: handleEnlistUsers,
+                          icon: Icon(Icons.check),
+                          label: Text('Update'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.green[800],
+                          ),
                         ),
                       ],
-                      child: Container(
-                        padding:
-                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.white54),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.filter_alt_outlined,
-                                color: Colors.white, size: 18),
-                            SizedBox(width: 6),
-                            Text(
-                              roleFilterLabel,
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12,
-                              ),
-                            ),
-                            SizedBox(width: 4),
-                            Icon(Icons.arrow_drop_down, color: Colors.white),
-                          ],
-                        ),
-                      ),
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: _toggleSelectAllVisible,
-                      icon: Icon(
-                        allVisibleSelected
-                            ? Icons.deselect_outlined
-                            : Icons.select_all,
-                      ),
-                      label: Text(
-                          allVisibleSelected ? 'Deselect All' : 'Select All'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.teal[700],
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: _addPlayer,
-                      icon: Icon(Icons.person_add),
-                      label: Text('Add Player'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.deepPurple[700],
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                    // NEW SAVE GAME BUTTON
-                    ElevatedButton.icon(
-                      onPressed: _showSaveGameDialog,
-                      icon: Icon(Icons.save_alt),
-                      label: Text('Save Game'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue[800],
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                    SizedBox(width: 4),
-                    ElevatedButton.icon(
-                      onPressed: handleEnlistUsers,
-                      icon: Icon(Icons.check),
-                      label: Text('Update'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.green[800],
-                      ),
                     ),
                   ],
-                ),
-              ],
+                );
+              },
             ),
           ),
           // PLAYERS LIST
