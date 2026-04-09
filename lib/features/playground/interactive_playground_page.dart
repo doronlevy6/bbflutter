@@ -36,6 +36,7 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
   
   // Loading state
   bool _isLoading = false;
+  static const String _kEnlistedPlayersKey = 'enlistedPlayers';
 
   @override
   void initState() {
@@ -131,6 +132,17 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
 
   Future<void> _loadInitialSelection() async {
      SharedPreferences prefs = await SharedPreferences.getInstance();
+     final enlisted = _readEnlistedUsernames(prefs);
+     if (enlisted.isNotEmpty) {
+       setState(() {
+         _selectedPlayerUsernames = enlisted.toSet();
+         _initializeTeams();
+       });
+       await _saveSelection();
+       _sortPlayers();
+       return;
+     }
+
      List<String>? saved = prefs.getStringList('interactive_selection');
      
      if (saved != null && saved.isNotEmpty) {
@@ -145,6 +157,18 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
      _sortPlayers(); // Sort after loading selection
   }
 
+  List<String> _readEnlistedUsernames(SharedPreferences prefs) {
+    final teamId = prefs.getInt('team_id');
+    if (teamId != null) {
+      final teamScoped =
+          prefs.getStringList('${_kEnlistedPlayersKey}_$teamId');
+      if (teamScoped != null && teamScoped.isNotEmpty) {
+        return List<String>.from(teamScoped);
+      }
+    }
+    return List<String>.from(prefs.getStringList(_kEnlistedPlayersKey) ?? <String>[]);
+  }
+
   Future<void> _saveSelection() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     prefs.setStringList('interactive_selection', _selectedPlayerUsernames.toList());
@@ -155,7 +179,7 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
     try {
       // Load from local storage only (as requested)
       SharedPreferences prefs = await SharedPreferences.getInstance();
-      List<String> enlistedUsernames = prefs.getStringList('enlistedPlayers') ?? [];
+      List<String> enlistedUsernames = _readEnlistedUsernames(prefs);
       
       setState(() {
         _selectedPlayerUsernames.clear();
@@ -449,8 +473,10 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   color: Colors.green[50],
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  child: Wrap(
+                    spacing: 10,
+                    runSpacing: 6,
+                    alignment: WrapAlignment.spaceBetween,
                     children: [
                       // Teams Control
                       _buildCompactControl(
