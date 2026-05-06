@@ -1315,8 +1315,11 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Manage Session', style: TextStyle(fontSize: 18)),
+                        Text('Manage Session (${players.length})',
+                            style: TextStyle(fontSize: 18)),
                         Text(gameSessionId,
+                            style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        Text('${players.length} charged players',
                             style: TextStyle(fontSize: 12, color: Colors.grey)),
                       ],
                     ),
@@ -1948,8 +1951,8 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                             ),
                           ],
                           child: Container(
-                            padding:
-                                EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
                               color: Colors.white.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(10),
@@ -1969,7 +1972,8 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                                   ),
                                 ),
                                 SizedBox(width: 4),
-                                Icon(Icons.arrow_drop_down, color: Colors.white),
+                                Icon(Icons.arrow_drop_down,
+                                    color: Colors.white),
                               ],
                             ),
                           ),
@@ -1996,8 +2000,8 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                             ),
                           ],
                           child: Container(
-                            padding:
-                                EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
                               color: Colors.white.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(10),
@@ -2018,7 +2022,8 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                                   ),
                                 ),
                                 SizedBox(width: 4),
-                                Icon(Icons.arrow_drop_down, color: Colors.white),
+                                Icon(Icons.arrow_drop_down,
+                                    color: Colors.white),
                               ],
                             ),
                           ),
@@ -2030,8 +2035,9 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                                 ? Icons.deselect_outlined
                                 : Icons.select_all,
                           ),
-                          label: Text(
-                              allVisibleSelected ? 'Deselect All' : 'Select All'),
+                          label: Text(allVisibleSelected
+                              ? 'Deselect All'
+                              : 'Select All'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.teal[700],
                             foregroundColor: Colors.white,
