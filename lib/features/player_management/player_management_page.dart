@@ -769,6 +769,7 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
         TimeOfDay(hour: 19, minute: 30); // Default: 7:30 PM
     TextEditingController notesController = TextEditingController();
     TextEditingController costController = TextEditingController();
+    TextEditingController hallCostController = TextEditingController();
     bool forceOverrideAll = false;
 
     // Map to store individual cost overrides: { 'username': custom_cost }
@@ -1077,6 +1078,33 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                       ),
                       SizedBox(height: 12),
 
+                      // HALL COST SECTION
+                      Text('Hall Cost',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: Colors.teal[800])),
+                      SizedBox(height: 6),
+                      TextField(
+                        controller: hallCostController,
+                        keyboardType: TextInputType.number,
+                        style: TextStyle(fontSize: 13),
+                        decoration: InputDecoration(
+                          hintText: 'Use hall default',
+                          helperText:
+                              'Only fill this if this specific night cost differently.',
+                          helperStyle:
+                              TextStyle(fontSize: 11, color: Colors.grey[600]),
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 10),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                          prefixIcon: Icon(Icons.home_work, size: 18),
+                        ),
+                      ),
+                      SizedBox(height: 12),
+
                       // COST SECTION
                       Text('Cost',
                           style: TextStyle(
@@ -1229,10 +1257,10 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                     // Call Backend
                     try {
                       int? baseCost = int.tryParse(costController.text);
+                      int? hallCost =
+                          int.tryParse(hallCostController.text.trim());
 
                       // Format date and time
-                      final dateStr =
-                          "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
                       final timeStr = _formatTime(selectedTime);
 
                       final response =
@@ -1242,6 +1270,7 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                         'enlistedPlayers': selectedUsernames,
                         'notes': notesController.text,
                         'base_cost': baseCost,
+                        if (hallCost != null) 'hall_cost': hallCost,
                         'force_base_cost': forceOverrideAll,
                         'specific_player_costs':
                             individualCostOverrides.isNotEmpty

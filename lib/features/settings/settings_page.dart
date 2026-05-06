@@ -16,6 +16,8 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _accessChecked = false;
   bool _didLoadPlayersOnce = false;
   final TextEditingController _costController = TextEditingController();
+  final TextEditingController _hallCostController = TextEditingController();
+  Map<String, dynamic> _hallSettings = {};
   final ApiService apiService = ApiService();
   bool _isLoading = false;
   bool _teamSettingsCached = false;
@@ -30,6 +32,13 @@ class _SettingsPageState extends State<SettingsPage> {
   void initState() {
     super.initState();
     _initializeAccess();
+  }
+
+  @override
+  void dispose() {
+    _costController.dispose();
+    _hallCostController.dispose();
+    super.dispose();
   }
 
   Future<void> _initializeAccess() async {
@@ -52,6 +61,7 @@ class _SettingsPageState extends State<SettingsPage> {
     });
     _loadSettings();
     _loadTeamSettings();
+    _loadHallSettings();
     if (!_didLoadPlayersOnce) {
       _didLoadPlayersOnce = true;
       _loadPlayers();
@@ -92,6 +102,22 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  Future<void> _loadHallSettings() async {
+    try {
+      final response = await apiService.get('finance/hall/summary');
+      if (response['success'] == true) {
+        final settings = Map<String, dynamic>.from(response['settings'] ?? {});
+        setState(() {
+          _hallSettings = settings;
+          _hallCostController.text =
+              (settings['default_game_cost'] ?? 200).toString();
+        });
+      }
+    } catch (e) {
+      print('Error loading hall settings: $e');
+    }
+  }
+
   Future<void> _saveSettings() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('team_type', _selectedSport);
@@ -115,6 +141,38 @@ class _SettingsPageState extends State<SettingsPage> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(response['message']), backgroundColor: Colors.red));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _saveHallCost() async {
+    final cost = int.tryParse(_hallCostController.text.trim()) ?? 200;
+
+    setState(() => _isLoading = true);
+    try {
+      final response = await apiService.putQueued('finance/hall/settings', {
+        'default_game_cost': cost,
+        'tracking_start_date':
+            _hallSettings['tracking_start_date']?.toString() ?? '2025-10-05',
+        'opening_note': _hallSettings['opening_note']?.toString() ?? '',
+      });
+      if (response['success'] == true) {
+        final queued = response['queued'] == true;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(queued
+                ? 'Saved offline. Will sync when online.'
+                : 'Hall cost updated'),
+            backgroundColor: queued ? Colors.orange : Colors.green));
+        if (!queued) await _loadHallSettings();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(response['message'] ?? 'Save failed'),
+            backgroundColor: Colors.red));
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -185,6 +243,34 @@ class _SettingsPageState extends State<SettingsPage> {
                         height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2))
                     : Text('Save Cost'),
+              ),
+            ],
+          ),
+          SizedBox(height: 24),
+          Text('Default Hall Cost (Amount paid to hall per game):'),
+          SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _hallCostController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    prefixIcon: Icon(Icons.home_work),
+                    border: OutlineInputBorder(),
+                    labelText: 'Hall Cost',
+                  ),
+                ),
+              ),
+              SizedBox(width: 12),
+              ElevatedButton(
+                onPressed: _isLoading ? null : _saveHallCost,
+                child: _isLoading
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : Text('Save Hall Cost'),
               ),
             ],
           ),
