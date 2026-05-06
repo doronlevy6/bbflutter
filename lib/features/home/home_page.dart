@@ -8,6 +8,7 @@ import '../../pages/settings.dart';
 import '../../pages/playground_page.dart';
 import '../../pages/interactive_playground_page.dart';
 import '../../pages/financial_summary_page.dart';
+import '../../pages/hall_payments_page.dart';
 import '../../pages/wallet_page.dart';
 import '../../pages/scoreboard_page.dart';
 import '../../pages/draw_page.dart';
@@ -63,6 +64,7 @@ class _HomePageState extends State<HomePage> {
     const adminOnlyPages = <String>{
       'player_management',
       'financial_summary',
+      'hall_payments',
       'settings',
     };
     if (!_isAdmin && adminOnlyPages.contains(pageKey)) {
@@ -89,6 +91,8 @@ class _HomePageState extends State<HomePage> {
         return PlayerManagementPage();
       case 'financial_summary':
         return FinancialSummaryPage();
+      case 'hall_payments':
+        return HallPaymentsPage();
       case 'settings':
         return SettingsPage();
       case 'coach_board':
@@ -121,6 +125,8 @@ class _HomePageState extends State<HomePage> {
         return _isHebrew ? 'ניהול שחקנים' : 'Player Management';
       case 'financial_summary':
         return _isHebrew ? 'סיכום פיננסי' : 'Financial Summary';
+      case 'hall_payments':
+        return 'Hall Payments';
       case 'settings':
         return _isHebrew ? 'הגדרות' : 'Settings';
       case 'coach_board':
@@ -678,6 +684,15 @@ class _HomePageState extends State<HomePage> {
                                 title: _isHebrew
                                     ? 'סיכום פיננסי'
                                     : 'Financial Summary',
+                              ),
+                            if (_isAdmin)
+                              _buildDrawerIcon(
+                                context,
+                                icon: Icons.account_balance,
+                                color: Colors.brown[400],
+                                tooltip: 'Hall Payments',
+                                pageKey: 'hall_payments',
+                                title: 'Hall Payments',
                               ),
                             if (_isAdmin)
                               _buildDrawerIcon(
