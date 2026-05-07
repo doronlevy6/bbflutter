@@ -367,7 +367,6 @@ class _HallPaymentsPageState extends State<HallPaymentsPage> {
         visibleGames.where((game) => game['_is_paid'] != true).toList();
     final balance = _intValue(_summary['balance']);
     final gamesRemaining = _intValue(_summary['gamesRemaining']);
-    final defaultCost = _summary['defaultGameCost'] ?? 200;
     final title = _hasDateRange
         ? 'משחקי אולם בטווח'
         : visibleGames.isEmpty
@@ -423,15 +422,14 @@ class _HallPaymentsPageState extends State<HallPaymentsPage> {
                           color: Color(0xFF3D2B1F),
                         ),
                       ),
-                      Text(
-                        _hasDateRange
-                            ? _selectedRangeText()
-                            : 'מחיר ברירת מחדל: $defaultCost₪ למשחק',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.brown[600],
+                      if (_hasDateRange)
+                        Text(
+                          _selectedRangeText(),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.brown[600],
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ),
