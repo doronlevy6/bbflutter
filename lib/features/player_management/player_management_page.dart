@@ -2174,6 +2174,7 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
   DateTime? _lastLiveRefreshAt;
   static int _paymentSequence = 0;
   static const String _lastPaymentDebugKeyPrefix = 'last_payment_debug_';
+  bool _isSubmittingPayment = false;
   String? _lastPaymentStatus;
   String? _lastPaymentTraceId;
   String? _lastPaymentEmailStatus;
@@ -2401,7 +2402,8 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
   }
 
   Future<void> _addPayment() async {
-    if (amountController.text.isEmpty) return;
+    if (amountController.text.isEmpty || _isSubmittingPayment) return;
+    setState(() => _isSubmittingPayment = true);
     try {
       final paymentPayload = {
         'username': widget.username,
@@ -2441,7 +2443,7 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
           status: queued ? 'queued' : 'success',
           message: queued
               ? 'Saved offline, waiting for sync'
-              : 'Payment saved on server',
+              : 'Payment saved in database',
           queued: queued,
           traceId: traceId,
           emailStatus: emailStatus,
@@ -2449,7 +2451,7 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(queued
                 ? 'Payment saved offline, will sync later'
-                : 'Payment added!$emailHint'),
+                : 'Payment saved in database!$emailHint'),
             backgroundColor: queued ? Colors.orange : Colors.green));
       } else {
         final traceId = response['trace_id']?.toString();
@@ -2474,6 +2476,8 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
       );
       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _isSubmittingPayment = false);
     }
   }
 
@@ -2722,8 +2726,24 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
                               InputDecoration(labelText: 'Notes (Optional)')),
                       SizedBox(height: 8),
                       ElevatedButton(
-                          onPressed: _addPayment,
-                          child: Text('Submit Payment'),
+                          onPressed: _isSubmittingPayment ? null : _addPayment,
+                          child: _isSubmittingPayment
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text('Saving Payment...'),
+                                  ],
+                                )
+                              : Text('Submit Payment'),
                           style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.blue[800])),
                       if (_lastPaymentStatus != null) ...[
