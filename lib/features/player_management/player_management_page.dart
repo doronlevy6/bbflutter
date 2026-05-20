@@ -1326,13 +1326,174 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
       }
 
       final game = response['game'];
-      final players = List<Map<String, dynamic>>.from(response['players']);
+      final sessionPlayers =
+          List<Map<String, dynamic>>.from(response['players']);
+      final notesController =
+          TextEditingController(text: (game['notes'] ?? '').toString());
+      final baseCostController =
+          TextEditingController(text: (game['base_cost'] ?? '').toString());
+      String? addPlayerUsername;
+      final addCostController = TextEditingController();
+      final addNoteController = TextEditingController();
 
       // Show management dialog
       showDialog(
         context: context,
         builder: (context) => StatefulBuilder(
           builder: (context, setState) {
+            final activeUsernames =
+                sessionPlayers.map((p) => p['username'].toString()).toSet();
+            final availablePlayers = players
+                .where((p) => !activeUsernames.contains(p['username']))
+                .map((p) => p['username'].toString())
+                .toList()
+              ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+
+            Future<void> saveGameDetails() async {
+              try {
+                final parsedCost = int.tryParse(baseCostController.text.trim());
+                final updateData = {
+                  'notes': notesController.text.trim(),
+                  if (parsedCost != null) 'base_cost': parsedCost,
+                };
+                final updateRes = await apiService.put(
+                  'finance/game-sessions/$gameSessionId',
+                  updateData,
+                );
+                if (updateRes['success'] == true) {
+                  final updatedGame = updateRes['game'];
+                  if (updatedGame is Map<String, dynamic>) {
+                    game['notes'] = updatedGame['notes'];
+                    game['base_cost'] = updatedGame['base_cost'];
+                  }
+                  await _invalidateTeamSummaryCache();
+                  _showSuccess('Game details updated');
+                  setState(() {});
+                } else {
+                  _showError(updateRes['message'] ?? 'Update failed');
+                }
+              } catch (e) {
+                _showError('Error updating game: $e');
+              }
+            }
+
+            Future<void> addPlayerToSession() async {
+              final username = addPlayerUsername;
+              if (username == null || username.isEmpty) {
+                _showError('Choose a player first');
+                return;
+              }
+
+              try {
+                final parsedCost = int.tryParse(addCostController.text.trim());
+                final addRes = await apiService.post(
+                  'finance/game-sessions/$gameSessionId/players',
+                  {
+                    'username': username,
+                    if (parsedCost != null) 'applied_cost': parsedCost,
+                    'adjustment_note': addNoteController.text.trim(),
+                  },
+                );
+                if (addRes['success'] == true) {
+                  final newPlayer = addRes['player'];
+                  if (newPlayer is Map<String, dynamic>) {
+                    sessionPlayers.add(newPlayer);
+                  }
+                  addPlayerUsername = null;
+                  addCostController.clear();
+                  addNoteController.clear();
+                  await _invalidateTeamSummaryCache();
+                  _showSuccess('Player added to session');
+                  setState(() {});
+                } else {
+                  _showError(addRes['message'] ?? 'Add failed');
+                }
+              } catch (e) {
+                _showError('Error adding player: $e');
+              }
+            }
+
+            Future<void> editSessionPlayer(
+              Map<String, dynamic> player,
+              int index,
+            ) async {
+              final costController = TextEditingController(
+                text: (player['applied_cost'] ?? '').toString(),
+              );
+              final noteController = TextEditingController(
+                text: (player['adjustment_note'] ?? '').toString(),
+              );
+
+              final shouldSave = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: Text('Edit Player Charge'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: costController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Cost',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      SizedBox(height: 12),
+                      TextField(
+                        controller: noteController,
+                        decoration: InputDecoration(
+                          labelText: 'Note',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: Text('Cancel'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: Text('Save'),
+                    ),
+                  ],
+                ),
+              );
+
+              if (shouldSave != true) return;
+
+              try {
+                final parsedCost = int.tryParse(costController.text.trim());
+                if (parsedCost == null) {
+                  _showError('Cost must be a number');
+                  return;
+                }
+
+                final updateRes = await apiService.put(
+                  'finance/game-attendance/${player['attendance_id']}',
+                  {
+                    'applied_cost': parsedCost,
+                    'adjustment_note': noteController.text.trim(),
+                  },
+                );
+                if (updateRes['success'] == true) {
+                  final updatedPlayer = updateRes['player'];
+                  if (updatedPlayer is Map<String, dynamic>) {
+                    sessionPlayers[index] = updatedPlayer;
+                  }
+                  await _invalidateTeamSummaryCache();
+                  _showSuccess('Player charge updated');
+                  setState(() {});
+                } else {
+                  _showError(updateRes['message'] ?? 'Update failed');
+                }
+              } catch (e) {
+                _showError('Error updating player: $e');
+              }
+            }
+
             return AlertDialog(
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16)),
@@ -1344,11 +1505,11 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Manage Session (${players.length})',
+                        Text('Manage Session (${sessionPlayers.length})',
                             style: TextStyle(fontSize: 18)),
                         Text(gameSessionId,
                             style: TextStyle(fontSize: 12, color: Colors.grey)),
-                        Text('${players.length} charged players',
+                        Text('${sessionPlayers.length} charged players',
                             style: TextStyle(fontSize: 12, color: Colors.grey)),
                       ],
                     ),
@@ -1357,89 +1518,232 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
               ),
               content: Container(
                 width: double.maxFinite,
-                child: players.isEmpty
-                    ? Text('No players in this session')
-                    : ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: players.length,
-                        itemBuilder: (ctx, idx) {
-                          final player = players[idx];
-                          return Card(
-                            margin: EdgeInsets.symmetric(vertical: 4),
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: Colors.blue[100],
-                                child: Text(
-                                  player['username'][0].toUpperCase(),
-                                  style: TextStyle(color: Colors.blue[900]),
-                                ),
-                              ),
-                              title: Text(player['username'],
-                                  style:
-                                      TextStyle(fontWeight: FontWeight.bold)),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('Cost: ${player['applied_cost']}₪'),
-                                  if (player['adjustment_note'] != null &&
-                                      player['adjustment_note']
-                                          .toString()
-                                          .isNotEmpty)
-                                    Text('Note: ${player['adjustment_note']}',
-                                        style: TextStyle(
-                                            fontSize: 11,
-                                            fontStyle: FontStyle.italic)),
-                                ],
-                              ),
-                              trailing: IconButton(
-                                icon: Icon(Icons.delete, color: Colors.red),
-                                onPressed: () async {
-                                  // Confirm deletion
-                                  bool? confirm = await showDialog<bool>(
-                                    context: context,
-                                    builder: (ctx) => AlertDialog(
-                                      title: Text('Remove Player?'),
-                                      content: Text(
-                                          'Remove ${player['username']} from this game session? This will cancel their charge.'),
-                                      actions: [
-                                        TextButton(
-                                            onPressed: () =>
-                                                Navigator.pop(ctx, false),
-                                            child: Text('Cancel')),
-                                        ElevatedButton(
-                                          onPressed: () =>
-                                              Navigator.pop(ctx, true),
-                                          style: ElevatedButton.styleFrom(
-                                              backgroundColor: Colors.red),
-                                          child: Text('Remove'),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-
-                                  if (confirm == true) {
-                                    try {
-                                      final deleteRes = await apiService.delete(
-                                          'finance/delete-attendance/${player['attendance_id']}');
-                                      if (deleteRes['success']) {
-                                        _showSuccess(
-                                            'Player removed from session');
-                                        setState(() {
-                                          players.removeAt(idx);
-                                        });
-                                      } else {
-                                        _showError(deleteRes['message']);
-                                      }
-                                    } catch (e) {
-                                      _showError('Error removing player: $e');
-                                    }
-                                  }
-                                },
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Game Details',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue[800])),
+                      SizedBox(height: 8),
+                      Row(
+                        children: [
+                          SizedBox(
+                            width: 110,
+                            child: TextField(
+                              controller: baseCostController,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                labelText: 'Base Cost',
+                                isDense: true,
+                                border: OutlineInputBorder(),
                               ),
                             ),
-                          );
-                        },
+                          ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              controller: notesController,
+                              decoration: InputDecoration(
+                                labelText: 'Notes',
+                                isDense: true,
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          IconButton(
+                            tooltip: 'Save details',
+                            onPressed: saveGameDetails,
+                            icon: Icon(Icons.save, color: Colors.green[700]),
+                          ),
+                        ],
                       ),
+                      SizedBox(height: 16),
+                      Text('Add Player',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green[800])),
+                      SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        value: addPlayerUsername,
+                        decoration: InputDecoration(
+                          labelText: 'Player',
+                          isDense: true,
+                          border: OutlineInputBorder(),
+                        ),
+                        items: availablePlayers
+                            .map(
+                              (username) => DropdownMenuItem(
+                                value: username,
+                                child: Text(username),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: availablePlayers.isEmpty
+                            ? null
+                            : (value) {
+                                setState(() {
+                                  addPlayerUsername = value;
+                                });
+                              },
+                      ),
+                      SizedBox(height: 8),
+                      Row(
+                        children: [
+                          SizedBox(
+                            width: 110,
+                            child: TextField(
+                              controller: addCostController,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                labelText: 'Cost',
+                                isDense: true,
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              controller: addNoteController,
+                              decoration: InputDecoration(
+                                labelText: 'Note',
+                                isDense: true,
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          IconButton(
+                            tooltip: 'Add player',
+                            onPressed: availablePlayers.isEmpty
+                                ? null
+                                : addPlayerToSession,
+                            icon: Icon(Icons.person_add,
+                                color: Colors.green[700]),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 16),
+                      Text('Players',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blueGrey[800])),
+                      SizedBox(height: 8),
+                      if (sessionPlayers.isEmpty)
+                        Text('No players in this session')
+                      else
+                        SizedBox(
+                          height: 320,
+                          child: ListView.builder(
+                            shrinkWrap: true,
+                            itemCount: sessionPlayers.length,
+                            itemBuilder: (ctx, idx) {
+                              final player = sessionPlayers[idx];
+                              return Card(
+                                margin: EdgeInsets.symmetric(vertical: 4),
+                                child: ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundColor: Colors.blue[100],
+                                    child: Text(
+                                      player['username'][0].toUpperCase(),
+                                      style: TextStyle(color: Colors.blue[900]),
+                                    ),
+                                  ),
+                                  title: Text(player['username'],
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold)),
+                                  subtitle: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text('Cost: ${player['applied_cost']}₪'),
+                                      if (player['adjustment_note'] != null &&
+                                          player['adjustment_note']
+                                              .toString()
+                                              .isNotEmpty)
+                                        Text(
+                                            'Note: ${player['adjustment_note']}',
+                                            style: TextStyle(
+                                                fontSize: 11,
+                                                fontStyle: FontStyle.italic)),
+                                    ],
+                                  ),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(Icons.edit,
+                                            color: Colors.blue[700]),
+                                        onPressed: () =>
+                                            editSessionPlayer(player, idx),
+                                      ),
+                                      IconButton(
+                                        icon: Icon(Icons.delete,
+                                            color: Colors.red),
+                                        onPressed: () async {
+                                          bool? confirm =
+                                              await showDialog<bool>(
+                                            context: context,
+                                            builder: (ctx) => AlertDialog(
+                                              title: Text('Remove Player?'),
+                                              content: Text(
+                                                  'Remove ${player['username']} from this game session? This will cancel their charge.'),
+                                              actions: [
+                                                TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(
+                                                            ctx, false),
+                                                    child: Text('Cancel')),
+                                                ElevatedButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(ctx, true),
+                                                  style:
+                                                      ElevatedButton.styleFrom(
+                                                          backgroundColor:
+                                                              Colors.red),
+                                                  child: Text('Remove'),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+
+                                          if (confirm == true) {
+                                            try {
+                                              final deleteRes =
+                                                  await apiService.delete(
+                                                      'finance/delete-attendance/${player['attendance_id']}');
+                                              if (deleteRes['success']) {
+                                                _showSuccess(
+                                                    'Player removed from session');
+                                                await _invalidateTeamSummaryCache();
+                                                setState(() {
+                                                  sessionPlayers.removeAt(idx);
+                                                });
+                                              } else {
+                                                _showError(
+                                                    deleteRes['message']);
+                                              }
+                                            } catch (e) {
+                                              _showError(
+                                                  'Error removing player: $e');
+                                            }
+                                          }
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ),
               actions: [
                 TextButton(
