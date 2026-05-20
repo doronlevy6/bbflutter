@@ -2796,7 +2796,14 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
 
   Future<void> _addPayment() async {
     if (amountController.text.isEmpty || _isSubmittingPayment) return;
-    setState(() => _isSubmittingPayment = true);
+    setState(() {
+      _isSubmittingPayment = true;
+      _lastPaymentStatus = 'saving';
+      _lastPaymentMessage = 'Sending payment to database...';
+      _lastPaymentTraceId = null;
+      _lastPaymentEmailStatus = null;
+      _lastPaymentAtIso = DateTime.now().toIso8601String();
+    });
     try {
       final paymentPayload = {
         'username': widget.username,
@@ -3098,6 +3105,7 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
                       Row(children: [
                         Expanded(
                             child: TextField(
+                                enabled: !_isSubmittingPayment,
                                 controller: amountController,
                                 keyboardType: TextInputType.number,
                                 decoration: InputDecoration(
@@ -3110,10 +3118,12 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
                                 .map((e) => DropdownMenuItem(
                                     value: e, child: Text(e.toUpperCase())))
                                 .toList(),
-                            onChanged: (v) =>
-                                setState(() => paymentMethod = v!))
+                            onChanged: _isSubmittingPayment
+                                ? null
+                                : (v) => setState(() => paymentMethod = v!))
                       ]),
                       TextField(
+                          enabled: !_isSubmittingPayment,
                           controller: notesController,
                           decoration:
                               InputDecoration(labelText: 'Notes (Optional)')),
@@ -3227,7 +3237,9 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
 
   Widget _buildLastPaymentDebugCard() {
     Color color;
-    if (_lastPaymentStatus == 'success') {
+    if (_lastPaymentStatus == 'saving') {
+      color = Colors.blue[700]!;
+    } else if (_lastPaymentStatus == 'success') {
       color = Colors.green[700]!;
     } else if (_lastPaymentStatus == 'queued') {
       color = Colors.orange[700]!;
@@ -3255,15 +3267,34 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Last Payment Attempt: ${_lastPaymentStatus?.toUpperCase()}',
+            _lastPaymentStatus == 'saving'
+                ? 'Payment Save In Progress'
+                : 'Last Payment Attempt: ${_lastPaymentStatus?.toUpperCase()}',
             style: TextStyle(color: color, fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 4),
-          Text(_lastPaymentMessage ?? '', style: TextStyle(fontSize: 12)),
-          SizedBox(height: 2),
-          Text(emailText, style: TextStyle(fontSize: 12)),
-          SizedBox(height: 2),
-          Text(traceText, style: TextStyle(fontSize: 12)),
+          Row(
+            children: [
+              if (_lastPaymentStatus == 'saving') ...[
+                SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 8),
+              ],
+              Expanded(
+                child: Text(_lastPaymentMessage ?? '',
+                    style: TextStyle(fontSize: 12)),
+              ),
+            ],
+          ),
+          if (_lastPaymentStatus != 'saving') ...[
+            SizedBox(height: 2),
+            Text(emailText, style: TextStyle(fontSize: 12)),
+            SizedBox(height: 2),
+            Text(traceText, style: TextStyle(fontSize: 12)),
+          ],
           if (atText.isNotEmpty) ...[
             SizedBox(height: 2),
             Text('Updated: $atText', style: TextStyle(fontSize: 12)),
