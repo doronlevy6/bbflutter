@@ -2573,6 +2573,7 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
   String? _lastPaymentEmailStatus;
   String? _lastPaymentMessage;
   String? _lastPaymentAtIso;
+  bool _isDeletingRecord = false;
 
   // Filter State: 'all', 'games', 'payments'
   String _filter = 'all';
@@ -2795,7 +2796,11 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
   }
 
   Future<void> _addPayment() async {
-    if (amountController.text.isEmpty || _isSubmittingPayment) return;
+    if (amountController.text.isEmpty ||
+        _isSubmittingPayment ||
+        _isDeletingRecord) {
+      return;
+    }
     setState(() {
       _isSubmittingPayment = true;
       _lastPaymentStatus = 'saving';
@@ -2825,11 +2830,6 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
         final emailStatus = response['email_status'] as String?;
         String emailHint = '';
         if (!queued) {
-          await _fetchData(preferCache: false, keepDialogVisible: true);
-        } else {
-          await _loadQueueStats();
-        }
-        if (!queued) {
           if (emailStatus == 'sent') {
             emailHint = ' | confirmation email sent';
           } else if (emailStatus == 'skipped') {
@@ -2848,6 +2848,14 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
           traceId: traceId,
           emailStatus: emailStatus,
         );
+        if (mounted) {
+          setState(() => _isSubmittingPayment = false);
+        }
+        if (!queued) {
+          await _fetchData(preferCache: false, keepDialogVisible: true);
+        } else {
+          await _loadQueueStats();
+        }
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(queued
                 ? 'Payment saved offline, will sync later'
@@ -2903,6 +2911,16 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
     if (confirm != true) return;
 
     try {
+      setState(() {
+        _isDeletingRecord = true;
+        _lastPaymentStatus = 'deleting';
+        _lastPaymentMessage = type == 'payment'
+            ? 'Deleting payment from database...'
+            : 'Deleting game charge from database...';
+        _lastPaymentTraceId = null;
+        _lastPaymentEmailStatus = null;
+        _lastPaymentAtIso = DateTime.now().toIso8601String();
+      });
       String endpoint = type == 'payment'
           ? 'finance/delete-payment/$id'
           : 'finance/delete-attendance/$id';
@@ -2911,6 +2929,19 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
 
       if (response['success'] == true) {
         final queued = response['queued'] == true;
+        await _persistLastPaymentDebug(
+          status: queued ? 'queued' : 'success',
+          message: queued
+              ? 'Delete saved offline, waiting for sync'
+              : type == 'payment'
+                  ? 'Payment deleted in database'
+                  : 'Game charge deleted in database',
+          queued: queued,
+          traceId: response['trace_id']?.toString(),
+        );
+        if (mounted) {
+          setState(() => _isDeletingRecord = false);
+        }
         if (!queued) {
           await _fetchData(preferCache: false, keepDialogVisible: true);
         } else {
@@ -2922,12 +2953,27 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
               backgroundColor: Colors.orange));
         }
       } else {
+        await _persistLastPaymentDebug(
+          status: 'failed',
+          message: response['message']?.toString() ?? 'Delete failed',
+          queued: false,
+          traceId: response['trace_id']?.toString(),
+        );
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(response['message'] ?? 'Failed')));
       }
     } catch (e) {
+      await _persistLastPaymentDebug(
+        status: 'error',
+        message: e.toString(),
+        queued: false,
+      );
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      if (mounted) {
+        setState(() => _isDeletingRecord = false);
+      }
     }
   }
 
@@ -3081,8 +3127,11 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
                                   IconButton(
                                     icon: Icon(Icons.delete_outline,
                                         size: 20, color: Colors.grey),
-                                    onPressed: () =>
-                                        _deleteInfo(item['type'], item['id']),
+                                    onPressed: _isSubmittingPayment ||
+                                            _isDeletingRecord
+                                        ? null
+                                        : () => _deleteInfo(
+                                            item['type'], item['id']),
                                   )
                                 ],
                               ),
@@ -3105,7 +3154,8 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
                       Row(children: [
                         Expanded(
                             child: TextField(
-                                enabled: !_isSubmittingPayment,
+                                enabled:
+                                    !_isSubmittingPayment && !_isDeletingRecord,
                                 controller: amountController,
                                 keyboardType: TextInputType.number,
                                 decoration: InputDecoration(
@@ -3118,18 +3168,20 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
                                 .map((e) => DropdownMenuItem(
                                     value: e, child: Text(e.toUpperCase())))
                                 .toList(),
-                            onChanged: _isSubmittingPayment
+                            onChanged: _isSubmittingPayment || _isDeletingRecord
                                 ? null
                                 : (v) => setState(() => paymentMethod = v!))
                       ]),
                       TextField(
-                          enabled: !_isSubmittingPayment,
+                          enabled: !_isSubmittingPayment && !_isDeletingRecord,
                           controller: notesController,
                           decoration:
                               InputDecoration(labelText: 'Notes (Optional)')),
                       SizedBox(height: 8),
                       ElevatedButton(
-                          onPressed: _isSubmittingPayment ? null : _addPayment,
+                          onPressed: _isSubmittingPayment || _isDeletingRecord
+                              ? null
+                              : _addPayment,
                           child: _isSubmittingPayment
                               ? Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -3237,7 +3289,7 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
 
   Widget _buildLastPaymentDebugCard() {
     Color color;
-    if (_lastPaymentStatus == 'saving') {
+    if (_lastPaymentStatus == 'saving' || _lastPaymentStatus == 'deleting') {
       color = Colors.blue[700]!;
     } else if (_lastPaymentStatus == 'success') {
       color = Colors.green[700]!;
@@ -3269,13 +3321,16 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
           Text(
             _lastPaymentStatus == 'saving'
                 ? 'Payment Save In Progress'
-                : 'Last Payment Attempt: ${_lastPaymentStatus?.toUpperCase()}',
+                : _lastPaymentStatus == 'deleting'
+                    ? 'Delete In Progress'
+                    : 'Last Payment Attempt: ${_lastPaymentStatus?.toUpperCase()}',
             style: TextStyle(color: color, fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 4),
           Row(
             children: [
-              if (_lastPaymentStatus == 'saving') ...[
+              if (_lastPaymentStatus == 'saving' ||
+                  _lastPaymentStatus == 'deleting') ...[
                 SizedBox(
                   width: 14,
                   height: 14,
@@ -3289,7 +3344,8 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
               ),
             ],
           ),
-          if (_lastPaymentStatus != 'saving') ...[
+          if (_lastPaymentStatus != 'saving' &&
+              _lastPaymentStatus != 'deleting') ...[
             SizedBox(height: 2),
             Text(emailText, style: TextStyle(fontSize: 12)),
             SizedBox(height: 2),
