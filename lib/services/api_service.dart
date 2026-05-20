@@ -18,6 +18,7 @@ class ApiService {
 
   // Expose sync status
   Stream<bool> get isSyncing => _offline.isSyncing;
+  static const Duration _requestTimeout = Duration(seconds: 20);
 
   ApiService() {
     // Start background sync for any pending queued actions
@@ -61,18 +62,22 @@ class ApiService {
     http.Response response;
     switch (method.toUpperCase()) {
       case 'PUT':
-        response =
-            await http.put(uri, headers: headers, body: jsonEncode(body ?? {}));
+        response = await http
+            .put(uri, headers: headers, body: jsonEncode(body ?? {}))
+            .timeout(_requestTimeout);
         break;
       case 'DELETE':
-        response = await http.delete(uri, headers: headers);
+        response =
+            await http.delete(uri, headers: headers).timeout(_requestTimeout);
         break;
       case 'POST':
-        response = await http.post(uri,
-            headers: headers, body: jsonEncode(body ?? {}));
+        response = await http
+            .post(uri, headers: headers, body: jsonEncode(body ?? {}))
+            .timeout(_requestTimeout);
         break;
       default:
-        response = await http.get(uri, headers: headers);
+        response =
+            await http.get(uri, headers: headers).timeout(_requestTimeout);
     }
 
     final decoded = response.body.isNotEmpty ? jsonDecode(response.body) : {};
