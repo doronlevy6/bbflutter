@@ -2679,6 +2679,7 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
 
     socket.on('financeSummaryUpdated', (payload) {
       if (!_belongsToMyTeam(payload)) return;
+      _handlePaymentEmailStatus(payload);
       _handleRealtimeUpdate();
     });
 
@@ -2694,6 +2695,53 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
       if (raw is String) return int.tryParse(raw) == teamId;
     }
     return true;
+  }
+
+  void _handlePaymentEmailStatus(dynamic payload) {
+    if (payload is! Map) return;
+    if (payload['source'] != 'payment-email-status') return;
+    if (payload['username']?.toString() != widget.username) return;
+
+    final traceId = payload['trace_id']?.toString();
+    if (_lastPaymentTraceId != null &&
+        traceId != null &&
+        traceId != _lastPaymentTraceId) {
+      return;
+    }
+
+    final emailStatus = payload['email_status']?.toString() ?? 'unknown';
+    final emailReason = payload['email_reason']?.toString();
+    String message;
+
+    if (emailStatus == 'sent') {
+      message = 'Payment saved in database. Confirmation email sent.';
+    } else if (emailStatus == 'skipped') {
+      message = 'Payment saved in database. Confirmation email skipped.';
+      if (emailReason != null && emailReason.isNotEmpty) {
+        message = '$message Reason: $emailReason.';
+      }
+    } else if (emailStatus == 'failed') {
+      message = 'Payment saved in database. Confirmation email failed.';
+    } else {
+      message = 'Payment saved in database. Email status: $emailStatus.';
+    }
+
+    _persistLastPaymentDebug(
+      status: 'success',
+      message: message,
+      queued: false,
+      traceId: traceId,
+      emailStatus: emailStatus,
+    );
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor:
+            emailStatus == 'sent' ? Colors.green : Colors.orange[700],
+      ),
+    );
   }
 
   void _startPeriodicRefresh() {
