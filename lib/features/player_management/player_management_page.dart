@@ -1333,6 +1333,9 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
       final baseCostController =
           TextEditingController(text: (game['base_cost'] ?? '').toString());
       String? addPlayerUsername;
+      bool isAddingPlayer = false;
+      String? addPlayerSaveStatus;
+      bool addPlayerSaved = false;
       final addCostController = TextEditingController();
       final addNoteController = TextEditingController();
 
@@ -1385,6 +1388,11 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
               }
 
               try {
+                setState(() {
+                  isAddingPlayer = true;
+                  addPlayerSaved = false;
+                  addPlayerSaveStatus = 'Saving to database...';
+                });
                 final parsedCost = int.tryParse(addCostController.text.trim());
                 final addRes = await apiService.post(
                   'finance/game-sessions/$gameSessionId/players',
@@ -1403,12 +1411,27 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                   addCostController.clear();
                   addNoteController.clear();
                   await _invalidateTeamSummaryCache();
-                  _showSuccess('Player added to session');
-                  setState(() {});
+                  setState(() {
+                    isAddingPlayer = false;
+                    addPlayerSaved = true;
+                    addPlayerSaveStatus =
+                        '$username saved in database and added to this game';
+                  });
                 } else {
+                  setState(() {
+                    isAddingPlayer = false;
+                    addPlayerSaved = false;
+                    addPlayerSaveStatus =
+                        addRes['message']?.toString() ?? 'Save failed';
+                  });
                   _showError(addRes['message'] ?? 'Add failed');
                 }
               } catch (e) {
+                setState(() {
+                  isAddingPlayer = false;
+                  addPlayerSaved = false;
+                  addPlayerSaveStatus = 'Save failed';
+                });
                 _showError('Error adding player: $e');
               }
             }
@@ -1587,6 +1610,8 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                             : (value) {
                                 setState(() {
                                   addPlayerUsername = value;
+                                  addPlayerSaveStatus = null;
+                                  addPlayerSaved = false;
                                 });
                               },
                       ),
@@ -1619,14 +1644,78 @@ class _PlayerManagementPageState extends State<PlayerManagementPage> {
                           SizedBox(width: 8),
                           IconButton(
                             tooltip: 'Add player',
-                            onPressed: availablePlayers.isEmpty
-                                ? null
-                                : addPlayerToSession,
-                            icon: Icon(Icons.person_add,
-                                color: Colors.green[700]),
+                            onPressed:
+                                availablePlayers.isEmpty || isAddingPlayer
+                                    ? null
+                                    : addPlayerToSession,
+                            icon: isAddingPlayer
+                                ? SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : Icon(Icons.person_add,
+                                    color: Colors.green[700]),
                           ),
                         ],
                       ),
+                      if (addPlayerSaveStatus != null) ...[
+                        SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          padding:
+                              EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: addPlayerSaved
+                                ? Colors.green[50]
+                                : isAddingPlayer
+                                    ? Colors.blue[50]
+                                    : Colors.red[50],
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: addPlayerSaved
+                                  ? Colors.green.shade200
+                                  : isAddingPlayer
+                                      ? Colors.blue.shade200
+                                      : Colors.red.shade200,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                addPlayerSaved
+                                    ? Icons.check_circle
+                                    : isAddingPlayer
+                                        ? Icons.sync
+                                        : Icons.error,
+                                color: addPlayerSaved
+                                    ? Colors.green[700]
+                                    : isAddingPlayer
+                                        ? Colors.blue[700]
+                                        : Colors.red[700],
+                                size: 18,
+                              ),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  addPlayerSaveStatus!,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: addPlayerSaved
+                                        ? Colors.green[800]
+                                        : isAddingPlayer
+                                            ? Colors.blue[800]
+                                            : Colors.red[800],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       SizedBox(height: 16),
                       Text('Players',
                           style: TextStyle(
