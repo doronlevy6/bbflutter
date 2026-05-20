@@ -2836,6 +2836,8 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
             emailHint = ' | no email sent (missing player email / SMTP)';
           } else if (emailStatus == 'failed') {
             emailHint = ' | email send failed';
+          } else if (emailStatus == 'pending') {
+            emailHint = ' | confirmation email is being sent';
           }
         }
         final traceId = response['trace_id']?.toString();
@@ -3323,7 +3325,11 @@ class _PlayerFinancialDialogState extends State<PlayerFinancialDialog> {
                 ? 'Payment Save In Progress'
                 : _lastPaymentStatus == 'deleting'
                     ? 'Delete In Progress'
-                    : 'Last Payment Attempt: ${_lastPaymentStatus?.toUpperCase()}',
+                    : _lastPaymentStatus == 'success'
+                        ? 'Last Wallet Action: SAVED'
+                        : _lastPaymentStatus == 'queued'
+                            ? 'Last Wallet Action: QUEUED'
+                            : 'Last Wallet Action: ${_lastPaymentStatus?.toUpperCase()}',
             style: TextStyle(color: color, fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 4),
