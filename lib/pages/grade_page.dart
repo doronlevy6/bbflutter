@@ -432,7 +432,11 @@ class _GradePageState extends State<GradePage> {
         'param6'
       ];
 
-      for (var player in grading) {
+      // Iterate over the FULL list, not the currently-visible (filtered) one.
+      // Otherwise grades entered for players hidden by the active role filter
+      // (e.g. guests while "hide guests" is on) would be silently dropped from
+      // the submission and never saved.
+      for (var player in _allGrading) {
         bool allGradesNullish = fields
             .every((field) => player[field] == null || player[field] == 0);
         if (allGradesNullish) {
