@@ -17,6 +17,8 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
   int _numberOfTeams = 3;
   int _playersPerTeam = 5;
   bool _isHebrew = false;
+  // Auto-balance mode: 'sum' (existing behavior) or 'coverage' (per-category / role coverage).
+  String _balanceMode = 'sum';
   
   // User specific settings
   bool _isDoron = false;
@@ -70,7 +72,13 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
       _isHebrew = prefs.getBool('is_hebrew') ?? false;
       _numberOfTeams = prefs.getInt('numberOfTeams') ?? 3;
       _playersPerTeam = prefs.getInt('playersPerTeam') ?? 5;
+      _balanceMode = prefs.getString('balanceMode') ?? 'sum';
     });
+  }
+
+  void _setBalanceMode(String mode) {
+    setState(() => _balanceMode = mode);
+    SharedPreferences.getInstance().then((p) => p.setString('balanceMode', mode));
   }
 
   Future<void> _loadPlayers() async {
@@ -306,6 +314,12 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
 
   void _smartBalance() {
     setState(() {
+      // Pull algorithm-placed players back out so pressing again (e.g. after
+      // switching balance mode) re-shuffles them. Manually placed players stay put.
+      for (final team in _teams) {
+        team.removeWhere((p) => !_manuallyPlacedPlayers.contains(p.username));
+      }
+
       // Get pool of selected players NOT currently in any team
       List<Player> pool = _allPlayers.where((p) {
         bool isSelected = _selectedPlayerUsernames.contains(p.username);
@@ -313,8 +327,10 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
         return isSelected && !isInTeam;
       }).toList();
 
-      // Distribute
-      _teams = distributePlayersWithConstraints(_teams, pool, _playersPerTeam);
+      // Distribute using the selected mode. Default 'sum' keeps the existing behavior.
+      _teams = _balanceMode == 'coverage'
+          ? distributePlayersByRoleCoverage(_teams, pool, _playersPerTeam)
+          : distributePlayersWithConstraints(_teams, pool, _playersPerTeam);
       // Note: players added by smart balance are NOT marked as manually placed
     });
   }
@@ -503,6 +519,8 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
                           });
                         },
                       ),
+                      // Balance mode toggle: Sum (existing) vs Coverage (per-category)
+                      _buildModeToggle(),
                       // Fill Button (Magic Wand - Icon Only)
                       Tooltip(
                         message: _isHebrew ? 'מלא אוטומטי' : 'Auto Fill',
@@ -608,6 +626,60 @@ class _InteractivePlaygroundPageState extends State<InteractivePlaygroundPage> {
   }
 
 
+
+  // Two-state toggle for the auto-balance mode. Styled to match the green settings bar.
+  Widget _buildModeToggle() {
+    final bool isCoverage = _balanceMode == 'coverage';
+    final String label = isCoverage
+        ? (_isHebrew ? 'כוחות משלימים' : 'Coverage')
+        : (_isHebrew ? 'סכום' : 'Sum');
+    final String tip = isCoverage
+        ? (_isHebrew
+            ? 'איזון לפי כיסוי תפקידים - כל קטגוריה בנפרד'
+            : 'Balance by role coverage - each category separately')
+        : (_isHebrew
+            ? 'איזון לפי סכום הציונים הכולל'
+            : 'Balance by total score sum');
+    return Tooltip(
+      message: tip,
+      child: GestureDetector(
+        onTap: () => _setBalanceMode(isCoverage ? 'sum' : 'coverage'),
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: isCoverage ? Colors.green[600] : Colors.green[50],
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: Colors.green[300]!),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isCoverage ? Icons.hub : Icons.functions,
+                size: 14,
+                color: isCoverage ? Colors.white : Colors.green[900],
+              ),
+              SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: isCoverage ? Colors.white : Colors.green[900],
+                ),
+              ),
+              SizedBox(width: 2),
+              Icon(
+                Icons.swap_horiz,
+                size: 13,
+                color: isCoverage ? Colors.white70 : Colors.green[400],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildCompactControl({
     required String label,

@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import '../models/player.dart';
 
 double computeTotalRanking(Player p) =>
@@ -119,6 +121,246 @@ List<List<Player>> distributePlayersWithConstraints(
     } else {
       // אין מקום באף קבוצה (לא אמור לקרות אם החישובים נכונים)
       print('Warning: No space left for player ${player.username}');
+    }
+  }
+
+  return newTeams;
+}
+
+/// שחקן שהאלגוריתם הציב (מותר להזיז בשלב הליטוש), עם אינדקס הקבוצה שלו.
+class _PlacedPlayer {
+  final Player player;
+  int teamIndex;
+  _PlacedPlayer(this.player, this.teamIndex);
+}
+
+/// מצב איזון "כוחות משלימים": מחלק את הבריכה (pool) לקבוצות הקיימות תוך איזון
+/// של כל אחת משש הקטגוריות (param1..param6) *בנפרד*, במקום לסכם אותן למספר יחיד.
+///
+/// כך שחקן שמצטיין בקטגוריה אחת (ריבאונדר, רכז, קלע) מנותב לקבוצה שהכי חסרה
+/// באותה קטגוריה, והחולשה שלו בשאר הקטגוריות לא "מורידה" אותו. מטופל באופן
+/// אגנוסטי-לענף: המימדים מטופלים לפי מיקום ולא לפי שם, כך שזה עובד גם לכדורגל.
+///
+/// חתימה זהה ל-[distributePlayersWithConstraints] כדי שניתן יהיה להחליף ביניהן.
+/// מכבד שחקנים שכבר הונחו ידנית בקבוצות (לא מזיז אותם).
+List<List<Player>> distributePlayersByRoleCoverage(
+    List<List<Player>> currentTeams,
+    List<Player> pool,
+    int maxPerTeam) {
+  const int dims = 6;
+  const double wTotal = 0.15; // משקל משני לחוזק הכולל, כדי שקבוצה לא תהיה מאוזנת-אך-חלשה
+
+  double paramAt(Player p, int d) {
+    switch (d) {
+      case 0:
+        return p.param1;
+      case 1:
+        return p.param2;
+      case 2:
+        return p.param3;
+      case 3:
+        return p.param4;
+      case 4:
+        return p.param5;
+      default:
+        return p.param6;
+    }
+  }
+
+  // עותק עמוק, כדי לא לשנות את המקור ולשמר את מי שכבר בקבוצות.
+  final List<List<Player>> newTeams =
+      currentTeams.map((team) => List<Player>.from(team)).toList();
+
+  if (pool.isEmpty || newTeams.isEmpty) return newTeams;
+
+  // איחוד כל השחקנים הרלוונטיים (בריכה + מי שכבר בקבוצות) לצורך נרמול.
+  final List<Player> all = [
+    ...pool,
+    for (final team in newTeams) ...team,
+  ];
+
+  // נרמול min-max לכל מימד לטווח 0..10 (מימד מנוון -> 5.0 נייטרלי).
+  final List<double> minD = List.filled(dims, double.infinity);
+  final List<double> maxD = List.filled(dims, -double.infinity);
+  for (final p in all) {
+    for (int d = 0; d < dims; d++) {
+      final v = paramAt(p, d);
+      if (v < minD[d]) minD[d] = v;
+      if (v > maxD[d]) maxD[d] = v;
+    }
+  }
+  double normalize(double v, int d) {
+    final range = maxD[d] - minD[d];
+    if (range.abs() < 1e-6) return 5.0;
+    final t = ((v - minD[d]) / range).clamp(0.0, 1.0);
+    return t * 10.0;
+  }
+
+  // וקטור מנורמל לכל שחקן (לפי username).
+  final Map<String, List<double>> vec = {};
+  for (final p in all) {
+    vec[p.username] = [
+      for (int d = 0; d < dims; d++) normalize(paramAt(p, d), d)
+    ];
+  }
+
+  // מצברי קבוצות, נזרעים מהחברים הקיימים (כך שהנחות ידניות נכללות בחוסרים).
+  final List<List<double>> teamVec =
+      List.generate(newTeams.length, (_) => List.filled(dims, 0.0));
+  final List<double> teamTotal = List.filled(newTeams.length, 0.0);
+  for (int t = 0; t < newTeams.length; t++) {
+    for (final m in newTeams[t]) {
+      final mv = vec[m.username]!;
+      for (int d = 0; d < dims; d++) {
+        teamVec[t][d] += mv[d];
+        teamTotal[t] += mv[d];
+      }
+    }
+  }
+
+  final rng = Random();
+
+  // מיון הבריכה מהחזק לחלש (לפי סכום מנורמל).
+  double normSum(Player p) => vec[p.username]!.fold(0.0, (a, b) => a + b);
+  final List<Player> sortedPool = List.from(pool)
+    ..sort((a, b) => normSum(b).compareTo(normSum(a)));
+
+  final List<_PlacedPlayer> added = [];
+
+  // --- שלב 1: הצבה חמדנית לפי חוסר פר-קטגוריה ---
+  for (final player in sortedPool) {
+    final pv = vec[player.username]!;
+
+    // חישוב colMax לכל מימד ו-maxTotal על פני כל הקבוצות.
+    final List<double> colMax = List.filled(dims, 0.0);
+    double maxTotal = 0.0;
+    for (int t = 0; t < newTeams.length; t++) {
+      for (int d = 0; d < dims; d++) {
+        if (teamVec[t][d] > colMax[d]) colMax[d] = teamVec[t][d];
+      }
+      if (teamTotal[t] > maxTotal) maxTotal = teamTotal[t];
+    }
+
+    // מגבלת גודל שווה: ממלאים שכבה-אחר-שכבה. מציבים רק בקבוצות שגודלן הנוכחי
+    // שווה למינימום מבין הקבוצות שעדיין יש בהן מקום. כך ההפרש בגדלים לא עולה על 1.
+    int minLen = 1 << 30;
+    for (int t = 0; t < newTeams.length; t++) {
+      if (newTeams[t].length >= maxPerTeam) continue;
+      if (newTeams[t].length < minLen) minLen = newTeams[t].length;
+    }
+
+    int bestTeam = -1;
+    double bestScore = -double.infinity;
+    for (int t = 0; t < newTeams.length; t++) {
+      if (newTeams[t].length >= maxPerTeam) continue;
+      if (newTeams[t].length != minLen) continue;
+
+      double needScore = 0.0;
+      for (int d = 0; d < dims; d++) {
+        final relNeed = colMax[d] - teamVec[t][d]; // >= 0
+        needScore += pv[d] * relNeed;
+      }
+      final score = needScore + wTotal * (maxTotal - teamTotal[t]);
+
+      if (score > bestScore + 1e-9) {
+        bestScore = score;
+        bestTeam = t;
+      } else if (bestTeam != -1 && (score - bestScore).abs() <= 1e-9) {
+        // שובר-שוויון: קבוצה עם חוזק כולל נמוך יותר, ואז אקראי.
+        if (teamTotal[t] < teamTotal[bestTeam] - 1e-9) {
+          bestTeam = t;
+        } else if ((teamTotal[t] - teamTotal[bestTeam]).abs() <= 1e-9 &&
+            rng.nextBool()) {
+          bestTeam = t;
+        }
+      }
+    }
+
+    if (bestTeam == -1) {
+      // אין מקום באף קבוצה - התנהגות זהה למצב הסכום.
+      print('Warning: No space left for player ${player.username}');
+      continue;
+    }
+
+    newTeams[bestTeam].add(player);
+    added.add(_PlacedPlayer(player, bestTeam));
+    for (int d = 0; d < dims; d++) {
+      teamVec[bestTeam][d] += pv[d];
+      teamTotal[bestTeam] += pv[d];
+    }
+  }
+
+  // --- שלב 2: ליטוש (hill-climb חסום) - מחליף רק שחקנים שהאלגוריתם הוסיף ---
+  double fitness() {
+    final n = newTeams.length;
+    if (n == 0) return 0.0;
+    double f = 0.0;
+    for (int d = 0; d < dims; d++) {
+      double mean = 0.0;
+      for (int t = 0; t < n; t++) {
+        mean += teamVec[t][d];
+      }
+      mean /= n;
+      double variance = 0.0;
+      for (int t = 0; t < n; t++) {
+        final diff = teamVec[t][d] - mean;
+        variance += diff * diff;
+      }
+      f += variance / n;
+    }
+    double meanTotal = 0.0;
+    for (int t = 0; t < n; t++) {
+      meanTotal += teamTotal[t];
+    }
+    meanTotal /= n;
+    double varTotal = 0.0;
+    for (int t = 0; t < n; t++) {
+      final diff = teamTotal[t] - meanTotal;
+      varTotal += diff * diff;
+    }
+    return f + wTotal * (varTotal / n);
+  }
+
+  if (added.length >= 2) {
+    final int budget = min(200, added.length * added.length);
+    for (int iter = 0; iter < budget; iter++) {
+      final a = added[rng.nextInt(added.length)];
+      final b = added[rng.nextInt(added.length)];
+      if (a.teamIndex == b.teamIndex) continue;
+
+      final av = vec[a.player.username]!;
+      final bv = vec[b.player.username]!;
+      final aSum = av.fold(0.0, (s, x) => s + x);
+      final bSum = bv.fold(0.0, (s, x) => s + x);
+
+      final before = fitness();
+      // החלפה זמנית במצברים.
+      for (int d = 0; d < dims; d++) {
+        teamVec[a.teamIndex][d] += bv[d] - av[d];
+        teamVec[b.teamIndex][d] += av[d] - bv[d];
+      }
+      teamTotal[a.teamIndex] += bSum - aSum;
+      teamTotal[b.teamIndex] += aSum - bSum;
+      final after = fitness();
+
+      if (after < before - 1e-9) {
+        // מקבלים את ההחלפה - מעדכנים גם את הרשימות ואת האינדקסים.
+        newTeams[a.teamIndex].remove(a.player);
+        newTeams[b.teamIndex].remove(b.player);
+        newTeams[a.teamIndex].add(b.player);
+        newTeams[b.teamIndex].add(a.player);
+        final tmp = a.teamIndex;
+        a.teamIndex = b.teamIndex;
+        b.teamIndex = tmp;
+      } else {
+        // דוחים - מחזירים את המצברים.
+        for (int d = 0; d < dims; d++) {
+          teamVec[a.teamIndex][d] -= bv[d] - av[d];
+          teamVec[b.teamIndex][d] -= av[d] - bv[d];
+        }
+        teamTotal[a.teamIndex] -= bSum - aSum;
+        teamTotal[b.teamIndex] -= aSum - bSum;
+      }
     }
   }
 
